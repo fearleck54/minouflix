@@ -154,7 +154,8 @@ class CategoriesScreen extends StatefulWidget {
   final Creds creds;
   final VoidCallback onDone;
   final VoidCallback? onCancel;     // changement depuis les réglages : Retour garde l'ancienne sélection
-  const CategoriesScreen({super.key, required this.creds, required this.onDone, this.onCancel});
+  final VoidCallback? onEditSource;     // première connexion : revenir corriger l'adresse ou les identifiants
+  const CategoriesScreen({super.key, required this.creds, required this.onDone, this.onCancel, this.onEditSource});
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
 }
@@ -166,11 +167,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   String filter = '';
   int ki = 0;
   bool saving = false;
+  bool slow = false;      // le fournisseur met du temps : on le dit au lieu de tourner en silence
+  Timer? _slowT;
 
   @override
   void initState() {
     super.initState();
+    _slowT = Timer(const Duration(seconds: 10), () {
+      if (mounted && cats.length < 3 && error == null) setState(() => slow = true);
+    });
     load();
+  }
+
+  @override
+  void dispose() {
+    _slowT?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {
@@ -236,6 +248,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   Text(error!, textAlign: TextAlign.center, style: T(16, color: kMut)),
                   const SizedBox(height: 18),
                   PillButton(label: 'Réessayer', primary: true, onTap: load),
+                  if (widget.onEditSource != null) ...[const SizedBox(height: 10), PillButton(label: 'Modifier la connexion', onTap: widget.onEditSource!)],
                   if (widget.onCancel != null) ...[const SizedBox(height: 10), PillButton(label: 'Annuler', onTap: widget.onCancel!)],
                 ]),
               )
@@ -245,6 +258,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       const CircularProgressIndicator(),
                       const SizedBox(height: 16),
                       Text('Lecture des catégories… ${cats.length}/3', style: T(14, color: kMut)),
+                      if (slow) ...[
+                        const SizedBox(height: 10),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: Text('Le fournisseur met du temps à répondre. Sans réponse dans quelques secondes, tu pourras réessayer ou vérifier la source.', textAlign: TextAlign.center, style: T(13, color: kMut, h: 1.4))),
+                      ],
                       if (widget.onCancel == null) ...[const SizedBox(height: 18), const Steps(2)],
                     ]),
                   )

@@ -95,12 +95,137 @@ class Store {
     final have = {for (final x in l) '${x['id']}'};
     var added = false;
     for (final x in incoming) {
-      if (x is! Map || have.contains('${x['id']}') || '${x['id']}'.isEmpty) continue;
+      if (x is! Map || '${x['id']}'.isEmpty) continue;
+      if (have.contains('${x['id']}')) {
+        // source déjà connue : la copie la plus récente (modifiée sur un autre appareil) gagne
+        for (final y in l) {
+          if ('${y['id']}' == '${x['id']}' && ((x['t'] as num?)?.toInt() ?? 0) > ((y['t'] as num?)?.toInt() ?? 0)) {
+            for (final e in x.entries) {
+              y['${e.key}'] = e.value;
+            }
+            added = true;
+          }
+        }
+        continue;
+      }
       l.add({for (final e in x.entries) '${e.key}': e.value});
       added = true;
     }
     if (added) await _saveExtras(l);
     return added;
+  }
+
+  /// identifiants d'une source précise (modification en place)
+  static Future<Creds?> credsOf(String id) async {
+    if (id.isEmpty) return _legacy();
+    for (final x in await _extras()) {
+      if (x['id'] == id) return Creds('${x['server']}', '${x['user']}', '${x['pass']}');
+    }
+    return null;
+  }
+
+  /// modifie une source en place (nom et identifiants) ; la sélection de catégories, la liste et la reprise sont gardées, le catalogue est rechargé
+  static Future<void> updateSource(String id, String name, Creds c) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (id.isEmpty) {
+      await _sec.write(key: 'creds', value: jsonEncode(c.toJson()));
+      await _p.setInt('creds_t', now);
+      if (name.trim().isNotEmpty) await _p.setString('src_name', name.trim());
+    } else {
+      final l = await _extras();
+      for (final x in l) {
+        if (x['id'] == id) {
+          if (name.trim().isNotEmpty) x['name'] = name.trim();
+          x['server'] = c.server;
+          x['user'] = c.user;
+          x['pass'] = c.pass;
+          x['t'] = now;
+        }
+      }
+      await _saveExtras(l);
+    }
+    final p = id.isEmpty ? '' : '${id}_';
+    await _p.remove('${p}cat_t');      // le catalogue sera relu chez le fournisseur
+    if (!kIsWeb) {
+      try {
+        final sup = (await getApplicationSupportDirectory()).path;
+        final d = Directory(id.isEmpty ? '$sup/cats' : '$sup/cats_$id');
+        if (await d.exists()) await d.delete(recursive: true);
+      } catch (_) {}
+    }
+  }
+
+  static int get credsT => _p.getInt('creds_t') ?? 0;
+  static Future<void> setCredsFromCloud(Creds c, int t) async {
+    await _sec.write(key: 'creds', value: jsonEncode(c.toJson()));
+    await _p.setInt('creds_t', t);
+  }
+
+  // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
+  static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub'];
+  static const _setFlagKeys = ['autonext', 'skipauto'];
+  static int get settingsT => _p.getInt('settings_t') ?? 0;
+  static Map<String, dynamic> settingsSnap() => {
+        for (final k in _setStrKeys)
+          if (_p.getString('s_$k') != null) k: _p.getString('s_$k'),
+        for (final k in _setFlagKeys)
+          if (_p.getBool('f_$k') != null) k: _p.getBool('f_$k'),
+      };
+  static Future<void> applySettings(Map<String, dynamic> m, int t) async {
+    for (final k in _setStrKeys) {
+      if (m[k] is String) await _p.setString('s_$k', m[k] as String);
+    }
+    for (final k in _setFlagKeys) {
+      if (m[k] is bool) await _p.setBool('f_$k', m[k] as bool);
+    }
+    await _p.setInt('settings_t', t);
+  }
+
+  // ---- catégories choisies, chaînes masquées et playlists, par source (synchronisées avec le compte)
+  static String _sp(String id) => id.isEmpty ? '' : '${id}_';
+  static int selT(String id) => _p.getInt('${_sp(id)}sel_t') ?? 0;
+  static Future<void> _touchSel() => _p.setInt('${pre}sel_t', DateTime.now().millisecondsSinceEpoch);
+  /// null = cette source n'a pas encore de sélection
+  static Map<String, dynamic>? selSnap(String id) {
+    final p = _sp(id);
+    if (_p.getStringList('${p}sel_${Kind.live.name}') == null && _p.getStringList('${p}sel_${Kind.vod.name}') == null && _p.getStringList('${p}sel_${Kind.series.name}') == null) return null;
+    return {
+      't': selT(id),
+      for (final k in Kind.values) ...{
+        'sel_${k.name}': _p.getStringList('${p}sel_${k.name}') ?? <String>[],
+        'names_${k.name}': _p.getString('${p}names_${k.name}') ?? '{}',
+      },
+      'hid': _p.getStringList('${p}hid') ?? <String>[],
+      'colls': _p.getString('${p}colls') ?? '{}',
+    };
+  }
+
+  static Future<void> applySel(String id, Map<String, dynamic> m) async {
+    final p = _sp(id);
+    for (final k in Kind.values) {
+      final l = m['sel_${k.name}'];
+      if (l is List) await _p.setStringList('${p}sel_${k.name}', [for (final x in l) '$x']);
+      final n = m['names_${k.name}'];
+      if (n is String) await _p.setString('${p}names_${k.name}', n);
+    }
+    final h = m['hid'];
+    if (h is List) await _p.setStringList('${p}hid', [for (final x in h) '$x']);
+    final c = m['colls'];
+    if (c is String && c != '{}') await _p.setString('${p}colls', c);
+    await _p.setInt('${p}sel_t', (m['t'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch);
+    await _p.remove('${p}cat_t');      // catalogue relu avec la sélection reçue
+  }
+
+  // ---- profils (noms seulement) : un nouvel appareil retrouve la liste
+  static List<Map<String, String>> profilsSnap() => [for (final e in profiles().skip(1)) {'id': e.$1, 'name': e.$2}];
+  static Future<bool> restoreProfiles(List<dynamic> incoming) async {
+    if (profiles().length > 1 || incoming.isEmpty) return false;
+    final l = profiles();
+    for (final x in incoming) {
+      if (x is Map && '${x['id']}'.isNotEmpty) l.add(('${x['id']}', '${x['name']}'));
+    }
+    await _saveProfs(l);
+    return true;
   }
 
   static Future<void> _saveExtras(List<Map<String, dynamic>> l) => _sec.write(key: 'sources', value: jsonEncode(l));
@@ -136,7 +261,10 @@ class Store {
     }
     final l = await _extras();
     for (final x in l) {
-      if (x['id'] == id) x['name'] = n;
+      if (x['id'] == id) {
+        x['name'] = n;
+        x['t'] = DateTime.now().millisecondsSinceEpoch;
+      }
     }
     await _saveExtras(l);
   }
@@ -219,18 +347,22 @@ class Store {
       _pending = null;
       final id = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
       final l = await _extras();
-      l.add({'id': id, 'name': name, 'server': c.server, 'user': c.user, 'pass': c.pass});
+      l.add({'id': id, 'name': name, 'server': c.server, 'user': c.user, 'pass': c.pass, 't': DateTime.now().millisecondsSinceEpoch});
       await _saveExtras(l);
       await setActive(id);
       return;
     }
-    if (_active.isEmpty) return _sec.write(key: 'creds', value: jsonEncode(c.toJson()));
+    if (_active.isEmpty) {
+      await _p.setInt('creds_t', DateTime.now().millisecondsSinceEpoch);
+      return _sec.write(key: 'creds', value: jsonEncode(c.toJson()));
+    }
     final l = await _extras();
     for (final x in l) {
       if (x['id'] == _active) {
         x['server'] = c.server;
         x['user'] = c.user;
         x['pass'] = c.pass;
+        x['t'] = DateTime.now().millisecondsSinceEpoch;
       }
     }
     await _saveExtras(l);
@@ -267,7 +399,10 @@ class Store {
 
   /// sélection de catégories (par type) ; null = pas encore choisie
   static List<String>? selection(Kind k) => _p.getStringList('${pre}sel_${k.name}');
-  static Future<void> saveSelection(Kind k, List<String> ids) => _p.setStringList('${pre}sel_${k.name}', ids);
+  static Future<void> saveSelection(Kind k, List<String> ids) async {
+    await _p.setStringList('${pre}sel_${k.name}', ids);
+    await _touchSel();
+  }
   /// noms des catégories choisies (pour les filtres de l'écran) : id → nom
   static Map<String, String> catNames(Kind k) {
     final s = _p.getString('${pre}names_${k.name}');
@@ -278,7 +413,10 @@ class Store {
     }
   }
 
-  static Future<void> saveCatNames(Kind k, Map<String, String> m) => _p.setString('${pre}names_${k.name}', jsonEncode(m));
+  static Future<void> saveCatNames(Kind k, Map<String, String> m) async {
+    await _p.setString('${pre}names_${k.name}', jsonEncode(m));
+    await _touchSel();
+  }
 
   // ---- ma liste (favoris) : clés « vod:123 », « series:45 », « live:678 »
   /// change à chaque ajout / retrait de favori (les étoiles se redessinent toutes seules)
@@ -297,7 +435,10 @@ class Store {
 
   // ---- chaînes masquées (clé du groupe de chaîne), par source
   static Set<String> get hidden => (_p.getStringList('${pre}hid') ?? []).toSet();
-  static Future<void> setHidden(Set<String> s) => _p.setStringList('${pre}hid', s.toList());
+  static Future<void> setHidden(Set<String> s) async {
+    await _p.setStringList('${pre}hid', s.toList());
+    await _touchSel();
+  }
 
   // ---- synchronisation entre appareils (Supabase) : code personnel, dernières modifications
   static bool get syncAsked => _p.getBool('sync_asked') ?? false;
@@ -388,7 +529,10 @@ class Store {
     await _p.setInt('meta_t', DateTime.now().millisecondsSinceEpoch);
   }
   static String str(String k) => _p.getString('s_$k') ?? '';
-  static Future<void> setStr(String k, String v) => _p.setString('s_$k', v);
+  static Future<void> setStr(String k, String v) async {
+    await _p.setString('s_$k', v);
+    if (_setStrKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+  }
 
   /// collections perso : nom → clés « vod:1 », « series:2 »
   static Map<String, List<String>> get colls {
@@ -419,14 +563,18 @@ class Store {
     await saveColls(m);
   }
 
-  static Future<void> saveColls(Map<String, List<String>> m) {
+  static Future<void> saveColls(Map<String, List<String>> m) async {
     final f = _p.setString('${ppre}colls', jsonEncode(m));
     favTick.value++;     // l'accueil affiche aussi les playlists
-    return f;
+    await f;
+    if (_prof.isEmpty) await _touchSel();
   }
 
   static bool flag(String k, [bool def = true]) => _p.getBool('f_$k') ?? def;
-  static Future<void> setFlag(String k, bool v) => _p.setBool('f_$k', v);
+  static Future<void> setFlag(String k, bool v) async {
+    await _p.setBool('f_$k', v);
+    if (_setFlagKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+  }
 
   static bool get hasSelection => Kind.values.any((k) => (selection(k) ?? []).isNotEmpty);
 

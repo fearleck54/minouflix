@@ -14,9 +14,11 @@ class Sync {
     ('favs', 'Ma liste', 'Films et séries mis de côté'),
     ('prog', 'Reprise de lecture', 'Reprendre où tu t\'étais arrêté, sur chaque appareil'),
     ('meta', 'Prénom et sports', 'Ton prénom et tes championnats préférés'),
-    ('creds', 'Identifiants IPTV', 'Chiffrés avec ton mot de passe : jamais lisibles par le serveur'),
+    ('creds', 'Sources IPTV', 'Chiffrées avec ton mot de passe : jamais lisibles par le serveur'),
+    ('settings', 'Réglages', 'Qualité, langues audio et sous-titres, lecture automatique'),
+    ('sel', 'Catégories, playlists et chaînes masquées', 'Pour chaque source, pour tout retrouver sur un nouvel appareil'),
   ];
-  static bool opt(String k) => Store.flag('sync_$k', k != 'creds');
+  static bool opt(String k) => Store.flag('sync_$k', true);
 
   static Future<Map<String, String>?> _h() async {
     final t = await Account.token();
@@ -61,7 +63,8 @@ class Sync {
 
   /// fusionne avec le serveur, puis renvoie le résultat ; true si les données locales ont changé
   static Future<bool> run() async {
-    if (!on || _busy || Store.activeId.isNotEmpty || Store.profId.isNotEmpty) return false;     // la synchro ne concerne que la source et le profil d'origine
+    if (!on || _busy) return false;
+    final origin = Store.activeId.isEmpty && Store.profId.isEmpty;     // liste, reprise et prénom : source et profil d'origine seulement
     _busy = true;
     try {
       final h = await _h();
@@ -70,7 +73,7 @@ class Sync {
       if (d0 == null) return false;
       final d = <String, dynamic>{...d0};
       var changed = false;
-      if (opt('favs')) {
+      if (origin && opt('favs')) {
         final rf = (d['favs_t'] as num?)?.toInt() ?? 0;
         if (rf > Store.favsT) {
           await Store.setFavs([for (final x in (d['favs'] as List? ?? [])) '$x'], rf);
@@ -79,7 +82,7 @@ class Sync {
         d['favs'] = Store.favs.toList();
         d['favs_t'] = Store.favsT;
       }
-      if (opt('meta')) {
+      if (origin && opt('meta')) {
         final rm = (d['meta_t'] as num?)?.toInt() ?? 0;
         if (rm > Store.metaT) {
           var sport = [for (final x in (d['sport'] as List? ?? [])) '$x'];
@@ -91,7 +94,7 @@ class Sync {
         d['sport'] = Store.sportKeys;
         d['meta_t'] = Store.metaT;
       }
-      if (opt('prog')) {
+      if (origin && opt('prog')) {
         final loc = {for (final p in Store.allProg()) p.key: p};
         for (final x in (d['prog'] as List? ?? [])) {
           final p = Prog.fromJson((x as Map).cast<String, dynamic>());
@@ -106,10 +109,24 @@ class Sync {
         d['prog'] = [for (final p in all.take(40)) p.toJson()];
       }
       if (opt('creds')) {
-        final c = await Store.creds();
-        final enc = c == null ? null : await Account.seal(jsonEncode(c.toJson()));
-        if (enc != null) d['creds'] = enc;
-        // sources supplémentaires : chiffrées aussi, ajoutées sur tes autres appareils (jamais supprimées à distance)
+        // source d'origine : la copie la plus récente gagne (modifiable sur n'importe quel appareil)
+        final rt = (d['creds_t'] as num?)?.toInt() ?? 0, rc = d['creds'];
+        if (rc is String && rt > Store.credsT) {
+          final txt = await Account.open(rc);
+          final nc = txt == null ? null : Creds.fromJson(jsonDecode(txt) as Map<String, dynamic>);
+          if (nc != null) {
+            await Store.setCredsFromCloud(nc, rt);
+            changed = true;
+          }
+        } else {
+          final c = await Store.credsOf('');
+          final enc = c == null ? null : await Account.seal(jsonEncode(c.toJson()));
+          if (enc != null) {
+            d['creds'] = enc;
+            d['creds_t'] = Store.credsT;
+          }
+        }
+        // sources supplémentaires : chiffrées aussi, ajoutées ou modifiées sur tes autres appareils (jamais supprimées à distance)
         final encX = await Account.open('${d['sources'] ?? ''}');
         if (encX != null && await Store.mergeSources(jsonDecode(encX) as List)) changed = true;
         final ex = await Store.extraSources();
@@ -118,6 +135,37 @@ class Sync {
           if (sealed != null) d['sources'] = sealed;
         }
       }   // option coupée : on ne touche pas aux identifiants des autres appareils
+      if (opt('settings')) {
+        final rt = (d['settings_t'] as num?)?.toInt() ?? 0;
+        if (rt > Store.settingsT && d['settings'] is Map) {
+          await Store.applySettings((d['settings'] as Map).cast<String, dynamic>(), rt);
+          changed = true;
+        } else if (Store.settingsT > 0) {
+          d['settings'] = Store.settingsSnap();
+          d['settings_t'] = Store.settingsT;
+        }
+      }
+      if (opt('sel')) {
+        final remote = d['sel'] is Map ? (d['sel'] as Map).cast<String, dynamic>() : <String, dynamic>{};
+        final out = <String, dynamic>{...remote};
+        for (final src in await Store.sources()) {
+          final id = src.$1, key = id.isEmpty ? '_' : id;
+          final rm = remote[key];
+          final rt = rm is Map ? (rm['t'] as num?)?.toInt() ?? 0 : 0;
+          if (rm is Map && rt > Store.selT(id)) {
+            await Store.applySel(id, rm.cast<String, dynamic>());
+            changed = true;
+          } else {
+            final snap = Store.selSnap(id);
+            if (snap != null) out[key] = snap;
+          }
+        }
+        d['sel'] = out;
+        if (origin) {
+          if (await Store.restoreProfiles(d['profs'] is List ? d['profs'] as List : const [])) changed = true;
+          d['profs'] = Store.profilsSnap();
+        }
+      }
       await http.post(Uri.parse('$kSbUrl/rest/v1/user_data'), headers: {...h, 'Prefer': 'resolution=merge-duplicates'}, body: jsonEncode({'user_id': Account.uid, 'data': d, 'updated_at': DateTime.now().toUtc().toIso8601String()})).timeout(const Duration(seconds: 12));
       return changed;
     } catch (_) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/services.dart';
 import 'journal.dart';
 import 'store.dart';
 import 'ui.dart';
@@ -8,13 +9,14 @@ import 'xtream.dart';
 Future<void> testSource(BuildContext context) async {
   final c = await Store.creds();
   if (c == null || !context.mounted) return;
+  final fut = _lines(c);
   await showDialog<void>(
     context: context,
     builder: (ctx) => AppDialog(
       backgroundColor: kBg2,
       title: Text('Test de la source', style: T(18, w: 700)),
       content: FutureBuilder<List<(bool, String)>>(
-        future: _lines(c),
+        future: fut,
         builder: (_, s) => !s.hasData
             ? const SizedBox(height: 60, child: Center(child: CircularProgressIndicator()))
             : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -26,7 +28,19 @@ Future<void> testSource(BuildContext context) async {
                   ])),
               ]),
       ),
-      actions: [TextButton(autofocus: true, onPressed: () => Navigator.pop(ctx), child: const Text('Fermer'))],
+      actions: [
+        TextButton(
+          onPressed: () async {
+            final l = await fut;
+            final j = await Journal.read();
+            await Clipboard.setData(ClipboardData(text: 'Diagnostic MinouFlix\n${[for (final x in l) '${x.$1 ? 'OK' : 'PROBLÈME'} : ${x.$2}'].join('\n')}\n\nJournal :\n$j'));
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Diagnostic copié : colle-le dans un message.')));
+          },
+          child: const Text('Copier le diagnostic'),
+        ),
+        TextButton(autofocus: true, onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+      ],
     ),
   );
 }

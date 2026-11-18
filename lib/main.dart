@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'account_ui.dart';
@@ -58,6 +59,8 @@ class MinouFlix extends StatelessWidget {
   Widget _app(String lang) => MaterialApp(
         key: ValueKey(lang),
         locale: Locale(lang),
+        supportedLocales: const [Locale('fr'), Locale('en')],
+        localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
         title: 'MinouFlix',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -132,6 +135,7 @@ class _BootState extends State<Boot> {
       final c = await Sync.cloudCreds();
       if (c != null) {
         await Store.saveCreds(c);
+        await Sync.run();      // nouvel appareil : retrouve aussi les autres sources, les catégories choisies, les réglages et les playlists
         if (mounted) setState(() => creds = c);
       }
     }
@@ -145,7 +149,7 @@ class _BootState extends State<Boot> {
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));
     if (!Store.hasSelection || pick) {
       // la sélection actuelle reste en place tant que la nouvelle n'est pas validée (Retour = annuler)
-      return CategoriesScreen(creds: creds!, onDone: () => setState(() => pick = false), onCancel: Store.hasSelection ? () => setState(() => pick = false) : null);
+      return CategoriesScreen(creds: creds!, onDone: () => setState(() => pick = false), onCancel: Store.hasSelection ? () => setState(() => pick = false) : null, onEditSource: Store.hasSelection ? null : () => setState(() => creds = null));
     }
     return HomeScreen(
       key: ValueKey('h${Store.activeId}_${Store.profId}'),

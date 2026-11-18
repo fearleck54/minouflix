@@ -112,8 +112,16 @@ class _FocusCardState extends State<FocusCard> {
           return KeyEventResult.ignored;
         },
         child: GestureDetector(
-          onTap: widget.onTap,
-          onLongPress: widget.onLong,
+          onTap: () {
+            HapticFeedback.selectionClick();     // iPhone : léger retour au doigt sur chaque appui (sans effet sur la télé)
+            widget.onTap();
+          },
+          onLongPress: widget.onLong == null
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  widget.onLong!();
+                },
           onTapDown: (_) => setState(() => pressed = true),
           onTapUp: (_) => setState(() => pressed = false),
           onTapCancel: () => setState(() => pressed = false),
@@ -552,10 +560,7 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FocusCard(
-        onTap: () {
-          if (primary) HapticFeedback.selectionClick();     // iPhone : petit retour au doigt sur les boutons principaux
-          onTap();
-        },
+        onTap: onTap,
         onLong: onLong,
         radius: height / 2,
         child: Container(

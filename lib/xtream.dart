@@ -122,11 +122,13 @@ class Xtream {
     }
   }
 
-  Future<Uint8List> _bytes(Uri u) async {
+  /// `rapide` : connexion et liste des catégories (l'utilisateur attend devant un écran de chargement) : 25 s et 2 essais au lieu de 90 s et 6
+  Future<Uint8List> _bytes(Uri u, {bool rapide = false}) async {
     Object? last;
-    for (var attempt = 0; attempt < 6; attempt++) {
+    final essais = rapide ? 2 : 6, delai = Duration(seconds: rapide ? 25 : 90);
+    for (var attempt = 0; attempt < essais; attempt++) {
       try {
-        final r = await _gate(() => http.get(u).timeout(const Duration(seconds: 90)));
+        final r = await _gate(() => http.get(u).timeout(delai));
         if (r.statusCode == 429 || r.statusCode == 503 || r.statusCode == 502) {
           _cap = 2;
           _minGap = 400;
@@ -136,6 +138,9 @@ class Xtream {
           await Future<void>.delayed(Duration(seconds: ra > 0 && ra < 60 ? ra : 6 * (attempt + 1)));
           continue;
         }
+        if (r.statusCode == 401 || r.statusCode == 403) throw XtreamError('Identifiants refusés par le fournisseur (code ${r.statusCode}).');
+        if (r.statusCode == 404) throw XtreamError('Adresse introuvable chez le fournisseur (404) : vérifie l\'adresse du serveur.');
+        if (r.statusCode == 509) throw XtreamError('Trop de connexions en même temps sur ton abonnement : ferme la lecture sur un autre appareil.');
         if (r.statusCode != 200) throw XtreamError('Le serveur répond ${r.statusCode}.');
         if (_gapMs > _minGap) _gapMs = _gapMs - 100 < _minGap ? _minGap : _gapMs - 100;
         return r.bodyBytes;
@@ -147,7 +152,8 @@ class Xtream {
       }
     }
     if (last is XtreamError) throw last;
-    throw XtreamError('Serveur injoignable (${last.runtimeType}) : vérifie l\'adresse et ta connexion.');
+    if (last is TimeoutException) throw XtreamError('Le serveur ne répond pas (délai dépassé) : vérifie l\'adresse, ta connexion, et qu\'aucun autre appareil n\'utilise déjà l\'abonnement.');
+    throw XtreamError('Serveur injoignable : vérifie l\'adresse du serveur et ta connexion Internet.');
   }
 
   // ---- source « playlist M3U » : même interface que Xtream, les flux sont des adresses directes (portées par Item.ext)
@@ -165,8 +171,8 @@ class Xtream {
     _plEpg = r.$2;
   }
 
-  Future<dynamic> _get(Uri u) async {
-    final b = await _bytes(u);
+  Future<dynamic> _get(Uri u, {bool rapide = false}) async {
+    final b = await _bytes(u, rapide: rapide);
     try {
       return jsonDecode(utf8.decode(b));
     } catch (_) {
@@ -186,7 +192,7 @@ class Xtream {
       _authed = true;
       return _authMsg = 'playlist M3U';
     }
-    final d = await _get(_api(null));
+    final d = await _get(_api(null), rapide: true);
     if (d is! Map || d['user_info'] is! Map || '${(d['user_info'] as Map)['auth']}' != '1') {
       throw XtreamError('Identifiants refusés par le fournisseur.');
     }
@@ -266,7 +272,7 @@ class Xtream {
       await _loadPl();
       return [for (final g in (_pl![k.index] ?? const <String, List<Item>>{}).keys) Cat(g, g)];
     }
-    final d = await _get(_api(k.catAction));
+    final d = await _get(_api(k.catAction), rapide: true);
     if (d is! List) return [];
     return [for (final x in d) if (x is Map) Cat('${x['category_id']}', '${x['category_name']}'.trim())];
   }
