@@ -205,7 +205,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final c = TextEditingController(text: filter);
     final v = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text('Filtrer les catégories', style: T(18, w: 700)),
         content: AppField(controller: c, autofocus: true, onSubmitted: (v) => Navigator.pop(ctx, v), decoration: InputDecoration(hintText: kStore ? 'Ex. : sport, documentaire…' : 'Ex. : sport, netflix…')),
@@ -452,7 +452,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (b == null || !mounted) return;
     final go = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text('Nouvelle version disponible', style: T(18, w: 700)),
         content: Text('MinouFlix peut être mis à jour (version $b).', style: T(15, color: kMut)),
@@ -1123,18 +1123,15 @@ class HomeTab extends StatelessWidget {
               radius: 18,
               onTap: () => Navigator.push(ctx, softRoute((_) => PlaylistScreen(name: cs[i].key, all: catalog, onOpen: onOpen))),
               onLong: () async {
-                final r = await showModalBottomSheet<String>(
+                final r = await appSheet<String>(
                   context: ctx,
-                  backgroundColor: kBg2,
-                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
                   builder: (_) => SafeArea(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Padding(padding: const EdgeInsets.fromLTRB(22, 18, 22, 6), child: Align(alignment: Alignment.centerLeft, child: Text(cs[i].key, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(17, w: 700)))),
                       ListTile(autofocus: true, leading: const Icon(CupertinoIcons.trash, color: Color(0xFFFF6B7A)), title: const Text('Supprimer la playlist', style: TextStyle(color: Color(0xFFFF6B7A))), subtitle: const Text('Les films et séries ne sont pas supprimés'), onTap: () => Navigator.pop(ctx, 'del')),
                       const SizedBox(height: 8),
                     ]),
-                  ),
-                );
+                  ));
                 if (r == 'del') await Store.deleteColl(cs[i].key);
               },
               child: Container(
@@ -1592,7 +1589,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<bool> _confirm(String title, String body, String action, {bool danger = false}) async {
     final v = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text(title, style: T(18, w: 700)),
         content: Text(body, style: T(15, color: kMut, h: 1.4)),
@@ -1611,7 +1608,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final c = TextEditingController();
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text(titre, style: T(18, w: 700)),
         content: AppField(controller: c, autofocus: true, obscureText: true, keyboardType: TextInputType.number, maxLength: 4, inputFormatters: [FilteringTextInputFormatter.digitsOnly], onSubmitted: (v) => Navigator.pop(ctx, v), decoration: const InputDecoration(hintText: '4 chiffres')),
@@ -1655,7 +1652,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final c = TextEditingController();
     final pw = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text('Code oublié', style: T(18, w: 700)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1689,7 +1686,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final c = TextEditingController();
     final v = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text('Code affiché sur la télé', style: T(18, w: 700)),
         content: AppField(controller: c, autofocus: true, textCapitalization: TextCapitalization.characters, autocorrect: false, onSubmitted: (v) => Navigator.pop(ctx, v), decoration: const InputDecoration(hintText: 'ABCD-EFGH')),
@@ -1840,7 +1837,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       Journal.add('Suppression de compte', e);
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => AppDialog(
           backgroundColor: kBg2,
           title: Text('Compte non supprimé', style: T(18, w: 700)),
           content: Text(e, style: T(15, color: kMut, h: 1.4)),
@@ -2782,18 +2779,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
     ];
-    final i = await showModalBottomSheet<int>(
+    final i = await appSheet<int>(
       context: context,
-      backgroundColor: kBg2,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 10),
           for (var k = 0; k < items.length; k++) ListTile(autofocus: k == 0, leading: Icon(items[k].$1), title: Text(items[k].$2), onTap: () => Navigator.pop(context, k)),
           const SizedBox(height: 8),
         ]),
-      ),
-    );
+      ));
     if (i != null && mounted) items[i].$3();
   }
 
@@ -2970,9 +2964,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final s = t.subtitle.where((x) => x.id != 'auto' && x.id != 'no').toList();
     String lab(String? lang, String? title, int i) => [if (lang != null && lang.isNotEmpty) lang.toUpperCase(), if (title != null && title.isNotEmpty) title].join(' · ').isEmpty ? 'Piste ${i + 1}' : [if (lang != null && lang.isNotEmpty) lang.toUpperCase(), if (title != null && title.isNotEmpty) title].join(' · ');
     final ca = player.state.track.audio, cs = player.state.track.subtitle;
-    showModalBottomSheet<void>(
+    appSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF1A1D26),
       builder: (_) => SafeArea(
         child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 16, 20, 16), children: [
           Text('Audio', style: T(18, w: 750)),
@@ -3009,8 +3002,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               },
             ),
         ]),
-      ),
-    );
+      ));
   }
 
   @override

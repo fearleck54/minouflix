@@ -153,12 +153,10 @@ class SoonCard extends StatelessWidget {
 
 /// ---------- playlists perso (anciennement « collections ») ----------
 Future<void> collectionSheet(BuildContext context, String key) async {
-  await showModalBottomSheet<void>(
+  await appSheet<void>(
     context: context,
-    backgroundColor: kBg2,
     isScrollControlled: true,
-    builder: (_) => _CollSheet(itemKey: key),
-  );
+    builder: (_) => _CollSheet(itemKey: key));
 }
 
 class _CollSheet extends StatefulWidget {
@@ -235,7 +233,7 @@ class _PlaylistState extends State<PlaylistScreen> {
     final c = TextEditingController(text: init);
     return showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => AppDialog(
         backgroundColor: kBg2,
         title: Text(title, style: T(18, w: 700)),
         content: AppField(controller: c, autofocus: true, textCapitalization: TextCapitalization.sentences, onSubmitted: (v) => Navigator.pop(context, v)),
@@ -250,10 +248,8 @@ class _PlaylistState extends State<PlaylistScreen> {
   }
 
   Future<void> _menu() async {
-    final r = await showModalBottomSheet<String>(
+    final r = await appSheet<String>(
       context: context,
-      backgroundColor: kBg2,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 10),
@@ -261,8 +257,7 @@ class _PlaylistState extends State<PlaylistScreen> {
           ListTile(leading: const Icon(CupertinoIcons.trash, color: Color(0xFFFF6B7A)), title: const Text('Supprimer la playlist', style: TextStyle(color: Color(0xFFFF6B7A))), onTap: () => Navigator.pop(context, 'del')),
           const SizedBox(height: 8),
         ]),
-      ),
-    );
+      ));
     if (!mounted || r == null) return;
     if (r == 'name') {
       final n = await _ask('Nom de la playlist', name);
@@ -273,7 +268,7 @@ class _PlaylistState extends State<PlaylistScreen> {
     } else if (r == 'del') {
       final ok = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (_) => AppDialog(
           backgroundColor: kBg2,
           title: Text('Supprimer « $name » ?', style: T(18, w: 700)),
           content: const Text('Seule la playlist est supprimée : les films et séries restent dans ton catalogue.'),

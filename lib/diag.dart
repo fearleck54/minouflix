@@ -10,7 +10,7 @@ Future<void> testSource(BuildContext context) async {
   if (c == null || !context.mounted) return;
   await showDialog<void>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => AppDialog(
       backgroundColor: kBg2,
       title: Text('Test de la source', style: T(18, w: 700)),
       content: FutureBuilder<List<(bool, String)>>(

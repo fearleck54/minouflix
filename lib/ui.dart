@@ -1292,3 +1292,154 @@ class Text extends StatelessWidget {
   @override
   Widget build(BuildContext context) => mat.Text(L.tr(data), style: style, maxLines: maxLines, overflow: overflow, textAlign: textAlign, softWrap: softWrap, semanticsLabel: semanticsLabel, textScaler: textScaler);
 }
+
+// ---------- fenêtres et feuilles façon iOS (verre dépoli, angles larges, boutons séparés par des filets) ----------
+
+/// Boîte de dialogue : panneau en verre dépoli, titre centré, boutons côte à côte (ou empilés au-delà de deux) séparés par un filet fin.
+/// Mêmes paramètres qu'AlertDialog (backgroundColor est ignoré).
+class AppDialog extends StatelessWidget {
+  final Widget? title, content;
+  final List<Widget> actions;
+  final Color? backgroundColor;
+  const AppDialog({super.key, this.title, this.content, this.actions = const [], this.backgroundColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final tv = Device.tv, lite = Perf.lite;
+    final th = Theme.of(context);
+    const line = Color(0x2EFFFFFF);
+    final base = TextButton.styleFrom(
+      foregroundColor: kAccent,
+      minimumSize: Size.fromHeight(tv ? 60 : 52),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      shape: const RoundedRectangleBorder(),
+      textStyle: T(tv ? 19 : 17, w: 500),
+    );
+    final last = base.merge(TextButton.styleFrom(textStyle: T(tv ? 19 : 17, w: 650)));
+    Widget cell(int i) => Theme(
+          data: th.copyWith(textButtonTheme: TextButtonThemeData(style: i == actions.length - 1 ? last : base)),
+          child: actions[i],
+        );
+    Widget bar() {
+      if (actions.isEmpty) return const SizedBox.shrink();
+      if (actions.length <= 2) {
+        return IntrinsicHeight(
+          child: Row(children: [
+            for (var i = 0; i < actions.length; i++) ...[
+              if (i > 0) const VerticalDivider(width: .6, thickness: .6, color: line),
+              Expanded(child: cell(i)),
+            ],
+          ]),
+        );
+      }
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const Divider(height: .6, thickness: .6, color: line),
+          cell(i),
+        ],
+      ]);
+    }
+
+    final panel = DecoratedBox(
+      decoration: BoxDecoration(
+        color: lite ? const Color(0xFF1B1F2A) : const Color(0xD91B1F2A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x1FFFFFFF), width: .6),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Flexible(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(22, tv ? 28 : 24, 22, tv ? 24 : 20),
+            child: Theme(
+              data: th.copyWith(
+                inputDecorationTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: const Color(0x3D767680),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  hintStyle: T(16, color: kMut),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: const BorderSide(color: kAccent, width: 1.2)),
+                ),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (title != null)
+                  DefaultTextStyle.merge(style: T(tv ? 21 : 18, w: 650), textAlign: TextAlign.center, child: title!),
+                if (title != null && content != null) const SizedBox(height: 14),
+                if (content != null) DefaultTextStyle.merge(style: T(tv ? 16 : 14, color: kMut, h: 1.35), textAlign: TextAlign.center, child: content!),
+              ]),
+            ),
+          ),
+        ),
+        if (actions.isNotEmpty) const Divider(height: .6, thickness: .6, color: line),
+        bar(),
+      ]),
+    );
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: EdgeInsets.symmetric(horizontal: tv ? 60 : 34, vertical: 24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: tv ? 580 : 350),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            builder: (_, v, c) => Opacity(opacity: v, child: Transform.scale(scale: .94 + .06 * v, child: c)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: lite ? panel : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28), child: panel),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Feuille du bas : verre dépoli, grand arrondi en haut, petite poignée ; remplace showModalBottomSheet.
+Future<T?> appSheet<T>({required BuildContext context, required WidgetBuilder builder}) => appSheet<T>(
+      context: context,
+      builder: (c) => _SheetFrame(child: builder(c)));
+
+class _SheetFrame extends StatelessWidget {
+  final Widget child;
+  const _SheetFrame({required this.child});
+  @override
+  Widget build(BuildContext context) {
+    final th = Theme.of(context);
+    final panel = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Perf.lite ? const Color(0xFF1B1F2A) : const Color(0xE61B1F2A),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        border: const Border(top: BorderSide(color: Color(0x24FFFFFF), width: .6)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const SizedBox(height: 9),
+        Container(width: 38, height: 5, decoration: BoxDecoration(color: const Color(0x4DFFFFFF), borderRadius: BorderRadius.circular(3))),
+        const SizedBox(height: 6),
+        Flexible(
+          child: Theme(
+            data: th.copyWith(
+              listTileTheme: ListTileThemeData(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                minVerticalPadding: 12,
+                horizontalTitleGap: 14,
+                titleTextStyle: T(16, w: 500),
+                subtitleTextStyle: T(13, color: kMut),
+                iconColor: kText,
+                textColor: kText,
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ]),
+    );
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+      child: Perf.lite ? panel : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28), child: panel),
+    );
+  }
+}

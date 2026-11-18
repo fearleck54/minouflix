@@ -23,7 +23,7 @@ class _ProfilsState extends State<ProfilsScreen> {
     final c = TextEditingController(text: init);
     return showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => AppDialog(
         backgroundColor: kBg2,
         title: Text(title, style: T(18, w: 700)),
         content: AppField(controller: c, autofocus: true, textCapitalization: TextCapitalization.words, onSubmitted: (v) => Navigator.pop(context, v), decoration: InputDecoration(hintText: hint)),
@@ -40,9 +40,8 @@ class _ProfilsState extends State<ProfilsScreen> {
   }
 
   Future<void> _menu(String id, String name) async {
-    final v = await showModalBottomSheet<String>(
+    final v = await appSheet<String>(
       context: context,
-      backgroundColor: kBg2,
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 8), child: Align(alignment: Alignment.centerLeft, child: Text(name, style: T(18, w: 750)))),
@@ -51,8 +50,7 @@ class _ProfilsState extends State<ProfilsScreen> {
           if (id.isNotEmpty) ListTile(leading: const Icon(Icons.delete_outline, color: Color(0xFFFF6B7A)), title: const Text('Supprimer', style: TextStyle(color: Color(0xFFFF6B7A))), onTap: () => Navigator.pop(context, 'del')),
           const SizedBox(height: 8),
         ]),
-      ),
-    );
+      ));
     if (v == null || !mounted) return;
     if (v == 'use') {
       await Store.setProfile(id);
@@ -66,7 +64,7 @@ class _ProfilsState extends State<ProfilsScreen> {
     } else if (v == 'del') {
       final ok = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (_) => AppDialog(
           backgroundColor: kBg2,
           title: Text('Supprimer « $name » ?', style: T(18, w: 700)),
           content: const Text('Sa liste, sa reprise de lecture et ses playlists sont effacées de cet appareil. Le catalogue et les autres profils ne changent pas.'),

@@ -491,11 +491,9 @@ class _SportTabState extends State<SportTab> {
 Future<List<String>?> manageLeagues(BuildContext ctx) async {
   final sel = [...knownLeagues(Store.sportKeys)];
   final order = [...sel, for (final l in leagues) if (!sel.contains(l.k)) l.k];
-  await showModalBottomSheet<void>(
+  await appSheet<void>(
     context: ctx,
-    backgroundColor: const Color(0xFF12151C),
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (c) => StatefulBuilder(
       builder: (c, set) => SafeArea(
         child: SizedBox(
@@ -527,8 +525,7 @@ Future<List<String>?> manageLeagues(BuildContext ctx) async {
           ]),
         ),
       ),
-    ),
-  );
+    ));
   final keys = [for (final k in order) if (sel.contains(k)) k];
   if (keys.isEmpty || keys.join() == Store.sportKeys.join()) return null;
   return keys;

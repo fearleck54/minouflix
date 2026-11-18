@@ -67,6 +67,20 @@ class MinouFlix extends StatelessWidget {
           scaffoldBackgroundColor: const Color(0xFF06080D),
           canvasColor: const Color(0xFF06080D),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8CFF), brightness: Brightness.dark, surface: const Color(0xFF0E121B)),
+          // menus et messages façon iOS : angles larges, fond sombre translucide, filet fin
+          popupMenuTheme: PopupMenuThemeData(
+            color: const Color(0xF01B1F2A),
+            elevation: 8,
+            shadowColor: Colors.black,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0x1FFFFFFF), width: .6)),
+            textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
+          ),
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xF0222736),
+            contentTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
         ),
         // la télécommande Android TV : la touche OK (select) active l'élément sélectionné
         shortcuts: {...WidgetsApp.defaultShortcuts, const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent()},
