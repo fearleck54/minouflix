@@ -2844,7 +2844,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _matchFps() async {
     if (kIsWeb || !Platform.isAndroid || !Device.tv || _fpsFor == _openedAt.millisecondsSinceEpoch) return;
     try {
-      final v = await (player.platform as NativePlayer).getProperty('container-fps');
+      final v = await (player.platform as dynamic).getProperty('container-fps');
       final f = double.tryParse(v) ?? 0;
       if (f < 10 || f > 120) return;
       _fpsFor = _openedAt.millisecondsSinceEpoch;
