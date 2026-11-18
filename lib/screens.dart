@@ -2756,7 +2756,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// direct : garde ~10 min en mémoire pour pouvoir mettre en pause et revenir en arrière
   Future<void> _bufferLive() async {
     try {
-      final n = player.platform as NativePlayer;
+      final dynamic n = player.platform;   // dynamic : la version web (contrôle visuel) n'a pas NativePlayer
       await n.setProperty('cache', 'yes');
       await n.setProperty('demuxer-max-bytes', Perf.lite ? '40MiB' : '200MiB');
       await n.setProperty('demuxer-max-back-bytes', Perf.lite ? '40MiB' : '200MiB');

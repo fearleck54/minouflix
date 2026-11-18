@@ -1399,9 +1399,14 @@ class AppDialog extends StatelessWidget {
 }
 
 /// Feuille du bas : verre dépoli, grand arrondi en haut, petite poignée ; remplace showModalBottomSheet.
-Future<T?> appSheet<T>({required BuildContext context, required WidgetBuilder builder}) => appSheet<T>(
+Future<T?> appSheet<T>({required BuildContext context, required WidgetBuilder builder, bool isScrollControlled = false}) => showModalBottomSheet<T>(
       context: context,
-      builder: (c) => _SheetFrame(child: builder(c)));
+      isScrollControlled: isScrollControlled,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0x99000000),
+      elevation: 0,
+      builder: (c) => _SheetFrame(child: builder(c)),
+    );
 
 class _SheetFrame extends StatelessWidget {
   final Widget child;
