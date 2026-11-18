@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart' show CupertinoPageRoute, CupertinoIcons;
+import 'package:flutter/cupertino.dart' show CupertinoPageRoute, CupertinoIcons, CupertinoActivityIndicator;
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/material.dart' as mat show Text;
@@ -1468,4 +1468,63 @@ class Spinner extends StatelessWidget {
   Widget build(BuildContext context) => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
       ? CupertinoActivityIndicator(radius: 13, color: color ?? kText)
       : CircularProgressIndicator(strokeWidth: strokeWidth, color: color);
+}
+
+
+/// page à grand titre : le titre se réduit au défilement dans une barre de verre (comme Réglages sur iPhone)
+class LargeTitle extends StatefulWidget {
+  final String title;
+  final List<Widget> children;
+  final VoidCallback onBack;
+  final double maxWidth;
+  const LargeTitle({super.key, required this.title, required this.children, required this.onBack, this.maxWidth = 760});
+  @override
+  State<LargeTitle> createState() => _LargeTitleState();
+}
+
+class _LargeTitleState extends State<LargeTitle> {
+  final _c = ScrollController();
+  double _t = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addListener(() {
+      final v = (_c.offset / 44).clamp(0.0, 1.0);
+      if ((v - _t).abs() > .03) setState(() => _t = v);
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pad = MediaQuery.paddingOf(context);
+    final bar = Container(
+      height: pad.top + 62,
+      padding: EdgeInsets.fromLTRB(16 + pad.left, pad.top + 9, 16 + pad.right, 9),
+      decoration: BoxDecoration(color: Color.fromRGBO(6, 8, 13, .72 * _t), border: Border(bottom: BorderSide(color: Color.fromRGBO(255, 255, 255, .10 * _t), width: .6))),
+      child: Row(children: [
+        RoundButton(size: 44, label: 'Retour', onTap: widget.onBack, child: const Ic('back', size: 20)),
+        Expanded(child: Opacity(opacity: _t, child: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: T(17, w: 650)))),
+        const SizedBox(width: 44),
+      ]),
+    );
+    return Stack(children: [
+      Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: widget.maxWidth),
+          child: ListView(controller: _c, padding: EdgeInsets.fromLTRB(pad.left, pad.top + 66, pad.right, 60 + pad.bottom), children: [
+            Padding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 14), child: Opacity(opacity: 1 - _t, child: Text(widget.title, style: T(34, w: 800, ls: -0.04)))),
+            ...widget.children,
+          ]),
+        ),
+      ),
+      Positioned(top: 0, left: 0, right: 0, child: Perf.lite ? bar : ClipRect(child: BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 24 * _t + .01, sigmaY: 24 * _t + .01), child: bar))),
+    ]);
+  }
 }

@@ -570,6 +570,17 @@ class Store {
     if (_prof.isEmpty) await _touchSel();
   }
 
+  // ---- dernières recherches
+  static List<String> recentSearches() => _p.getStringList('recent_q') ?? const [];
+  static Future<void> addRecentSearch(String q) async {
+    final t = q.trim();
+    if (t.length < 2) return;
+    final l = [t, for (final x in recentSearches()) if (x.toLowerCase() != t.toLowerCase()) x];
+    await _p.setStringList('recent_q', l.take(8).toList());
+  }
+
+  static Future<void> clearRecentSearches() => _p.remove('recent_q');
+
   static bool flag(String k, [bool def = true]) => _p.getBool('f_$k') ?? def;
   static Future<void> setFlag(String k, bool v) async {
     await _p.setBool('f_$k', v);

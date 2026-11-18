@@ -16,6 +16,6 @@ jobs:
         with: { channel: stable, cache: true }
       - run: flutter create --platforms=web --org fr.maison --project-name minouflix .
       - run: flutter pub get
-      - run: flutter build web --release --dart-define=DEMO_SERVER=${{ github.event.inputs.demo }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+      - run: flutter build web --release --dart-define=DEMO_SERVER=${{ github.event.inputs.demo }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
       - uses: actions/upload-artifact@v4
         with: { name: minouflix-web, path: build/web }

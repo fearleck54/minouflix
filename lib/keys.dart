@@ -4,3 +4,6 @@ const kTmdbKey = String.fromEnvironment('TMDB_KEY');
 /// Supabase (synchronisation entre appareils) : clé publique, faite pour être dans l'appli
 const kSbUrl = 'https://huvxeflutvbmjryvmyzg.supabase.co';
 const kSbKey = 'sb_publishable_54QMEMeqIcD33p-akCzsdw_V_YJNDLm';
+
+/// sous-titres en ligne (SubDL, clé gratuite) : fournie à la compilation, vide = fonction cachée
+const kSubsKey = String.fromEnvironment('SUBDL_KEY');

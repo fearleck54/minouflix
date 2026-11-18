@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb, ValueListenable;
 import 'package:http/http.dart' as http;
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/cupertino.dart' show CupertinoIcons, CupertinoSlidingSegmentedControl;
 import 'package:flutter/material.dart' hide Text;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -18,6 +18,8 @@ import 'names.dart';
 import 'tmdb.dart';
 import 'sport.dart';
 import 'version.dart';
+import 'keys.dart' show kTmdbKey;
+import 'subs.dart';
 import 'store.dart';
 import 'account_ui.dart';
 import 'sync.dart';
@@ -491,9 +493,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _sync() async {
     final before = Store.sportKeys.join();
+    final p0 = Store.progress();
+    final k0 = p0.isEmpty ? '' : '${p0.first.key}@${p0.first.t}';
     if (await Sync.run() && mounted) {
       if (Store.sportKeys.join() != before) sport = fetchSport(Store.sportKeys);     // sinon inutile de redemander les matchs
       setState(() {});
+      // « Reprendre ici » : quelque chose a été regardé il y a peu sur un autre appareil
+      final p1 = Store.progress();
+      if (!Store.kid && p1.isNotEmpty && '${p1.first.key}@${p1.first.t}' != k0 && DateTime.now().millisecondsSinceEpoch - p1.first.t < 30 * 60 * 1000) {
+        final p = p1.first;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 8),
+          content: Text('Reprendre « ${p.name} » sur cet appareil ?'),
+          action: SnackBarAction(label: 'Reprendre', onPressed: () => resume(p)),
+        ));
+      }
     }
   }
 
@@ -1467,6 +1481,44 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   String q = '';
   final TextEditingController _tc = TextEditingController();
+  Kind? _only;     // filtre : tout / films / séries
+  String _pName = '';     // recherche par acteur ou réalisateur (TMDB) : titres du catalogue où la personne apparaît
+  List<Item> _pItems = const [];
+  Timer? _pT;
+
+  void _askPerson(String text) {
+    _pT?.cancel();
+    final nt = norm(text);
+    if (nt.length < 4 || kTmdbKey.isEmpty) {
+      if (_pItems.isNotEmpty) setState(() => _pItems = const []);
+      return;
+    }
+    _pT = Timer(const Duration(milliseconds: 600), () async {
+      try {
+        final r = await Tmdb.raw('/search/person', {'query': text.trim(), 'language': L.tmdb});
+        final res = r is Map ? r['results'] as List? : null;
+        if (res == null || res.isEmpty) return;
+        final p = res.first as Map;
+        final dep = '${p['known_for_department']}', nm = norm('${p['name']}');
+        if (!['Acting', 'Directing', 'Writing'].contains(dep) || !(nm.contains(nt) || nt.contains(nm))) return;
+        final c = await Tmdb.raw('/person/${p['id']}/combined_credits', {'language': L.tmdb});
+        final names = <String>{};
+        for (final k in ['cast', 'crew']) {
+          for (final e in (c is Map ? c[k] as List? ?? const [] : const [])) {
+            for (final f in ['title', 'original_title', 'name', 'original_name']) {
+              final v = '${(e as Map)[f] ?? ''}';
+              if (v.isNotEmpty) names.add(norm(v));
+            }
+          }
+        }
+        final items = widget.items.where((i) => names.contains(norm(i.title))).take(60).toList();
+        if (mounted && _tc.text == text) setState(() {
+              _pName = '${p['name']}';
+              _pItems = items;
+            });
+      } catch (_) {}
+    });
+  }
 
   void _remote() {
     _tc.text = Connect.query.value;
@@ -1486,6 +1538,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _pT?.cancel();
     Connect.query.removeListener(_remote);
     _tc.dispose();
     super.dispose();
@@ -1494,7 +1547,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final nq = norm(q);
-    final l = nq.length < 2 ? <Item>[] : widget.items.where((i) => norm(i.title).contains(nq)).take(120).toList();
+    final l = nq.length < 2 ? <Item>[] : widget.items.where((i) => (_only == null || i.kind == _only) && norm(i.title).contains(nq)).take(120).toList();
+    final pl = [for (final i in _pItems) if (_only == null || i.kind == _only) i];
     final wide = isWide(context);
     final w = wide ? 170.0 : 118.0;
     final top = MediaQuery.paddingOf(context).top;
@@ -1517,22 +1571,60 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Row(children: [
               const Ic('search', size: 20, color: kMut),
               const SizedBox(width: 10),
-              Expanded(child: AppField(controller: _tc, autofocus: true, style: T(17, w: 500), onChanged: (v) => setState(() => q = v), decoration: InputDecoration(hintText: 'Film, série…', hintStyle: T(17, w: 400, color: kMut), border: InputBorder.none, isCollapsed: true))),
+              Expanded(child: AppField(controller: _tc, autofocus: true, style: T(17, w: 500), onChanged: (v) {
+                setState(() => q = v);
+                _askPerson(v);
+              }, decoration: InputDecoration(hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), border: InputBorder.none, isCollapsed: true))),
             ]),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: SizedBox(
+            width: double.infinity,
+            child: CupertinoSlidingSegmentedControl<int>(
+              groupValue: _only == null ? 0 : (_only == Kind.vod ? 1 : 2),
+              backgroundColor: const Color(0x3D767680),
+              thumbColor: const Color(0xFF5B6475),
+              children: const {0: Padding(padding: EdgeInsets.symmetric(vertical: 7), child: Text('Tout')), 1: Padding(padding: EdgeInsets.symmetric(vertical: 7), child: Text('Films')), 2: Padding(padding: EdgeInsets.symmetric(vertical: 7), child: Text('Séries'))},
+              onValueChanged: (v) => setState(() => _only = v == 1 ? Kind.vod : (v == 2 ? Kind.series : null)),
+            ),
+          ),
+        ),
         Expanded(
-          child: l.isEmpty
+          child: l.isEmpty && pl.isEmpty
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 90),
                   child: widget.items.isEmpty
                       ? const EmptyState(icon: Icons.hourglass_top_rounded, title: 'Catalogue en cours de chargement', sub: 'Les films et séries apparaissent ici dès qu\'ils sont reçus.')
                       : nq.length < 2
-                          ? const EmptyState(icon: Icons.search_rounded, title: 'Que cherches-tu ?', sub: 'Tape au moins 2 lettres d\'un film ou d\'une série.')
+                          ? (Store.recentSearches().isNotEmpty
+                              ? ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 20), children: [
+                                  Row(children: [
+                                    Expanded(child: Text('Dernières recherches', style: T(15, w: 650, color: kMut))),
+                                    TextButton(onPressed: () async {
+                                      await Store.clearRecentSearches();
+                                      if (mounted) setState(() {});
+                                    }, child: const Text('Effacer')),
+                                  ]),
+                                  Wrap(spacing: 8, runSpacing: 8, children: [
+                                    for (final r in Store.recentSearches())
+                                      ActionChip(
+                                        label: Text(r),
+                                        onPressed: () {
+                                          _tc.text = r;
+                                          _tc.selection = TextSelection.collapsed(offset: r.length);
+                                          setState(() => q = r);
+                                          _askPerson(r);
+                                        },
+                                      ),
+                                  ]),
+                                ])
+                              : const EmptyState(icon: Icons.search_rounded, title: 'Que cherches-tu ?', sub: 'Un titre, un acteur ou un réalisateur.'))
                           : EmptyState(icon: Icons.search_off_rounded, title: 'Aucun résultat pour « $q »', sub: 'Vérifie l\'orthographe ou essaie un autre titre.'),
                 )
               : CustomScrollView(slivers: [
-                  for (final sec in [('Films', l.where((i) => i.kind == Kind.vod).toList()), ('Séries', l.where((i) => i.kind == Kind.series).toList())])
+                  for (final sec in [if (pl.isNotEmpty) ('Avec $_pName', pl), ('Films', l.where((i) => i.kind == Kind.vod).toList()), ('Séries', l.where((i) => i.kind == Kind.series).toList())])
                     if (sec.$2.isNotEmpty) ...[
                       SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 10), child: Row(children: [Text(sec.$1, style: T(19, w: 700, ls: -0.02)), const SizedBox(width: 8), Text('${sec.$2.length}', style: T(14, color: kMut))]))),
                       SliverPadding(
@@ -1544,6 +1636,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               item: sec.$2[i],
                               width: w,
                               onTap: () {
+                                Store.addRecentSearch(q);
                                 Navigator.pop(context);
                                 widget.onOpen(sec.$2[i]);
                               },
@@ -2153,24 +2246,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               builder: (ctx, _, __) {
                 final pad = MediaQuery.paddingOf(ctx);
                 return Scaffold(
-                  body: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: FocusTraversalGroup(
-                        policy: ReadingOrderTraversalPolicy(),
-                        child: ListView(padding: EdgeInsets.fromLTRB(pad.left, 0, pad.right, 60 + pad.bottom), children: [
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(16, pad.top + 8, 16, 14),
-                            child: Row(children: [
-                              RoundButton(size: 44, label: 'Retour', onTap: () => Navigator.pop(ctx), child: const Ic('back', size: 20)),
-                              const SizedBox(width: 14),
-                              Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(26, w: 750, ls: -0.035))),
-                            ]),
-                          ),
-                          ...body(),
-                        ]),
-                      ),
-                    ),
+                  body: FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: LargeTitle(title: title, onBack: () => Navigator.pop(ctx), children: body()),
                   ),
                 );
               },
@@ -2977,6 +3055,66 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  /// fin d'épisode : le suivant démarre après 5 s, sauf si on annule
+  Future<void> _autoNext() async {
+    var annule = false;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 5),
+      content: const Text('Épisode suivant dans 5 s'),
+      action: SnackBarAction(label: 'Annuler', onPressed: () => annule = true),
+    ));
+    await Future<void>.delayed(const Duration(seconds: 5));
+    if (!annule && mounted) _playNext();
+  }
+
+  /// sous-titres trouvés en ligne : liste, puis téléchargement et activation
+  Future<void> _onlineSubs() async {
+    final f = await widget.tmdb;
+    final nums = RegExp(r'[Ss](\d{1,2})\s*[Ee](\d{1,3})').firstMatch(widget.title);
+    final tv = widget.prog?.kind == 'ep';
+    List<SubHit> hits;
+    try {
+      hits = await Subs.search(
+        title: f?.title.isNotEmpty == true ? f!.title : widget.title,
+        tmdbId: f?.tmdbId ?? 0,
+        lang: L.en ? 'EN' : 'FR',
+        tv: tv,
+        season: nums == null ? 0 : int.parse(nums.group(1)!),
+        episode: nums == null ? 0 : int.parse(nums.group(2)!),
+      );
+    } catch (e) {
+      Journal.add('Sous-titres en ligne', e);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recherche impossible pour le moment.')));
+      return;
+    }
+    if (!mounted) return;
+    if (hits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucun sous-titre trouvé pour ce titre.')));
+      return;
+    }
+    final h = await appSheet<SubHit>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 16, 20, 16), children: [
+          Text('Sous-titres trouvés', style: T(18, w: 750)),
+          for (final x in hits.take(12))
+            ListTile(contentPadding: EdgeInsets.zero, title: Text(x.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(14.5, w: 600)), subtitle: Text(x.lang), onTap: () => Navigator.pop(context, x)),
+        ]),
+      ),
+    );
+    if (h == null || !mounted) return;
+    try {
+      final txt = await Subs.fetch(h);
+      if (txt == null) throw Exception('fichier introuvable');
+      await player.setSubtitleTrack(SubtitleTrack.data(txt, title: h.name, language: h.lang.toLowerCase()));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sous-titres chargés.')));
+    } catch (e) {
+      Journal.add('Sous-titres en ligne', e);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Téléchargement impossible.')));
+    }
+  }
+
   void _tracks() {
     final t = player.state.tracks;
     final a = t.audio.where((x) => x.id != 'auto' && x.id != 'no').toList();
@@ -3020,6 +3158,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 Navigator.pop(context);
               },
             ),
+          if (Subs.available && widget.zap.isEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(CupertinoIcons.search, color: kAccent),
+              title: Text('Chercher des sous-titres en ligne', style: T(15.5, w: 600, color: kAccent)),
+              onTap: () {
+                Navigator.pop(context);
+                _onlineSubs();
+              },
+            ),
         ]),
       ));
   }
@@ -3060,7 +3208,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     unawaited(_loadSegs());
     _vp = player.stream.videoParams.listen((_) => _matchFps());
     _open(widget.url);
-    if (widget.next.isNotEmpty && Store.flag('autonext')) _done = player.stream.completed.listen((c) { if (c) _playNext(); });
+    if (widget.next.isNotEmpty && Store.flag('autonext')) _done = player.stream.completed.listen((c) { if (c) _autoNext(); });
     final p = _prog;
     if (p != null) {
       if (p.pos > 20000) {

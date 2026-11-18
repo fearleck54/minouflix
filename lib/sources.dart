@@ -105,19 +105,14 @@ class _SourcesState extends State<SourcesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 40), children: [
-                Row(children: [
-                  RoundButton(size: 44, onTap: () => Navigator.pop(context), child: const Ic('back', size: 20)),
-                  const SizedBox(width: 14),
-                  Text('Sources IPTV', style: T(26, w: 800, ls: -0.03)),
-                ]),
-                const SizedBox(height: 10),
-                Text('Une seule source est utilisée à la fois. Chaque source garde son catalogue, sa liste et sa reprise.', style: T(14, color: kMut, h: 1.4)),
-                const SizedBox(height: 18),
+        body: LargeTitle(
+          title: 'Sources IPTV',
+          onBack: () => Navigator.pop(context),
+          children: [
+            Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 14), child: Text('Une seule source est utilisée à la fois. Chaque source garde son catalogue, sa liste et sa reprise.', style: T(14, color: kMut, h: 1.4))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 for (final s in list)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -142,7 +137,7 @@ class _SourcesState extends State<SourcesScreen> {
                 PillButton(label: 'Tester la source utilisée', height: 54, onTap: () => testSource(context)),
               ]),
             ),
-          ),
+          ],
         ),
       );
 }
@@ -218,19 +213,15 @@ class _SourceEditState extends State<SourceEditScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 40), children: [
-                Row(children: [
-                  RoundButton(size: 44, onTap: () => Navigator.pop(context, false), child: const Ic('back', size: 20)),
-                  const SizedBox(width: 14),
-                  Expanded(child: Text('Modifier la source', style: T(26, w: 800, ls: -0.03))),
-                ]),
-                const SizedBox(height: 10),
-                Text('Tes catégories choisies, ta liste et ta reprise sont gardées. Les nouvelles valeurs sont testées avant d\'être enregistrées.', style: T(14, color: kMut, h: 1.4)),
-                const SizedBox(height: 20),
+        body: LargeTitle(
+          title: 'Modifier la source',
+          maxWidth: 560,
+          onBack: () => Navigator.pop(context, false),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Padding(padding: const EdgeInsets.only(bottom: 18), child: Text('Tes catégories choisies, ta liste et ta reprise sont gardées. Les nouvelles valeurs sont testées avant d\'être enregistrées.', style: T(14, color: kMut, h: 1.4))),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: CupertinoSlidingSegmentedControl<bool>(
@@ -255,7 +246,7 @@ class _SourceEditState extends State<SourceEditScreen> {
                 PillButton(label: busy ? 'Test en cours…' : 'Tester et enregistrer', primary: true, height: 54, onTap: _save),
               ]),
             ),
-          ),
+          ],
         ),
       );
 }

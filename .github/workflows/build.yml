@@ -113,7 +113,7 @@ jobs:
           echo "$KS" | base64 -d > ~/.android/debug.keystore
         env:
           KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-      - run: flutter build apk --release --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+      - run: flutter build apk --release --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
       - uses: actions/upload-artifact@v4
         with: { name: minouflix-apk, path: build/app/outputs/flutter-apk/app-release.apk }
 
@@ -138,7 +138,7 @@ jobs:
           sed -i '' 's/^  android: true/  android: false/' pubspec.yaml
           dart run flutter_launcher_icons
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName MinouFlix" ios/Runner/Info.plist
-      - run: flutter build ios --release --no-codesign --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+      - run: flutter build ios --release --no-codesign --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
       - name: IPA non signée (SideStore la signe à l'installation)
         run: |
           mkdir -p Payload && cp -R build/ios/iphoneos/Runner.app Payload/
