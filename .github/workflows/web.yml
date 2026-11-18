@@ -1,0 +1,21 @@
+name: Contrôle visuel (web)
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "adresse du serveur de démonstration"
+        default: "http://localhost:8799"
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter create --platforms=web --org fr.maison --project-name minouflix .
+      - run: flutter pub get
+      - run: flutter build web --release --dart-define=DEMO_SERVER=${{ github.event.inputs.demo }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }}
+      - uses: actions/upload-artifact@v4
+        with: { name: minouflix-web, path: build/web }

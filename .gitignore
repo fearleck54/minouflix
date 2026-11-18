@@ -1,0 +1,10 @@
+# plateformes générées par la CI (flutter create) : rien d'autre que lib/ et pubspec n'est versionné
+/android/
+/ios/
+/build/
+/.dart_tool/
+/.flutter-plugins*
+/.packages
+pubspec.lock
+*.iml
+.idea/
