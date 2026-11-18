@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageRoute, CupertinoIcons;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/material.dart' as mat show Text;
 import 'l10n.dart';
@@ -33,8 +34,11 @@ const kEdge = Color(0x1FFFFFFF);
 bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 700;
 
 /// style de texte Inter (police variable : graisse exacte)
+/// police : celle du système sur iPhone (SF Pro), Inter ailleurs
+final String? kFont = (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ? null : 'Inter';
+
 TextStyle T(double size, {double w = 400, Color color = kText, double ls = 0, double? h}) => TextStyle(
-      fontFamily: 'Inter',
+      fontFamily: kFont,
       fontSize: size,
       fontWeight: FontWeight.values[((w / 100).round() - 1).clamp(0, 8)],
       fontVariations: [ui.FontVariation('wght', w)],
@@ -1452,4 +1456,16 @@ class _SheetFrame extends StatelessWidget {
       child: Perf.lite ? panel : BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28), child: panel),
     );
   }
+}
+
+
+/// indicateur de chargement : roue iOS sur iPhone, cercle Material ailleurs
+class Spinner extends StatelessWidget {
+  final double strokeWidth;
+  final Color? color;
+  const Spinner({super.key, this.strokeWidth = 4, this.color});
+  @override
+  Widget build(BuildContext context) => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+      ? CupertinoActivityIndicator(radius: 13, color: color ?? kText)
+      : CircularProgressIndicator(strokeWidth: strokeWidth, color: color);
 }

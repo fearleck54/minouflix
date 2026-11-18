@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xFFFF6B7A)))),
       const SizedBox(height: 22),
-      FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Se connecter'))),
+      FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: Spinner(strokeWidth: 2)) : const Text('Se connecter'))),
     ];
     const intro = 'Connecte ton abonnement. Les identifiants restent chiffrés sur cet appareil.';
     if (!widget.adding) {
@@ -198,6 +198,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         picked[k] = cur != null && cur.isNotEmpty ? {for (final c in l) if (cur.contains(c.id)) c.id} : {for (final c in l) if (suggested(k, c.name)) c.id};
         if (mounted) setState(() {});
       }
+      // première connexion : on ne fait pas choisir, les catégories suggérées sont prises (modifiables ensuite dans Réglages › Catégories)
+      if (mounted && widget.onEditSource != null && picked.values.fold<int>(0, (a, s) => a + s.length) > 0) await save();
     } catch (e) {
       if (mounted) setState(() => error = e is XtreamError ? e.message : 'Connexion impossible : vérifie ta connexion Internet.');
     }
@@ -255,7 +257,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             : !ready
                 ? Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const CircularProgressIndicator(),
+                      const Spinner(),
                       const SizedBox(height: 16),
                       Text('Lecture des catégories… ${cats.length}/3', style: T(14, color: kMut)),
                       if (slow) ...[
@@ -1953,7 +1955,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!kid) _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF453A), 'Championnats', value: sports.isEmpty ? 'Aucun' : '${knownLeagues(Store.sportKeys).length}', chevron: true, onTap: _sport),
         ValueListenableBuilder<(int, int)>(
           valueListenable: widget.progress,
-          builder: (_, p, __) => _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Actualiser', value: p.$2 > 0 ? '${p.$1}/${p.$2}' : _ago(Store.catT), trailing: p.$2 > 0 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : null, onTap: () {
+          builder: (_, p, __) => _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Actualiser', value: p.$2 > 0 ? '${p.$1}/${p.$2}' : _ago(Store.catT), trailing: p.$2 > 0 ? const SizedBox(width: 18, height: 18, child: Spinner(strokeWidth: 2)) : null, onTap: () {
             if (p.$2 > 0) return;
             widget.onRefresh();
             _snack('Actualisation lancée : tu peux continuer à naviguer.');

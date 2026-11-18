@@ -118,7 +118,7 @@ class _AuthState extends State<AuthScreen> {
           AppField(controller: pw, obscureText: true, onSubmitted: (_) => go(), decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder())),
           if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: msg!.startsWith('Compte créé') ? const Color(0xFF30D158) : const Color(0xFFFF6B7A)))),
           const SizedBox(height: 22),
-          FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(create ? 'Créer mon compte' : 'Se connecter'))),
+          FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: Spinner(strokeWidth: 2)) : Text(create ? 'Créer mon compte' : 'Se connecter'))),
           const SizedBox(height: 10),
           TextButton(onPressed: () => setState(() {
                 create = !create;
@@ -204,7 +204,7 @@ class LoadingScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(width: 34, height: 34, child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white70)),
+              const SizedBox(width: 34, height: 34, child: Spinner(strokeWidth: 3, color: Colors.white70)),
               const SizedBox(height: 22),
               Text(status, textAlign: TextAlign.center, style: T(16, w: 600, color: kMut, h: 1.4)),
             ]),

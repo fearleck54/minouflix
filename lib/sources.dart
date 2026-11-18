@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoSlidingSegmentedControl;
 import 'package:flutter/material.dart' hide Text;
 import 'diag.dart';
 import 'xtream.dart';
@@ -129,7 +130,7 @@ class _SourcesState extends State<SourcesScreen> {
                         child: Row(children: [
                           const Icon(Icons.dns_rounded, color: kAccent),
                           const SizedBox(width: 14),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(16.5, w: 650)), if (s.$1 == Store.activeId) Text('Source utilisée', style: T(13, color: kAccent))])),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(s.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(16.5, w: 650)), if (s.$1 == Store.activeId) Text('Source utilisée', style: T(13, color: kAccent)), _SrcStatus(id: s.$1)])),
                           Icon(s.$1 == Store.activeId ? Icons.check_circle : Icons.chevron_right_rounded, color: s.$1 == Store.activeId ? kAccent : kMut),
                         ]),
                       ),
@@ -163,7 +164,7 @@ class _SourceEditState extends State<SourceEditScreen> {
   late final pass = TextEditingController(text: widget.creds.pass);
   bool busy = false, hide = true;
   String? error;
-  bool get m3u => widget.creds.isM3u;
+  late bool m3u = widget.creds.isM3u;     // le type de la source peut changer en place : abonnement (Xtream) ou playlist M3U
 
   Creds get _creds => m3u ? Creds.m3u(server.text.trim()) : Creds(server.text.trim(), user.text.trim(), pass.text);
 
@@ -230,6 +231,19 @@ class _SourceEditState extends State<SourceEditScreen> {
                 const SizedBox(height: 10),
                 Text('Tes catégories choisies, ta liste et ta reprise sont gardées. Les nouvelles valeurs sont testées avant d\'être enregistrées.', style: T(14, color: kMut, h: 1.4)),
                 const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: CupertinoSlidingSegmentedControl<bool>(
+                    groupValue: m3u,
+                    backgroundColor: const Color(0x3D767680),
+                    thumbColor: const Color(0xFF5B6475),
+                    children: const {false: Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Abonnement (Xtream)')), true: Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Playlist M3U'))},
+                    onValueChanged: (v) => setState(() {
+                      m3u = v ?? m3u;
+                      error = null;
+                    }),
+                  ),
+                ),
                 _field('Nom de la source', name),
                 _field(m3u ? 'Adresse de la playlist (http://…)' : 'Adresse du serveur (http://…)', server, type: TextInputType.url),
                 if (!m3u) ...[_field('Identifiant', user), _field('Mot de passe', pass, secret: true)],
@@ -243,5 +257,53 @@ class _SourceEditState extends State<SourceEditScreen> {
             ),
           ),
         ),
+      );
+}
+
+
+/// état de l'abonnement d'une source, relu chez le fournisseur : actif ou non, date de fin, écrans utilisés
+class _SrcStatus extends StatefulWidget {
+  final String id;
+  const _SrcStatus({required this.id});
+  @override
+  State<_SrcStatus> createState() => _SrcStatusState();
+}
+
+class _SrcStatusState extends State<_SrcStatus> {
+  late final Future<(bool, String)> f = _load();
+
+  Future<(bool, String)> _load() async {
+    final c = await Store.credsOf(widget.id);
+    if (c == null) return (false, '');
+    if (c.isM3u) return (true, 'Playlist M3U');
+    try {
+      final x = Xtream(c);
+      final m = await x.authenticate().timeout(const Duration(seconds: 10));
+      final st = x.info['status'] ?? '';
+      final ok = st.isEmpty || st.toLowerCase() == 'active';
+      final mx = int.tryParse(x.info['max'] ?? ''), ac = int.tryParse(x.info['active'] ?? '');
+      final fin = m.replaceFirst('abonnement ', '').replaceFirstMapped(RegExp(r'(\d{4})-(\d{2})-(\d{2})'), (g) => '${g[3]}/${g[2]}/${g[1]}');
+      return (ok, '${ok ? 'Actif' : 'Compte « $st »'} · $fin${mx != null ? ' · ${ac ?? 0}/$mx écran${mx > 1 ? 's' : ''}' : ''}');
+    } catch (e) {
+      return (false, 'Injoignable : ${'$e'.replaceFirst('XtreamError: ', '').split('.').first}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<(bool, String)>(
+        future: f,
+        builder: (_, s) {
+          if (!s.hasData) return Padding(padding: const EdgeInsets.only(top: 3), child: Text('Vérification…', style: T(12.5, color: kMut)));
+          final (ok, t) = s.data!;
+          if (t.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Row(children: [
+              Container(width: 7, height: 7, decoration: BoxDecoration(color: ok ? const Color(0xFF30D158) : const Color(0xFFFF6B7A), shape: BoxShape.circle)),
+              const SizedBox(width: 7),
+              Flexible(child: Text(t, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(12.5, color: kMut, h: 1.3))),
+            ]),
+          );
+        },
       );
 }

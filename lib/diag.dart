@@ -18,7 +18,7 @@ Future<void> testSource(BuildContext context) async {
       content: FutureBuilder<List<(bool, String)>>(
         future: fut,
         builder: (_, s) => !s.hasData
-            ? const SizedBox(height: 60, child: Center(child: CircularProgressIndicator()))
+            ? const SizedBox(height: 60, child: Center(child: Spinner()))
             : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                 for (final l in s.data!)
                   Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

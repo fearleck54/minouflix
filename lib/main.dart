@@ -66,7 +66,7 @@ class MinouFlix extends StatelessWidget {
         theme: ThemeData(
           brightness: Brightness.dark,
           useMaterial3: true,
-          fontFamily: 'Inter',
+          fontFamily: kFont,
           scaffoldBackgroundColor: const Color(0xFF06080D),
           canvasColor: const Color(0xFF06080D),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8CFF), brightness: Brightness.dark, surface: const Color(0xFF0E121B)),
@@ -76,16 +76,18 @@ class MinouFlix extends StatelessWidget {
             elevation: 8,
             shadowColor: Colors.black,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0x1FFFFFFF), width: .6)),
-            textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
+            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
           ),
           snackBarTheme: SnackBarThemeData(
             behavior: SnackBarBehavior.floating,
             backgroundColor: const Color(0xF0222736),
-            contentTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
+            contentTextStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFFEEF2F8)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
         // la télécommande Android TV : la touche OK (select) active l'élément sélectionné
+        // taille de texte du système respectée, bornée pour ne rien casser
+        builder: (ctx, child) => MediaQuery(data: MediaQuery.of(ctx).copyWith(textScaler: MediaQuery.of(ctx).textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3)), child: child ?? const SizedBox.shrink()),
         shortcuts: {...WidgetsApp.defaultShortcuts, const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent()},
         home: const Boot(),
       );
@@ -143,7 +145,7 @@ class _BootState extends State<Boot> {
 
   @override
   Widget build(BuildContext context) {
-    if (!loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!loaded) return const Scaffold(body: Center(child: Spinner()));
     if (!authed) return AuthScreen(onDone: _afterAuth);
     if (creds == null) return LoginScreen(onDone: (c) => setState(() => creds = c));
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));
