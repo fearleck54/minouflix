@@ -2326,6 +2326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), foot: 'Appliqués au lancement de la lecture.')),
+        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', const [('', 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', const [('', 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
         _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
         if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
@@ -2807,9 +2808,9 @@ class _DetailScreenState extends State<DetailScreen> {
     // grand écran (télé) : fiche « cinéma » — grand visuel, titre, résumé et boutons compacts regroupés au même endroit
     String vodPath() => Downloads.get('${Store.pre}vod:${cur.id}')?.path ?? widget.x.vodUrl(cur.id, cur.ext);
     Widget playBtn() {
-      if (it.kind == Kind.vod) return PillButton(label: old != null ? 'Reprendre à ${_mmss(old.pos)}' : 'Lecture', icon: 'play', primary: true, height: 54, onTap: () => _play(vodPath(), it.title, prog: old ?? Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon)));
-      if (lastEp != null) return PillButton(label: 'Reprendre S${lastEp.season}E${lastEp.number} à ${_mmss(lastProg!.pos)}', icon: 'play', primary: true, height: 54, onTap: () => _playEp(lastEp, prog: lastProg));
-      if (eps.isNotEmpty) return PillButton(label: 'Lecture S${eps.first.season}E${eps.first.number}', icon: 'play', primary: true, height: 54, onTap: () => _playEp(eps.first));
+      if (it.kind == Kind.vod) return PillButton(autofocus: true, label: old != null ? 'Reprendre à ${_mmss(old.pos)}' : 'Lecture', icon: 'play', primary: true, height: 54, onTap: () => _play(vodPath(), it.title, prog: old ?? Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon)));
+      if (lastEp != null) return PillButton(autofocus: true, label: 'Reprendre S${lastEp.season}E${lastEp.number} à ${_mmss(lastProg!.pos)}', icon: 'play', primary: true, height: 54, onTap: () => _playEp(lastEp, prog: lastProg));
+      if (eps.isNotEmpty) return PillButton(autofocus: true, label: 'Lecture S${eps.first.season}E${eps.first.number}', icon: 'play', primary: true, height: 54, onTap: () => _playEp(eps.first));
       return PillButton(
           label: error != null ? 'Réessayer' : 'Chargement des épisodes…',
           height: 54,
@@ -3192,7 +3193,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _bufferSecs(n);
       await n.setProperty('network-timeout', '15');
       await n.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
-      await n.setProperty('demuxer-lavf-o', 'fflags=+discardcorrupt');
+      final dec = Store.str('dec_live');
+      await n.setProperty('deinterlace', dec.contains('di') ? 'yes' : 'no');
+      if (dec.contains('sw')) await n.setProperty('hwdec', 'no');
     } catch (_) {}
   }
 
@@ -3320,6 +3323,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _retryNow() {
     _silent = 0;
     _open(_cur);
+  }
+
+  /// choix de la qualité du flux (télé : liste avec la qualité actuelle cochée)
+  Future<void> _qualityMenu() async {
+    final i = await appSheet<int>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(padding: const EdgeInsets.fromLTRB(28, 22, 28, 6), child: Align(alignment: Alignment.centerLeft, child: Text('Qualité du flux', style: T(22, w: 750)))),
+          for (var k = 0; k < _alts.length; k++) ListTile(autofocus: k == _alt, leading: Icon(k == _alt ? Icons.check_circle_rounded : Icons.circle_outlined), title: Text(_alts[k].$1), onTap: () => Navigator.pop(context, k)),
+          const SizedBox(height: 10),
+        ]),
+      ),
+    );
+    if (i == null || i == _alt || !mounted) return;
+    setState(() => _alt = i);
+    _silent = 0;
+    _open(_alts[i].$2);
   }
 
   void _otherQuality() {
@@ -3539,17 +3560,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _endSub = player.stream.completed.listen((c) {
       if (c && _live) _failed('Le direct s\'est interrompu.');     // un direct ne « finit » pas : c'est une coupure
     });
-    if (_live) {
-      _bufferLive();
-    } else {
-      _bufferVod();
-    }
     _posSub = player.stream.position.listen(_onPos);
     Connect.inPlayer = true;
     Connect.player.addListener(_remoteCtl);
     unawaited(_loadSegs());
     _vp = player.stream.videoParams.listen((_) => _matchFps());
-    _open(widget.url);
+    (_live ? _bufferLive() : _bufferVod()).whenComplete(() {      // réglages du lecteur posés AVANT l'ouverture du flux
+      if (mounted) _open(widget.url);
+    });
     if (widget.next.isNotEmpty && Store.flag('autonext')) _done = player.stream.completed.listen((c) { if (c) _autoNext(); });
     final p = _prog;
     if (p != null) {
@@ -3666,7 +3684,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return KeyEventResult.handled;
     }
     if ((k == LogicalKeyboardKey.channelUp || k == LogicalKeyboardKey.channelDown) && widget.zap.length > 1) {
-      if (down) _zapBy(k == LogicalKeyboardKey.channelUp ? -1 : 1);
+      if (down) _zapBy(k == LogicalKeyboardKey.channelUp ? 1 : -1);
       return KeyEventResult.handled;
     }
     if (onBar) {
@@ -3781,9 +3799,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         _tvBtn(player.state.playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, player.state.playing ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
                         if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
                         if (!_live) _tvBtn(CupertinoIcons.goforward_10, '+10 s', () => _tvSeek(1)),
-                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne +', () => _zapBy(-1)),
-                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne -', () => _zapBy(1)),
-                        if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, _alts[_alt].$1, _otherQuality),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne -', () => _zapBy(-1)),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne +', () => _zapBy(1)),
+                        if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, 'Qualité ${_alts[_alt].$1}', _qualityMenu),
                         _tvBtn(CupertinoIcons.captions_bubble, 'Audio / sous-titres', _tracks),
                         _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
                       ]),

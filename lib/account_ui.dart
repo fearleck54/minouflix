@@ -140,7 +140,6 @@ class _AuthState extends State<AuthScreen> {
               if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, textAlign: TextAlign.center, style: T(13, color: const Color(0xFFFFB86B), h: 1.35))),
             ]),
           ),
-          if (phone.url != null) phone.card(qr: AuthLayout.wide(context) ? 150 : 110),
         ],
         form: [
           AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder())),

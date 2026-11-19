@@ -63,11 +63,21 @@ class MinouFlix extends StatelessWidget {
   static bool _linkBusy = false;
 
   /// minouflix://pair?c=CODE (QR de la télé) : une confirmation, puis le compte et les sources partent vers la télé
-  static Future<void> _onLink(Uri u) async {
+  static String _lastCode = '';
+  static DateTime _lastAt = DateTime(2000);
+  static Future<void> _onLink(Uri u, [int tries = 0]) async {
     if (u.scheme != 'minouflix' || u.host != 'pair' || _linkBusy) return;
     final code = Pairing.norm(u.queryParameters['c'] ?? '');
+    if (code.length != 8) return;
+    // démarrage à froid : l'appli n'est pas encore prête (écran d'accueil, compte) ; on réessaie jusqu'à 15 s
     final ctx = navKey.currentContext;
-    if (code.length != 8 || ctx == null) return;
+    if (ctx == null || !Boot.ready) {
+      if (tries < 30) Future.delayed(const Duration(milliseconds: 500), () => _onLink(u, tries + 1));
+      return;
+    }
+    if (_lastCode == code && DateTime.now().difference(_lastAt) < const Duration(seconds: 4)) return;      // le même lien arrive parfois deux fois
+    _lastCode = code;
+    _lastAt = DateTime.now();
     _linkBusy = true;
     try {
       String? e;
@@ -96,7 +106,7 @@ class MinouFlix extends StatelessWidget {
     if (kIsWeb) return;
     try {
       final al = AppLinks();
-      al.uriLinkStream.listen(_onLink, onError: (_) {});
+      al.uriLinkStream.listen((u) => _onLink(u), onError: (_) {});
       Future.delayed(const Duration(seconds: 2), () async {
         final first = await al.getInitialLink();
         if (first != null) _onLink(first);
@@ -155,12 +165,19 @@ class MinouFlix extends StatelessWidget {
 
 /// Choisit l'écran de départ : identifiants → sélection des catégories → catalogue.
 class Boot extends StatefulWidget {
+  static bool ready = false;      // l'écran de départ est affiché (les liens d'ouverture peuvent s'afficher)
   const Boot({super.key});
   @override
   State<Boot> createState() => _BootState();
 }
 
 class _BootState extends State<Boot> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Boot.ready = true;
+  }
+
   Creds? creds;
   bool loaded = false;
   bool pick = false;      // « Changer les catégories » depuis les réglages

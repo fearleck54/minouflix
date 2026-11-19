@@ -92,17 +92,33 @@ class _FocusCardState extends State<FocusCard> {
     super.dispose();
   }
 
-  /// télé : si la carte est déjà bien visible dans sa liste, on ne fait pas défiler (plus fluide, plus de page qui saute)
-  bool _visible() {
-    if (!Device.tv) return false;
-    final sc = Scrollable.maybeOf(context);
-    final vp = sc?.context.findRenderObject();
+  /// télé : fait défiler chaque liste parente juste ce qu'il faut ; près du début d'une liste, on remonte tout en haut (le grand visuel redevient visible)
+  void _reveal() {
     final me = context.findRenderObject();
-    if (vp is! RenderBox || me is! RenderBox || !me.attached || !vp.attached) return false;
-    final o = me.localToGlobal(Offset.zero, ancestor: vp);
-    final horiz = sc!.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right;
-    const m = 70.0;
-    return horiz ? (o.dx >= m && o.dx + me.size.width <= vp.size.width - m) : (o.dy >= m && o.dy + me.size.height <= vp.size.height - m);
+    if (me is! RenderBox || !me.attached) return;
+    context.visitAncestorElements((el) {
+      if (el is StatefulElement && el.state is ScrollableState) {
+        final st = el.state as ScrollableState;
+        final pos = st.position;
+        final vp = st.context.findRenderObject();
+        if (pos is PageMetrics || vp is! RenderBox || !vp.attached || !pos.hasPixels) return true;
+        final horiz = st.axisDirection == AxisDirection.left || st.axisDirection == AxisDirection.right;
+        final o = me.localToGlobal(Offset.zero, ancestor: vp);
+        final top = horiz ? o.dx : o.dy, len = horiz ? me.size.width : me.size.height, vpLen = horiz ? vp.size.width : vp.size.height;
+        final cont = pos.pixels + top;
+        double? target;
+        if (cont < vpLen * 0.6) {
+          target = pos.minScrollExtent;
+        } else if (top < 70 || top + len > vpLen - 70) {
+          target = cont + len / 2 - vpLen / 2;
+        }
+        if (target != null) {
+          target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+          if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
+        }
+      }
+      return true;
+    });
   }
 
   /// télécommande dans une rangée horizontale : gauche / droite restent sur la rangée (jamais de saut à la ligne voisine) ; au bout, rien ne bouge
@@ -110,7 +126,7 @@ class _FocusCardState extends State<FocusCard> {
     final k = e.logicalKey;
     if (!Device.tv || e is KeyUpEvent || (k != LogicalKeyboardKey.arrowLeft && k != LogicalKeyboardKey.arrowRight)) return false;
     final sc = Scrollable.maybeOf(context);
-    if (sc == null || (sc.axisDirection != AxisDirection.left && sc.axisDirection != AxisDirection.right)) return false;
+    if (sc == null || sc.position is PageMetrics || (sc.axisDirection != AxisDirection.left && sc.axisDirection != AxisDirection.right)) return false;
     final box = context.findRenderObject();
     final cy = box is RenderBox && box.attached ? box.localToGlobal(box.size.center(Offset.zero)).dy : null;
     final node = _node;
@@ -131,7 +147,11 @@ class _FocusCardState extends State<FocusCard> {
         onFocusChange: (f) {
           setState(() => focused = f);
           if (f) {
-            if (!_visible()) Scrollable.ensureVisible(context, alignment: 0.5, duration: Duration(milliseconds: Device.tv ? 110 : 180), curve: Curves.easeOut);
+            if (Device.tv) {
+              _reveal();
+            } else {
+              Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
+            }
             widget.onFocus?.call();
           }
         },
@@ -149,13 +169,11 @@ class _FocusCardState extends State<FocusCard> {
               _long = false;
               _down = true;
             }
-            if (e is KeyRepeatEvent && !_long) {
-              _long = true;
-              widget.onLong!();
-            }
+            if (e is KeyRepeatEvent) _long = true;      // l'action longue part au relâchement (sinon la fenêtre ouverte reçoit les répétitions de la touche et se referme)
             if (e is KeyUpEvent) {
-              if (_down && !_long) widget.onTap();
+              if (_down) _long ? widget.onLong!() : widget.onTap();
               _down = false;
+              _long = false;
             }
             return KeyEventResult.handled;
           }
@@ -623,11 +641,12 @@ class PillButton extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLong;
   final double height;
-  const PillButton({super.key, required this.label, this.icon, this.primary = false, required this.onTap, this.onLong, this.height = 50});
+  final bool autofocus;
+  const PillButton({super.key, required this.label, this.icon, this.primary = false, required this.onTap, this.onLong, this.height = 50, this.autofocus = false});
 
   @override
   Widget build(BuildContext context) => FocusCard(
-        autofocus: primary && Device.tv,
+        autofocus: autofocus && Device.tv,
         onTap: onTap,
         onLong: onLong,
         radius: height / 2,
@@ -656,6 +675,7 @@ class HeroBanner extends StatefulWidget {
 class _HeroState extends State<HeroBanner> {
   final page = PageController();
   int i = 0;
+  bool _regain = false;      // télé : la nouvelle affiche reprend le focus de la précédente
   Timer? t;
 
   @override
@@ -679,9 +699,28 @@ class _HeroState extends State<HeroBanner> {
     final wide = isWide(context);
     final size = MediaQuery.sizeOf(context);
     final h = wide ? 480.0 : (size.height * 0.64).clamp(460.0, 600.0);
-    return SizedBox(
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (_, e) {
+        // télé : ← → changent de grande affiche (pas de glissement : le bouton garde le focus)
+        if (!Device.tv || e is KeyUpEvent) return KeyEventResult.ignored;
+        final k = e.logicalKey;
+        if (k != LogicalKeyboardKey.arrowLeft && k != LogicalKeyboardKey.arrowRight) return KeyEventResult.ignored;
+        final n = i + (k == LogicalKeyboardKey.arrowLeft ? -1 : 1);
+        if (n >= 0 && n < widget.items.length && e is KeyDownEvent) {
+          setState(() => i = n);
+          _regain = true;
+          if (n + 1 < widget.items.length) warmBackdrop(context, widget.items[n + 1]);
+        }
+        return KeyEventResult.handled;
+      },
+      child: SizedBox(
       height: h,
       child: Stack(children: [
+        if (Device.tv)
+          KeyedSubtree(key: ValueKey(i), child: _Slide(item: widget.items[i], detailFor: widget.detailFor, wide: wide, onPlay: widget.onPlay, onInfo: widget.onInfo, autofocus: _regain))
+        else
         PageView.builder(
           controller: page,
           itemCount: widget.items.length,
@@ -702,7 +741,7 @@ class _HeroState extends State<HeroBanner> {
           ]),
         ),
       ]),
-    );
+    ));
   }
 }
 
@@ -711,7 +750,8 @@ class _Slide extends StatelessWidget {
   final Future<Detail?> Function(Item) detailFor;
   final bool wide;
   final void Function(Item) onPlay, onInfo;
-  const _Slide({required this.item, required this.detailFor, required this.wide, required this.onPlay, required this.onInfo});
+  final bool autofocus;
+  const _Slide({required this.item, required this.detailFor, required this.wide, required this.onPlay, required this.onInfo, this.autofocus = false});
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
@@ -737,7 +777,7 @@ class _Slide extends StatelessWidget {
                 if (Device.tv)
                   // télé : un seul bouton, OK = lecture, appui long = détails
                   Row(children: [
-                    PillButton(label: item.kind == Kind.series ? 'Voir la série' : 'Lecture', icon: 'play', primary: true, height: 52, onTap: () => onPlay(item), onLong: () => onInfo(item)),
+                    PillButton(label: item.kind == Kind.series ? 'Voir la série' : 'Lecture', icon: 'play', primary: true, height: 52, autofocus: autofocus, onTap: () => onPlay(item), onLong: () => onInfo(item)),
                     const SizedBox(width: 14),
                     Text('Maintiens OK : détails', style: T(13.5, color: kMut)),
                   ])
