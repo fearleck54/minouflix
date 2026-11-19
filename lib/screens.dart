@@ -380,8 +380,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   height: 38,
                                   child: ListView(scrollDirection: Axis.horizontal, children: [
                                     _CatMini(label: 'Suggestion', icon: Icons.auto_awesome_rounded, onTap: () => setState(() => picked[k] = {for (final c in cats[k]!) if (suggested(k, c.name)) c.id})),
-                                    _CatMini(label: searching ? 'Tout cocher (${shown.length})' : 'Tout cocher', icon: CupertinoIcons.checkmark_circle, onTap: () => _toggle(k, shown.map((c) => c.id), true)),
-                                    _CatMini(label: searching ? 'Tout décocher (${shown.length})' : 'Tout décocher', icon: CupertinoIcons.circle, onTap: () => _toggle(k, shown.map((c) => c.id), false)),
+                                    _CatMini(label: searching ? 'Tout (${shown.length})' : 'Tout', icon: CupertinoIcons.checkmark_circle, onTap: () => _toggle(k, shown.map((c) => c.id), true)),
+                                    _CatMini(label: searching ? 'Aucun (${shown.length})' : 'Aucun', icon: CupertinoIcons.circle, onTap: () => _toggle(k, shown.map((c) => c.id), false)),
                                   ]),
                                 ),
                               ]),
@@ -415,7 +415,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                                       Text(total == 0 ? 'Aucune catégorie' : '$total catégorie${total > 1 ? 's' : ''} cochée${total > 1 ? 's' : ''}', style: T(15.5, w: 700)),
                                       const SizedBox(height: 2),
-                                      Text(total == 0 ? 'Coche au moins une catégorie' : 'Premier chargement ${etaLabel(total * 2)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, color: total > 60 ? const Color(0xFFFFB86B) : kMut)),
+                                      Text(total == 0 ? 'Coche au moins une catégorie' : 'Premier chargement : ${etaLabel(total * 2)}', maxLines: 2, overflow: TextOverflow.ellipsis, style: T(12.5, color: total > 60 ? const Color(0xFFFFB86B) : kMut)),
                                     ]),
                                   ),
                                   const SizedBox(width: 10),
@@ -462,7 +462,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     count: '$nOn/${ids.length}',
                     open: open,
                     state: allOn ? 2 : (none ? 0 : 1),
-                    autofocus: gi == 0,
+                    autofocus: gi == 0 && Device.tv,
                     onOpen: () => setState(() {
                       if (open) {
                         _open.remove(key);
