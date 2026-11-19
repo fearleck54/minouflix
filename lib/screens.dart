@@ -181,12 +181,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     load();
   }
 
-  @override
-  void dispose() {
-    _slowT?.cancel();
-    super.dispose();
-  }
-
   Future<void> load() async {
     if (error != null) setState(() => error = null);
     final x = Xtream(widget.creds);
@@ -231,6 +225,53 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     if (v != null && mounted) setState(() => filter = v.toLowerCase().trim());
   }
 
+  // ---- regroupement par pays / préfixe du fournisseur (« |FR| », « FR - ») : la liste devient courte et repliable
+  final _fc = TextEditingController();
+  final Set<String> _open = {};
+  static const _pays = {
+    'FR': 'France', 'BE': 'Belgique', 'CH': 'Suisse', 'CA': 'Canada', 'LU': 'Luxembourg', 'EN': 'Anglais', 'UK': 'Royaume-Uni', 'GB': 'Royaume-Uni', 'US': 'États-Unis',
+    'DE': 'Allemagne', 'ES': 'Espagne', 'IT': 'Italie', 'PT': 'Portugal', 'NL': 'Pays-Bas', 'AR': 'Arabe', 'TR': 'Turquie', 'PL': 'Pologne', 'RO': 'Roumanie', 'PPV': 'Événements payants',
+    'SPORT': 'Sport', 'SPORTS': 'Sport', 'KIDS': 'Jeunesse', 'XXX': 'Adulte', 'VOD': 'Films',
+  };
+
+  /// (préfixe, nom lisible) : « |FR| ✪ TNT HD » → (« FR », « TNT HD »)
+  (String, String) _split(String name) {
+    var n = name.trim(), tag = '';
+    final m = RegExp(r'^\|\s*([A-Za-z0-9+ ]{1,8}?)\s*\|\s*(.*)$').firstMatch(n) ?? RegExp(r'^([A-Z]{2,4})\s*[-:·]\s+(.+)$').firstMatch(n);
+    if (m != null) {
+      tag = m.group(1)!.trim().toUpperCase();
+      n = m.group(2)!.trim();
+    }
+    n = n.replaceFirst(RegExp(r'^[^\p{L}\p{N}]+', unicode: true), '').trim();     // symboles décoratifs en tête (✪, ★…)
+    return (tag, n.isEmpty ? name.trim() : n);
+  }
+
+  String _tagLabel(String tag) => tag.isEmpty ? 'Autres' : (_pays[tag] ?? tag);
+
+  List<_Grp> _groups(List<Cat> shown) {
+    final map = <String, _Grp>{};
+    for (final c in shown) {
+      final s = _split(c.name);
+      (map[s.$1] ??= _Grp(s.$1)).items.add((c, s.$2));
+    }
+    final l = map.values.toList()
+      ..sort((a, b) {
+        int rank(_Grp g) => g.tag == 'FR' ? 0 : g.tag.isEmpty ? 3 : 1;
+        final r = rank(a).compareTo(rank(b));
+        return r != 0 ? r : _tagLabel(a.tag).compareTo(_tagLabel(b.tag));
+      });
+    return l;
+  }
+
+  @override
+  void dispose() {
+    _fc.dispose();
+    _slowT?.cancel();
+    super.dispose();
+  }
+
+  void _toggle(Kind k, Iterable<String> ids, bool on) => setState(() => on ? picked[k]!.addAll(ids) : picked[k]!.removeAll(ids));
+
   @override
   Widget build(BuildContext context) {
     final total = picked.values.fold<int>(0, (a, s) => a + s.length);
@@ -238,23 +279,26 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final k = Kind.values[ki];
     final shown = ready ? cats[k]!.where((c) => filter.isEmpty || c.name.toLowerCase().contains(filter)).toList() : <Cat>[];
     final pad = MediaQuery.paddingOf(context);
+    final tv = Device.tv;
+    final searching = filter.isNotEmpty;
     return PopScope(
       canPop: widget.onCancel == null,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) widget.onCancel?.call();
       },
       child: Scaffold(
-      body: Padding(
-        padding: EdgeInsets.fromLTRB(28 + pad.left, 18 + pad.top, 28 + pad.right, 0),
-        child: error != null
+        body: error != null
             ? Center(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(error!, textAlign: TextAlign.center, style: T(16, color: kMut)),
-                  const SizedBox(height: 18),
-                  PillButton(label: 'Réessayer', primary: true, onTap: load),
-                  if (widget.onEditSource != null) ...[const SizedBox(height: 10), PillButton(label: 'Modifier la connexion', onTap: widget.onEditSource!)],
-                  if (widget.onCancel != null) ...[const SizedBox(height: 10), PillButton(label: 'Annuler', onTap: widget.onCancel!)],
-                ]),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(error!, textAlign: TextAlign.center, style: T(16, color: kMut, h: 1.4)),
+                    const SizedBox(height: 18),
+                    PillButton(label: 'Réessayer', primary: true, onTap: load),
+                    if (widget.onEditSource != null) ...[const SizedBox(height: 10), PillButton(label: 'Modifier la connexion', onTap: widget.onEditSource!)],
+                    if (widget.onCancel != null) ...[const SizedBox(height: 10), PillButton(label: 'Annuler', onTap: widget.onCancel!)],
+                  ]),
+                ),
               )
             : !ready
                 ? Center(
@@ -269,58 +313,245 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       if (widget.onCancel == null) ...[const SizedBox(height: 18), const Steps(2)],
                     ]),
                   )
-                : FocusTraversalGroup(
-                    policy: ReadingOrderTraversalPolicy(),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      if (widget.onCancel == null) const Padding(padding: EdgeInsets.only(bottom: 12), child: Steps(2)),
-                      Row(children: [
-                        if (widget.onCancel != null) ...[RoundButton(size: 44, label: 'Annuler', onTap: widget.onCancel, child: const Ic('back', size: 20)), const SizedBox(width: 12)],
-                        Expanded(child: Text('Que veux-tu charger ?', maxLines: 2, overflow: TextOverflow.ellipsis, style: T(26, w: 800, ls: -0.03))),
-                        const SizedBox(width: 10),
-                        PillButton(
-                          label: 'Charger ($total)',
-                          icon: 'play',
-                          primary: true,
-                          height: 50,
-                          onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save,
-                        ),
-                      ]),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          '${total > 60 ? 'Beaucoup de catégories : le premier chargement sera long (l\'accueil s\'affiche dès les premières). Moins il y en a, plus c\'est rapide.' : 'Seules les catégories cochées sont téléchargées. L\'accueil s\'affiche dès les premières reçues.'}${total > 0 ? ' Premier chargement estimé : ${etaLabel(total * 2)} (selon ton fournisseur), ensuite presque instantané grâce au cache.' : ''}',
-                          style: T(13.5, color: total > 60 ? const Color(0xFFFFB86B) : kMut),
+                : Stack(children: [
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: FocusTraversalGroup(
+                          policy: ReadingOrderTraversalPolicy(),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(20 + pad.left, pad.top + 10, 20 + pad.right, 0),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                if (widget.onCancel == null) const Padding(padding: EdgeInsets.only(bottom: 10), child: Steps(2)),
+                                Row(children: [
+                                  if (widget.onCancel != null) ...[RoundButton(size: 44, label: 'Retour', onTap: widget.onCancel, child: const Ic('back', size: 20)), const SizedBox(width: 12)],
+                                  Expanded(child: Text('Catégories', style: T(34, w: 800, ls: -0.04))),
+                                ]),
+                                const SizedBox(height: 4),
+                                Text('Seules les catégories cochées sont téléchargées. Tu pourras les changer dans Réglages.', style: T(14, color: kMut, h: 1.35)),
+                                const SizedBox(height: 14),
+                                // type : Direct / Films / Séries (nombre de catégories cochées)
+                                if (tv)
+                                  Wrap(spacing: 10, runSpacing: 10, children: [
+                                    for (var i = 0; i < Kind.values.length; i++)
+                                      _CatChip(label: '${Kind.values[i].label} · ${picked[Kind.values[i]]!.length}', on: i == ki, onTap: () => setState(() => ki = i)),
+                                  ])
+                                else
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: CupertinoSlidingSegmentedControl<int>(
+                                      groupValue: ki,
+                                      backgroundColor: const Color(0x3D767680),
+                                      thumbColor: const Color(0xFF5B6475),
+                                      children: {
+                                        for (var i = 0; i < Kind.values.length; i++)
+                                          i: Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Text('${Kind.values[i].label} ${picked[Kind.values[i]]!.length}')),
+                                      },
+                                      onValueChanged: (v) => setState(() => ki = v ?? ki),
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+                                // recherche
+                                if (tv)
+                                  Wrap(spacing: 10, runSpacing: 10, children: [_CatChip(label: searching ? 'Filtre : $filter' : 'Filtrer', onTap: _filter)])
+                                else
+                                  Container(
+                                    height: 46,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                    decoration: BoxDecoration(color: const Color(0x3D767680), borderRadius: BorderRadius.circular(13)),
+                                    child: Row(children: [
+                                      const Ic('search', size: 18, color: kMut),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: AppField(
+                                          controller: _fc,
+                                          style: T(16.5, w: 500),
+                                          onChanged: (v) => setState(() => filter = v.toLowerCase().trim()),
+                                          decoration: InputDecoration(hintText: 'Rechercher une catégorie', hintStyle: T(16.5, color: kMut), border: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero),
+                                        ),
+                                      ),
+                                      if (searching) GestureDetector(onTap: () => setState(() { _fc.clear(); filter = ''; }), child: const Icon(Icons.cancel_rounded, size: 20, color: kMut)),
+                                    ]),
+                                  ),
+                                const SizedBox(height: 10),
+                                // actions rapides sur ce qui est affiché
+                                SizedBox(
+                                  height: 38,
+                                  child: ListView(scrollDirection: Axis.horizontal, children: [
+                                    _CatMini(label: 'Suggestion', icon: Icons.auto_awesome_rounded, onTap: () => setState(() => picked[k] = {for (final c in cats[k]!) if (suggested(k, c.name)) c.id})),
+                                    _CatMini(label: searching ? 'Tout cocher (${shown.length})' : 'Tout cocher', icon: CupertinoIcons.checkmark_circle, onTap: () => _toggle(k, shown.map((c) => c.id), true)),
+                                    _CatMini(label: searching ? 'Tout décocher (${shown.length})' : 'Tout décocher', icon: CupertinoIcons.circle, onTap: () => _toggle(k, shown.map((c) => c.id), false)),
+                                  ]),
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(height: 6),
+                            Expanded(
+                              child: shown.isEmpty
+                                  ? Center(child: Text(searching ? 'Aucune catégorie ne correspond.' : 'Aucune catégorie chez le fournisseur.', style: T(15, color: kMut)))
+                                  : _list(k, shown, pad, searching),
+                            ),
+                          ]),
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Wrap(spacing: 10, runSpacing: 10, children: [
-                        for (var i = 0; i < Kind.values.length; i++)
-                          _CatChip(label: '${Kind.values[i].label} (${picked[Kind.values[i]]!.length}/${cats[Kind.values[i]]!.length})', on: i == ki, onTap: () => setState(() => ki = i)),
-                        _CatChip(label: 'Suggestion', onTap: () => setState(() => picked[k] = {for (final c in cats[k]!) if (suggested(k, c.name)) c.id})),
-                        _CatChip(label: 'Tout cocher', onTap: () => setState(() => picked[k]!.addAll(shown.map((c) => c.id)))),
-                        _CatChip(label: 'Tout décocher', onTap: () => setState(() => picked[k]!.removeAll(shown.map((c) => c.id)))),
-                        _CatChip(label: filter.isEmpty ? 'Filtrer' : 'Filtre : $filter', onTap: _filter),
-                      ]),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: shown.isEmpty
-                            ? Center(child: Text(filter.isEmpty ? 'Aucune catégorie chez le fournisseur.' : 'Aucune catégorie ne correspond au filtre.', style: T(15, color: kMut)))
-                            : ListView.builder(
-                                padding: EdgeInsets.only(bottom: 40 + pad.bottom),
-                                itemCount: shown.length,
-                                itemBuilder: (_, i) {
-                                  final c = shown[i];
-                                  final on = picked[k]!.contains(c.id);
-                                  return _CatRow(name: c.name, on: on, autofocus: i == 0, onTap: () => setState(() => on ? picked[k]!.remove(c.id) : picked[k]!.add(c.id)));
-                                },
+                    ),
+                    // barre du bas en verre : résumé et bouton
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(16 + pad.left, 0, 16 + pad.right, 12 + pad.bottom),
+                            child: NavPill.glass(
+                              radius: 28,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 10, 10, 10),
+                                child: Row(children: [
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                      Text(total == 0 ? 'Aucune catégorie' : '$total catégorie${total > 1 ? 's' : ''} cochée${total > 1 ? 's' : ''}', style: T(15.5, w: 700)),
+                                      const SizedBox(height: 2),
+                                      Text(total == 0 ? 'Coche au moins une catégorie' : 'Premier chargement ${etaLabel(total * 2)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, color: total > 60 ? const Color(0xFFFFB86B) : kMut)),
+                                    ]),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  PillButton(
+                                    label: 'Charger',
+                                    icon: 'play',
+                                    primary: true,
+                                    height: 48,
+                                    onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save,
+                                  ),
+                                ]),
                               ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ]),
-                  ),
-      ),
+                    ),
+                  ]),
       ),
     );
   }
+
+  /// liste regroupée : chaque pays / préfixe dans une carte repliable, avec une case pour tout cocher
+  Widget _list(Kind k, List<Cat> shown, EdgeInsets pad, bool searching) {
+    final gs = _groups(shown);
+    return ListView(padding: EdgeInsets.fromLTRB(16 + pad.left, 4, 16 + pad.right, 110 + pad.bottom), children: [
+      for (var gi = 0; gi < gs.length; gi++)
+        Builder(builder: (_) {
+          final g = gs[gi];
+          final key = '${k.name}|${g.tag}';
+          final ids = g.items.map((e) => e.$1.id).toList();
+          final nOn = ids.where(picked[k]!.contains).length;
+          final open = searching || gs.length == 1 || _open.contains(key) || (!_open.contains('~$key') && nOn > 0 && nOn < ids.length && g.items.length <= 12);
+          final allOn = nOn == ids.length, none = nOn == 0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Container(
+                decoration: BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(18), border: Border.all(color: kEdge, width: 0.8)),
+                child: Column(children: [
+                  _CatHead(
+                    title: _tagLabel(g.tag),
+                    count: '$nOn/${ids.length}',
+                    open: open,
+                    state: allOn ? 2 : (none ? 0 : 1),
+                    autofocus: gi == 0,
+                    onOpen: () => setState(() {
+                      if (open) {
+                        _open.remove(key);
+                        _open.add('~$key');
+                      } else {
+                        _open.add(key);
+                        _open.remove('~$key');
+                      }
+                    }),
+                    onAll: () => _toggle(k, ids, !allOn),
+                  ),
+                  if (open)
+                    for (final e in g.items) ...[
+                      const Divider(height: 0.5, thickness: 0.5, indent: 18, color: kEdge),
+                      _CatRow(name: e.$2, on: picked[k]!.contains(e.$1.id), autofocus: false, onTap: () => setState(() => picked[k]!.contains(e.$1.id) ? picked[k]!.remove(e.$1.id) : picked[k]!.add(e.$1.id))),
+                    ],
+                ]),
+              ),
+            ),
+          );
+        }),
+    ]);
+  }
+}
+
+class _Grp {
+  final String tag;
+  final items = <(Cat, String)>[];
+  _Grp(this.tag);
+}
+
+/// en-tête d'un groupe : pays, nombre de catégories cochées, flèche pour replier, case « tout »
+class _CatHead extends StatelessWidget {
+  final String title, count;
+  final bool open, autofocus;
+  final int state;     // 0 rien, 1 en partie, 2 tout
+  final VoidCallback onOpen, onAll;
+  const _CatHead({required this.title, required this.count, required this.open, required this.state, required this.autofocus, required this.onOpen, required this.onAll});
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Expanded(
+          child: FocusCard(
+            autofocus: autofocus,
+            onTap: onOpen,
+            radius: 14,
+            focusScale: 1,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 6, 14),
+              child: Row(children: [
+                AnimatedRotation(turns: open ? 0.25 : 0, duration: const Duration(milliseconds: 180), child: const Icon(CupertinoIcons.chevron_right, size: 15, color: kMut)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(16.5, w: 700))),
+                Text(count, style: T(13.5, color: kMut, w: 600)),
+              ]),
+            ),
+          ),
+        ),
+        FocusCard(
+          onTap: onAll,
+          radius: 14,
+          focusScale: 1,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 12, 16, 12),
+            child: Icon(state == 2 ? Icons.check_circle : (state == 1 ? Icons.remove_circle_outline : Icons.circle_outlined), color: state == 0 ? kMut : kAccent, size: 26),
+          ),
+        ),
+      ]);
+}
+
+/// petite action rapide sous la recherche
+class _CatMini extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CatMini({required this.label, required this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: FocusCard(
+          onTap: onTap,
+          radius: 19,
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(color: const Color(0x24FFFFFF), borderRadius: BorderRadius.circular(19)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 16, color: kAccent), const SizedBox(width: 7), Text(label, style: T(14, w: 650))]),
+          ),
+        ),
+      );
 }
 
 class _CatChip extends StatelessWidget {
@@ -341,43 +572,25 @@ class _CatChip extends StatelessWidget {
       );
 }
 
-class _CatRow extends StatefulWidget {
+/// une catégorie : nom lisible et coche ; sur la télé, la ligne prend le focus et OK la coche
+class _CatRow extends StatelessWidget {
   final String name;
   final bool on, autofocus;
   final VoidCallback onTap;
   const _CatRow({required this.name, required this.on, required this.autofocus, required this.onTap});
   @override
-  State<_CatRow> createState() => _CatRowState();
-}
-
-class _CatRowState extends State<_CatRow> {
-  bool f = false;
-  @override
-  Widget build(BuildContext context) => Focus(
-        autofocus: widget.autofocus,
-        onFocusChange: (v) {
-          setState(() => f = v);
-          if (v) Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 120));
-        },
-        onKeyEvent: (_, e) {
-          final k = e.logicalKey;
-          if (e is KeyDownEvent && (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter || k == LogicalKeyboardKey.gameButtonA)) {
-            widget.onTap();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            decoration: BoxDecoration(color: f ? const Color(0x33FFFFFF) : const Color(0x14FFFFFF), borderRadius: BorderRadius.circular(14), border: Border.all(color: f ? Colors.white : Colors.transparent, width: 2.5)),
-            child: Row(children: [
-              Expanded(child: Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(16.5, w: 600))),
-              Icon(widget.on ? Icons.check_circle : Icons.circle_outlined, color: widget.on ? kAccent : kMut, size: 26),
-            ]),
-          ),
+  Widget build(BuildContext context) => FocusCard(
+        autofocus: autofocus,
+        onTap: onTap,
+        radius: 0,
+        focusScale: 1,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 13, 16, 13),
+          child: Row(children: [
+            Expanded(child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(16, w: 500))),
+            const SizedBox(width: 10),
+            Icon(on ? Icons.check_circle : Icons.circle_outlined, color: on ? kAccent : kMut, size: 26),
+          ]),
         ),
       );
 }
