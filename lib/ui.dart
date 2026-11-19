@@ -75,28 +75,56 @@ class FocusCard extends StatefulWidget {
   final bool autofocus;
   final double focusScale;      // agrandissement quand la ligne est sélectionnée (1 = aucun : lignes de liste dans un cadre)
   final VoidCallback? onFocus;      // appelé quand l'élément prend le focus (télécommande) : les onglets changent de page dès qu'on s'y arrête
-  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus});
+  final FocusNode? focusNode;
+  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus, this.focusNode});
   @override
   State<FocusCard> createState() => _FocusCardState();
 }
 
 class _FocusCardState extends State<FocusCard> {
   bool focused = false, pressed = false, _long = false, _down = false;
+  FocusNode? _own;
+  FocusNode get _node => widget.focusNode ?? (_own ??= FocusNode(debugLabel: 'carte'));
+
+  @override
+  void dispose() {
+    _own?.dispose();
+    super.dispose();
+  }
+
+  /// télécommande dans une rangée horizontale : gauche / droite restent sur la rangée (jamais de saut à la ligne voisine) ; au bout, rien ne bouge
+  bool _rail(KeyEvent e) {
+    final k = e.logicalKey;
+    if (!Device.tv || e is KeyUpEvent || (k != LogicalKeyboardKey.arrowLeft && k != LogicalKeyboardKey.arrowRight)) return false;
+    final sc = Scrollable.maybeOf(context);
+    if (sc == null || (sc.axisDirection != AxisDirection.left && sc.axisDirection != AxisDirection.right)) return false;
+    final box = context.findRenderObject();
+    final cy = box is RenderBox && box.attached ? box.localToGlobal(box.size.center(Offset.zero)).dy : null;
+    final node = _node;
+    node.focusInDirection(k == LogicalKeyboardKey.arrowLeft ? TraversalDirection.left : TraversalDirection.right);
+    scheduleMicrotask(() {
+      final r = FocusManager.instance.primaryFocus?.rect;
+      if (cy != null && r != null && (r.center.dy - cy).abs() > r.height * 0.6) node.requestFocus();
+    });
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
         child: Focus(
+        focusNode: _node,
         autofocus: widget.autofocus,
         onFocusChange: (f) {
           setState(() => focused = f);
           if (f) {
-            Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
+            Scrollable.ensureVisible(context, alignment: 0.5, duration: Duration(milliseconds: Device.tv ? 110 : 180), curve: Curves.easeOut);
             widget.onFocus?.call();
           }
         },
         onKeyEvent: (_, e) {
           final k = e.logicalKey;
+          if (_rail(e)) return KeyEventResult.handled;
           if (e is KeyDownEvent && widget.onLong != null && (k == LogicalKeyboardKey.contextMenu || k == LogicalKeyboardKey.gameButtonX)) {
             widget.onLong!();
             return KeyEventResult.handled;
@@ -140,10 +168,10 @@ class _FocusCardState extends State<FocusCard> {
           onTapCancel: () => setState(() => pressed = false),
           child: AnimatedScale(
             scale: pressed ? 0.955 : (focused ? widget.focusScale : 1),
-            duration: const Duration(milliseconds: 160),
+            duration: Duration(milliseconds: Perf.lite ? 90 : 160),
             curve: Curves.easeOut,
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: Duration(milliseconds: Perf.lite ? 0 : 150),
               foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: Colors.white, width: 3)) : null,
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius)),
               child: ClipRRect(borderRadius: BorderRadius.circular(widget.radius), child: widget.child),
@@ -377,6 +405,7 @@ class ChannelRow extends StatelessWidget {
       onTap: onTap,
       onLong: onLong,
       radius: 14,
+      focusScale: Device.tv ? 1.0 : 1.06,
       child: Container(
         decoration: BoxDecoration(border: separator ? const Border(bottom: BorderSide(color: Color(0x14FFFFFF), width: 0.6)) : null),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
@@ -1235,14 +1264,14 @@ class AuthLayout extends StatelessWidget {
     final head = w
         ? [
             Row(children: [
-              SvgPicture.asset('assets/logo.svg', height: 72),
-              const SizedBox(width: 18),
-              Text('MinouFlix', style: T(44, w: 850, ls: -0.04)),
+              SvgPicture.asset('assets/logo.svg', height: 52),
+              const SizedBox(width: 14),
+              Text('MinouFlix', style: T(34, w: 850, ls: -0.04)),
             ]),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Steps(step),
-            const SizedBox(height: 14),
-            Text(text, style: T(16, color: kMut, h: 1.4)),
+            const SizedBox(height: 10),
+            Text(text, style: T(15, color: kMut, h: 1.35)),
           ]
         : [
             Center(child: SvgPicture.asset('assets/logo.svg', height: 96)),
@@ -1549,4 +1578,37 @@ class _LargeTitleState extends State<LargeTitle> {
       Positioned(top: 0, left: 0, right: 0, child: Perf.lite ? bar : ClipRect(child: BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 24 * _t + .01, sigmaY: 24 * _t + .01), child: bar))),
     ]);
   }
+}
+
+
+/// ligne de menu à la télécommande (colonne de gauche : filtres, thèmes…) : grande, lisible, sélection nette
+class TvMenuItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool on;
+  final VoidCallback onTap;
+  final Color? tint;
+  final double indent;
+  final bool autofocus;
+  const TvMenuItem({super.key, required this.label, required this.icon, required this.on, required this.onTap, this.tint, this.indent = 0, this.autofocus = false});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: EdgeInsets.only(left: indent, bottom: 6),
+        child: FocusCard(
+          radius: 14,
+          focusScale: 1.0,
+          autofocus: autofocus,
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(color: on ? Colors.white.withOpacity(0.14) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+            child: Row(children: [
+              Icon(icon, size: 24, color: tint ?? (on ? Colors.white : kMut)),
+              const SizedBox(width: 14),
+              Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(19, w: on ? 750 : 550, color: on ? Colors.white : kText))),
+            ]),
+          ),
+        ),
+      );
 }

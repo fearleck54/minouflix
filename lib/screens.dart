@@ -1551,6 +1551,33 @@ class _LiveTabState extends State<LiveTab> {
     var q = ql ?? (Store.quality == '4k' && chs.where((c) => c.is4k).length * 2 >= chs.length ? '4K' : '');
     if (q.isNotEmpty && !qs.contains(q)) q = '';
     final l = q.isEmpty ? chs : chs.where((c) => c.has(q)).toList();
+    if (Device.tv) {
+      final side = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 40), children: [
+        if (widget.onGuide != null) TvMenuItem(label: 'Guide TV', icon: Icons.calendar_view_day_rounded, on: false, onTap: widget.onGuide!),
+        for (final t in themes) TvMenuItem(label: t.$2, icon: Icons.live_tv_rounded, on: t.$1 == theme, onTap: () => widget.onTheme(t.$1)),
+        if (qs.length > 1) ...[
+          Padding(padding: const EdgeInsets.fromLTRB(16, 14, 0, 8), child: Text('Qualité', style: T(14, w: 650, color: kMut))),
+          TvMenuItem(label: 'Toutes', icon: Icons.high_quality_rounded, on: q.isEmpty, onTap: () => setState(() => ql = '')),
+          for (final x in qs) TvMenuItem(label: x, icon: Icons.high_quality_rounded, on: q == x, onTap: () => setState(() => ql = x)),
+        ],
+      ]);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Row(children: [
+          SizedBox(width: 290, child: side),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(top: 8, bottom: 60),
+              itemExtent: 100,
+              cacheExtent: 1600,
+              itemCount: l.length,
+              itemBuilder: (_, i) => ChannelRow(item: l[i], onTap: () => widget.onPlay(l[i]), onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())),
+            ),
+          ),
+        ]),
+      );
+    }
     final wide = isWide(context);
     return CustomScrollView(slivers: [
       SliverToBoxAdapter(child: SizedBox(height: wide ? 8 : top)),
@@ -3123,9 +3150,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     try {
       final dynamic n = player.platform;   // dynamic : la version web (contrôle visuel) n'a pas NativePlayer
       await n.setProperty('cache', 'yes');
-      await n.setProperty('demuxer-max-bytes', Perf.lite ? '40MiB' : '200MiB');
-      await n.setProperty('demuxer-max-back-bytes', Perf.lite ? '40MiB' : '200MiB');
-      await n.setProperty('demuxer-readahead-secs', Perf.lite ? '120' : '600');
+      // télé : cache raisonnable (un énorme tampon sature la mémoire des boîtiers et fait saccader), reconnexion automatique du flux
+      await n.setProperty('demuxer-max-bytes', Device.tv ? '48MiB' : (Perf.lite ? '40MiB' : '200MiB'));
+      await n.setProperty('demuxer-max-back-bytes', Device.tv ? '48MiB' : (Perf.lite ? '40MiB' : '200MiB'));
+      await n.setProperty('demuxer-readahead-secs', Device.tv ? '30' : (Perf.lite ? '120' : '600'));
+      await n.setProperty('cache-pause-wait', '2');
+      await n.setProperty('network-timeout', '15');
+      await n.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
+      await n.setProperty('demuxer-lavf-o', 'fflags=+discardcorrupt');
     } catch (_) {}
   }
 
@@ -3517,6 +3549,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _watch?.cancel();
     _retryNode.dispose();
     _main.dispose();
+    _tvT?.cancel();
+    _tvPlay.dispose();
     _tr?.cancel();
     _banner?.cancel();
     _first.dispose();
@@ -3525,11 +3559,195 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.dispose();
   }
 
+  // ---------- télécommande : barre de lecture façon télé (OK = pause, ← → = saut, ↑ ↓ = chaîne ou commandes) ----------
+  bool _tvUi = false;
+  Timer? _tvT;
+  final FocusNode _tvPlay = FocusNode(debugLabel: 'lecture');
+  int _seekN = 0;
+  DateTime _seekAt = DateTime(2000);
+  Duration? _seekTgt;
+
+  void _tvShow({bool focus = false}) {
+    _tvT?.cancel();
+    _tvT = Timer(const Duration(seconds: 6), _tvHide);
+    if (!_tvUi) setState(() => _tvUi = true);
+    if (focus) WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _tvUi ? _tvPlay.requestFocus() : null);
+  }
+
+  void _tvHide() {
+    _tvT?.cancel();
+    if (!mounted) return;
+    if (_tvUi) setState(() => _tvUi = false);
+    _main.requestFocus();
+  }
+
+  void _tvSeek(int dir) {
+    final now = DateTime.now();
+    final recent = now.difference(_seekAt) < const Duration(milliseconds: 700);
+    _seekN = recent ? _seekN + 1 : 0;
+    final step = _seekN < 3 ? 10 : (_seekN < 8 ? 30 : 60);
+    final base = recent && _seekTgt != null ? _seekTgt! : player.state.position;
+    var t = base + Duration(seconds: dir * step);
+    final d = player.state.duration;
+    if (t < Duration.zero) t = Duration.zero;
+    if (d > Duration.zero && t > d) t = d;
+    _seekAt = now;
+    _seekTgt = t;
+    player.seek(t);
+    _tvShow();
+  }
+
+  KeyEventResult _tvKey(FocusNode node, KeyEvent e) {
+    if (e is KeyUpEvent) return KeyEventResult.ignored;
+    final k = e.logicalKey;
+    final down = e is KeyDownEvent;
+    final onBar = FocusManager.instance.primaryFocus != node;
+    if (k == LogicalKeyboardKey.mediaPlayPause || k == LogicalKeyboardKey.mediaPlay || k == LogicalKeyboardKey.mediaPause) {
+      if (down) {
+        k == LogicalKeyboardKey.mediaPlay ? player.play() : (k == LogicalKeyboardKey.mediaPause ? player.pause() : player.playOrPause());
+        _tvShow();
+      }
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.mediaFastForward || k == LogicalKeyboardKey.mediaRewind) {
+      if (down && !_live) _seekBy(k == LogicalKeyboardKey.mediaFastForward ? 30 : -30);
+      return KeyEventResult.handled;
+    }
+    if ((k == LogicalKeyboardKey.channelUp || k == LogicalKeyboardKey.channelDown) && widget.zap.length > 1) {
+      if (down) _zapBy(k == LogicalKeyboardKey.channelUp ? -1 : 1);
+      return KeyEventResult.handled;
+    }
+    if (onBar) {
+      if (_tvUi) _tvShow();      // chaque touche repousse la fermeture de la barre
+      if (k == LogicalKeyboardKey.arrowUp && down) {
+        _tvHide();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter) {
+      if (!down) return KeyEventResult.handled;
+      if (_live) {
+        _tvShow(focus: true);
+      } else {
+        player.playOrPause();
+        _tvShow();
+      }
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
+      if (_live) {
+        if (down) _tvShow(focus: true);
+      } else {
+        _tvSeek(k == LogicalKeyboardKey.arrowLeft ? -1 : 1);
+      }
+      return KeyEventResult.handled;
+    }
+    if (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown) {
+      if (_live && widget.zap.length > 1) {
+        if (down) _zapBy(k == LogicalKeyboardKey.arrowUp ? -1 : 1);
+      } else if (down) {
+        _tvShow(focus: true);
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  String _clock(Duration d) {
+    final s = d.inSeconds < 0 ? 0 : d.inSeconds;
+    final h = s ~/ 3600, m = (s % 3600) ~/ 60, x = s % 60;
+    return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${x.toString().padLeft(2, '0')}' : '$m:${x.toString().padLeft(2, '0')}';
+  }
+
+  Widget _tvBtn(IconData ic, String label, VoidCallback f, {FocusNode? node, bool big = false}) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          FocusCard(
+            focusNode: node,
+            radius: 40,
+            focusScale: 1.12,
+            onTap: () {
+              _tvShow();
+              f();
+            },
+            child: Container(width: big ? 80 : 68, height: big ? 80 : 68, color: const Color(0x66FFFFFF), child: Icon(ic, size: big ? 42 : 32, color: Colors.white)),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: T(14, w: 600, color: const Color(0xCCFFFFFF))),
+        ]),
+      );
+
+  Widget _tvOverlay() => Positioned.fill(
+        child: IgnorePointer(
+          ignoring: !_tvUi,
+          child: ExcludeFocus(
+            excluding: !_tvUi,
+            child: AnimatedOpacity(
+              opacity: _tvUi ? 1 : 0,
+              duration: Duration(milliseconds: Perf.lite ? 0 : 160),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(64, 70, 64, 36),
+                  decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00000000), Color(0xE6000000)])),
+                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(28, w: 750)),
+                    if (_epgLine.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4), child: Text(_epgLine, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(18, w: 500, color: const Color(0xCCFFFFFF)))),
+                    const SizedBox(height: 14),
+                    if (!_live)
+                      StreamBuilder<Duration>(
+                        stream: player.stream.position,
+                        initialData: player.state.position,
+                        builder: (_, sn) {
+                          final d = player.state.duration;
+                          final seeking = DateTime.now().difference(_seekAt) < const Duration(milliseconds: 800) && _seekTgt != null;
+                          final p = seeking ? _seekTgt! : (sn.data ?? Duration.zero);
+                          final v = d.inMilliseconds > 0 ? (p.inMilliseconds / d.inMilliseconds).clamp(0.0, 1.0) : 0.0;
+                          return Row(children: [
+                            SizedBox(width: 74, child: Text(_clock(p), style: T(18, w: 650))),
+                            Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: v, minHeight: 8, backgroundColor: const Color(0x40FFFFFF), color: Colors.white))),
+                            SizedBox(width: 90, child: Text(_clock(d), textAlign: TextAlign.right, style: T(18, w: 650, color: const Color(0xCCFFFFFF)))),
+                          ]);
+                        },
+                      ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        _tvBtn(CupertinoIcons.chevron_back, 'Retour', () => Navigator.maybePop(context)),
+                        StreamBuilder<bool>(
+                          stream: player.stream.playing,
+                          initialData: player.state.playing,
+                          builder: (_, sn) => _tvBtn(sn.data == true ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, sn.data == true ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
+                        ),
+                        if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
+                        if (!_live) _tvBtn(CupertinoIcons.goforward_10, '+10 s', () => _tvSeek(1)),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne +', () => _zapBy(-1)),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne -', () => _zapBy(1)),
+                        if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, _alts[_alt].$1, _otherQuality),
+                        _tvBtn(CupertinoIcons.captions_bubble, 'Audio / sous-titres', _tracks),
+                        _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
+                      ]),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
-  Widget build(BuildContext context) => Focus(
+  Widget build(BuildContext context) => PopScope(
+      canPop: !Device.tv || !_tvUi,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _tvHide();
+      },
+      child: Focus(
         focusNode: _main,
         autofocus: true,
         onKeyEvent: (node, e) {
+          if (Device.tv && _fail == null) return _tvKey(node, e);
           if (e is! KeyDownEvent) return KeyEventResult.ignored;
           final k = e.logicalKey;
           final onBar = FocusManager.instance.primaryFocus != node;
@@ -3558,7 +3776,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           return KeyEventResult.ignored;
         },
         child: _scaffold(context),
-      );
+      ));
 
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
@@ -3634,12 +3852,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ),
           ),
-          Positioned(
+          if (Device.tv) _tvOverlay(),
+          if (!Device.tv) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
             child: _TopBtn(node: _first, icon: CupertinoIcons.chevron_back, tip: 'Retour', onTap: () => Navigator.maybePop(context)),
           ),
-          Positioned(
+          if (!Device.tv) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 64,     // laisse la place au bouton Retour : la rangée défile au lieu de passer dessus
             right: 12,

@@ -37,6 +37,7 @@ class _AuthState extends State<AuthScreen> {
   final code = Pairing.newCode();
   Timer? _poll;
   bool _polling = false;
+  bool _linked = false;
 
   @override
   void initState() {
@@ -46,7 +47,7 @@ class _AuthState extends State<AuthScreen> {
         if (mounted) setState(() {});
       });
     }
-    if (Connect.tvNow) _poll = Timer.periodic(const Duration(seconds: 3), (_) async {
+    if (Connect.tvNow) _poll = Timer.periodic(const Duration(seconds: 2), (_) async {
       if (_polling || busy) return;      // une requête lente ne doit pas en lancer une deuxième
       _polling = true;
       final m = await Pairing.poll(code);
@@ -54,9 +55,13 @@ class _AuthState extends State<AuthScreen> {
       if (m == null && mounted) setState(() {});      // l'incident éventuel (Pairing.last) s'affiche
       if (m == null || !mounted) return;
       _poll?.cancel();
+      setState(() => _linked = true);      // le téléphone a répondu : on le montre tout de suite
       final e = await Account.signIn('${m['e']}', '${m['p']}');
       if (e != null) {
-        if (mounted) setState(() => msg = e);
+        if (mounted) setState(() {
+          _linked = false;
+          msg = e;
+        });
         return;
       }
       if (m['c'] is Map) {
@@ -98,27 +103,41 @@ class _AuthState extends State<AuthScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => AuthLayout(
+  Widget build(BuildContext context) => Stack(children: [
+        _layout(),
+        if (_linked)
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xE6000000),
+              alignment: Alignment.center,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Spinner(),
+                const SizedBox(height: 22),
+                Text('Téléphone reconnu', style: T(30, w: 750)),
+                const SizedBox(height: 8),
+                Text('Connexion de ton compte et chargement de tes sources…', style: T(18, color: kMut)),
+              ]),
+            ),
+          ),
+      ]);
+
+  Widget _layout() => AuthLayout(
         step: 0,
         text: create ? 'Crée ton compte pour retrouver ta liste et ta reprise partout.' : 'Connecte-toi à ton compte.',
         side: !Connect.tvNow ? const [] : [
           Container(
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(20)),
-            child: Row(children: [
-              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)), child: QrImageView(data: 'minouflix://pair?c=$code', size: 170, padding: EdgeInsets.zero, backgroundColor: Colors.white)),
-              const SizedBox(width: 22),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Déjà connecté sur ton téléphone ?', style: T(20, w: 700)),
-                  const SizedBox(height: 8),
-                  Text('Scanne ce code : l\'appli s\'ouvre et connecte la télé.', style: T(16, color: kMut, h: 1.35)),
-                  const SizedBox(height: 12),
-                  Text(Pairing.show(code), style: T(30, w: 850, ls: 0.1)),
-                  Text('ou Réglages → Connecter une télé', style: T(14, color: kMut)),
-                  if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, style: T(14, color: const Color(0xFFFFB86B), h: 1.35))),
-                ]),
-              ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(18)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Déjà connecté sur ton téléphone ?', textAlign: TextAlign.center, style: T(18, w: 700)),
+              const SizedBox(height: 4),
+              Text('Scanne ce code : l\'appli s\'ouvre et connecte la télé.', textAlign: TextAlign.center, style: T(14, color: kMut, h: 1.3)),
+              const SizedBox(height: 12),
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: QrImageView(data: 'minouflix://pair?c=$code', size: 150, padding: EdgeInsets.zero, backgroundColor: Colors.white)),
+              const SizedBox(height: 10),
+              Text(Pairing.show(code), style: T(24, w: 850, ls: 0.08)),
+              Text('ou Réglages → Connecter une télé', style: T(13, color: kMut)),
+              if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, textAlign: TextAlign.center, style: T(13, color: const Color(0xFFFFB86B), h: 1.35))),
             ]),
           ),
           if (phone.url != null) phone.card(qr: AuthLayout.wide(context) ? 150 : 110),
