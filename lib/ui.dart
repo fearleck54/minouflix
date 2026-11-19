@@ -76,7 +76,8 @@ class FocusCard extends StatefulWidget {
   final double focusScale;      // agrandissement quand la ligne est sélectionnée (1 = aucun : lignes de liste dans un cadre)
   final VoidCallback? onFocus;      // appelé quand l'élément prend le focus (télécommande) : les onglets changent de page dès qu'on s'y arrête
   final FocusNode? focusNode;
-  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus, this.focusNode});
+  final bool preferred;      // télé : quand on arrive sur cette rangée avec ↑ ↓, cet élément est choisi en premier (onglet actif de la barre)
+  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus, this.focusNode, this.preferred = false});
   @override
   State<FocusCard> createState() => _FocusCardState();
 }
@@ -157,10 +158,17 @@ class _FocusCardState extends State<FocusCard> {
       }
       if (nearest == double.infinity) return false;
       var bd = double.infinity;
-      for (final n in cand) {
+      final row = <FocusNode>[
+        for (final n in cand)
+          if ((down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy) >= me.height * 0.5 && ((down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy) - nearest).abs() <= 40) n
+      ];
+      final pref = row.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
+      if (pref.isNotEmpty && !(widget.preferred)) {
+        pref.first.requestFocus();
+        return true;
+      }
+      for (final n in row) {
         final r = n.rect;
-        final d = down ? r.center.dy - me.center.dy : me.center.dy - r.center.dy;
-        if (d < me.height * 0.5 || (d - nearest).abs() > 40) continue;
         final dx = (r.center.dx - me.center.dx).abs();
         if (dx < bd) {
           bd = dx;
@@ -957,6 +965,7 @@ class NavPill extends StatelessWidget {
         onSelect(k);
       },
       onFocus: Device.tv && k != index ? () => onSelect(k) : null,
+      preferred: on,
       autofocus: Device.tv && on,      // télé : au lancement, le focus est sur l'onglet ouvert (flèche bas = entrer dans la page)
       radius: 30,
       child: Container(

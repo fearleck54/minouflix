@@ -14,7 +14,8 @@ String tmImg(String path, [String w = 'w342']) => path.isEmpty ? '' : 'https://i
 
 class Cast {
   final String name, role, photo;
-  const Cast(this.name, this.role, this.photo);
+  final int id;
+  const Cast(this.name, this.role, this.photo, [this.id = 0]);
 }
 
 class Fiche {
@@ -80,7 +81,7 @@ class Tmdb {
         });
       final cast = [
         for (final m in (((x['credits'] as Map?)?['cast']) as List? ?? []).take(14))
-          if (m is Map && m['name'] != null) Cast('${m['name']}', '${m['character'] ?? ''}', '${m['profile_path'] ?? ''}'),
+          if (m is Map && m['name'] != null) Cast('${m['name']}', '${m['character'] ?? ''}', '${m['profile_path'] ?? ''}', (m['id'] as num?)?.toInt() ?? 0),
       ];
       final fr = ((((x['watch/providers'] as Map?)?['results']) as Map?)?['FR']) as Map? ?? {};
       final seen = <dynamic>{};

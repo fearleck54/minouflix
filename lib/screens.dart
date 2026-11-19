@@ -36,6 +36,7 @@ import 'profils.dart';
 import 'sources.dart';
 import 'pin_guard.dart';
 import 'osk.dart';
+import 'person.dart';
 import 'ui.dart';
 import 'xtream.dart';
 
@@ -997,8 +998,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     final alts = [for (final v in c.v) (v.label, x.liveUrlOf(v.item))];
     // zapping : les chaînes du même thème, dans l'ordre affiché
-    var near = chans.where((o) => o.theme == c.theme).toList();
-    if (c.theme == 'tnt') near = tntSort(near);
+    var near = LiveTab.shown.contains(c) ? [...LiveTab.shown] : chans.where((o) => o.theme == c.theme).toList();
+    if (!LiveTab.shown.contains(c) && c.theme == 'tnt') near = tntSort(near);
+    LiveTab.shown = const [];
     final at = near.indexOf(c);
     final zap = [
       for (final o in near)
@@ -1522,6 +1524,8 @@ class HomeTab extends StatelessWidget {
 
 /// ---------- direct ----------
 class LiveTab extends StatefulWidget {
+  /// chaînes affichées (thème + qualité choisis) au moment où l'on en lance une : le zapping suit exactement cette liste
+  static List<Chan> shown = const [];
   final List<Chan> chans;
   final bool busy;
   final String theme;
@@ -1576,7 +1580,10 @@ class _LiveTabState extends State<LiveTab> {
               itemExtent: 100,
               cacheExtent: 1600,
               itemCount: l.length,
-              itemBuilder: (_, i) => ChannelRow(item: l[i], onTap: () => widget.onPlay(l[i]), onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())),
+              itemBuilder: (_, i) => ChannelRow(item: l[i], onTap: () {
+                LiveTab.shown = l;
+                widget.onPlay(l[i]);
+              }, onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())),
             ),
           ),
         ]),
@@ -1593,9 +1600,15 @@ class _LiveTabState extends State<LiveTab> {
         sliver: wide
             ? SliverGrid(
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 520, mainAxisExtent: 96),
-                delegate: SliverChildBuilderDelegate((_, i) => ChannelRow(item: l[i], onTap: () => widget.onPlay(l[i]), onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())), childCount: l.length),
+                delegate: SliverChildBuilderDelegate((_, i) => ChannelRow(item: l[i], onTap: () {
+                LiveTab.shown = l;
+                widget.onPlay(l[i]);
+              }, onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())), childCount: l.length),
               )
-            : SliverList(delegate: SliverChildBuilderDelegate((_, i) => ChannelRow(item: l[i], onTap: () => widget.onPlay(l[i]), onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())), childCount: l.length)),
+            : SliverList(delegate: SliverChildBuilderDelegate((_, i) => ChannelRow(item: l[i], onTap: () {
+                LiveTab.shown = l;
+                widget.onPlay(l[i]);
+              }, onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())), childCount: l.length)),
       ),
     ]);
   }
@@ -2999,7 +3012,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   width: 92,
                   child: FocusCard(
                     radius: 16,
-                    onTap: () => Navigator.push(context, softRoute((_) => SearchScreen(items: kCatalog(), onOpen: widget.onOpen, initial: fi.cast[i].name))),
+                    onTap: () => Navigator.push(context, softRoute((_) => PersonScreen(name: fi.cast[i].name, role: fi.cast[i].role, photo: fi.cast[i].photo, id: fi.cast[i].id, onOpen: widget.onOpen))),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Column(children: [
