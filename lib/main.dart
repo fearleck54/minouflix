@@ -17,6 +17,7 @@ import 'screens.dart';
 import 'sync.dart';
 import 'tmdb.dart';
 import 'store.dart';
+import 'names.dart';
 import 'xtream.dart';
 
 void main() {
