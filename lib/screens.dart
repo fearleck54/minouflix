@@ -20,6 +20,7 @@ import 'sport.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
 import 'subs.dart';
+import 'perso.dart';
 import 'store.dart';
 import 'account_ui.dart';
 import 'sync.dart';
@@ -634,7 +635,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final busy = <Kind>{for (final k in Kind.values) if ((Store.selection(k) ?? []).isNotEmpty) k};     // jusqu'à la lecture du cache
   final _details = <String, Future<Detail?>>{};
   late Future<List<Ev>> sport = fetchSport(Store.sportKeys);
-  int tab = 0;
+  int tab = Store.initialTab(kid: Store.kid);
+  int _lastSaved = -1;
   bool _quit = false;     // Retour : un second appui rapide quitte l'appli
   String liveTheme = '';
 
@@ -652,8 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _slide = false;      // glissement lancé par le code (barre du bas) : ignore les changements de page intermédiaires
 
   /// pages qu'on fait défiler au doigt (téléphone, tablette) ; la télé garde un empilement simple
-  Widget _swipePages(List<Widget> pages, bool kid) {
-    final vis = [for (var i = 0; i < pages.length; i++) if (!(kid && (i == 1 || i == 4))) i];
+  Widget _swipePages(List<Widget> pages, List<int> vis) {
     final idx = vis.indexOf(tab).clamp(0, vis.length - 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_pc.hasClients || _slide || (_pc.page ?? idx).round() == idx) return;
@@ -678,6 +679,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAll();
     _checkUpdate();
     Epg.version.addListener(_epgChanged);
+    Store.persoTick.addListener(_epgChanged);      // barre du bas et accueil personnalisés : on redessine
     _tick = Timer.periodic(const Duration(minutes: 1), (_) => _epgChanged());
     _sync();
     _syncT = Timer.periodic(const Duration(seconds: 45), (_) => _sync());
@@ -734,6 +736,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    Store.persoTick.removeListener(_epgChanged);
     Connect.stop();
     _tick?.cancel();
     _pc.dispose();
@@ -1104,8 +1107,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    if (kid && (tab == 1 || tab == 4)) tab = 0;
-    final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, hidden: kid ? const {1, 4} : const {}, pages: Device.tv ? null : _pc);
+    final order = Store.tabsVisible(kid: kid);      // barre du bas : onglets choisis, dans l'ordre choisi
+    if (!order.contains(tab)) tab = order.first;
+    if (_lastSaved != tab) {
+      _lastSaved = tab;
+      Store.setLastTab(tab);      // « ouvrir sur le dernier onglet »
+    }
+    final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, order: order, pages: Device.tv ? null : _pc);
     final pages = [
       HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) => setState(() => tab = v), onChan: playChan, onEv: openEv, onResume: resume),
       LiveTab(chans: chans, busy: busy.contains(Kind.live), theme: liveTheme, onTheme: (t) => setState(() => liveTheme = t), onPlay: playChan, onHide: () => setState(() => _derive(Kind.live))),
@@ -1123,8 +1131,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (tab != 0) {
-          setState(() => tab = 0);
+        if (tab != order.first) {
+          setState(() => tab = order.first);
           return;
         }
         if (_quit) {
@@ -1137,7 +1145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
       body: Stack(children: [
-        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: [for (var i = 0; i < pages.length; i++) ExcludeFocus(excluding: i != tab, child: pages[i])]) : _swipePages(pages, kid)),
+        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: [for (var i = 0; i < pages.length; i++) ExcludeFocus(excluding: i != tab, child: pages[i])]) : _swipePages(pages, order)),
         // en-tête : titre à gauche, réglages à droite (navigation au centre sur grand écran)
         Positioned(
           top: 0,
@@ -1361,23 +1369,18 @@ class HomeTab extends StatelessWidget {
     final cont = kid ? <Prog>[] : Store.progress();     // mode enfant : pas de reprise ni de téléchargements des adultes
     final favs = Store.favs;
     final mylist = [...?vl?.rows.where((i) => favs.contains('vod:${i.id}')), ...?sl?.rows.where((i) => favs.contains('series:${i.id}'))];
-    return ListView(padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
-      if (feat.isNotEmpty) HeroBanner(items: feat.take(7).toList(), detailFor: detailFor, onPlay: onPlay, onInfo: onInfo) else SizedBox(height: pad.top + 70),
-      Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
+    final secs = <String, Widget>{
+      'hero': feat.isNotEmpty ? HeroBanner(items: feat.take(7).toList(), detailFor: detailFor, onPlay: onPlay, onInfo: onInfo) : SizedBox(height: pad.top + 70),
+      'continue': Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
             await Store.hideProg(cont[i].key);
             onTab(0);
           })),
-      Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
-      // ni liste ni collection : une ligne d'aide plutôt qu'un vide
-      if (mylist.isEmpty && Store.colls.values.every((v) => v.isEmpty) && !kid && (vl?.rows.isNotEmpty ?? false)) ...[
-        const SectionTitle('Ma liste'),
-        const EmptyState(compact: true, icon: Icons.bookmark_border_rounded, title: 'Garde tes envies ici', sub: 'Sur une fiche, « + » ajoute un film ou une série à ta liste ou à une playlist, pour les ranger par thème.'),
-      ],
-      FutureBuilder<List<Soon>>(
+      'mylist': Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
+      'soon': FutureBuilder<List<Soon>>(
         future: Calendar.of(sl),
         builder: (_, s) => Rail(title: 'Prochains épisodes', height: 118, count: (s.data ?? const []).length, moreLabel: '', builder: (_, i) => SoonCard(s: s.data![i], onTap: () => onOpen(s.data![i].it))),
       ),
-      Builder(builder: (ctx) {
+      'playlists': Builder(builder: (ctx) {
         final cs = Store.colls.entries.toList();     // même les playlists vides : on peut ainsi les supprimer
         final catalog = [...?vl?.rows, ...?sl?.rows];
         List<Item> of(List<String> ks) => [for (final r in catalog) if (ks.contains('${r.kind.name}:${r.id}')) r];
@@ -1413,7 +1416,7 @@ class HomeTab extends StatelessWidget {
           );
         });
       }),
-      Builder(builder: (ctx) {
+      'downloads': Builder(builder: (ctx) {
         final dl = kid ? <Dl>[] : Downloads.all();
         return Rail(title: 'Téléchargés', height: 150, count: dl.length, moreLabel: '', builder: (_, i) => SizedBox(
               width: 300,
@@ -1446,7 +1449,7 @@ class HomeTab extends StatelessWidget {
               ),
             ));
       }),
-      FutureBuilder<List<Map>>(
+      'top10': FutureBuilder<List<Map>>(
         future: Tmdb.trending(),
         builder: (_, s) {
           final tr = trendTop(s.data ?? const [], vl, sl);
@@ -1454,7 +1457,7 @@ class HomeTab extends StatelessWidget {
           return Rail(title: 'Top 10 cette semaine', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Top10Card(rank: i + 1, item: l[i], width: pw, onTap: () => onOpen(l[i])));
         },
       ),
-      FutureBuilder<List<Map>>(
+      'affiche': FutureBuilder<List<Map>>(
         future: Tmdb.nowPlaying(),
         builder: (_, s) {
           final seen = <int>{};
@@ -1468,7 +1471,7 @@ class HomeTab extends StatelessWidget {
           return Rail(title: 'À l\'affiche', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => onOpen(l[i])));
         },
       ),
-      FutureBuilder<List<Ev>>(
+      'sport': FutureBuilder<List<Ev>>(
         future: sport,
         builder: (_, s) {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -1476,18 +1479,22 @@ class HomeTab extends StatelessWidget {
           return Rail(title: 'Sport', height: 124, count: evs.length, onMore: () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs[i], width: sw, onTap: () => onEv(evs[i])));
         },
       ),
-      Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
-      if (mine.isEmpty && chans.isNotEmpty && !kid) ...[
-        const SectionTitle('Mes chaînes'),
-        const EmptyState(compact: true, icon: Icons.star_border_rounded, title: 'Aucune chaîne favorite', sub: 'Dans Direct, touche l\'étoile d\'une chaîne (ou appui long) pour la retrouver ici.'),
-      ],
-      if (recoV.isNotEmpty) rail('Vous aimerez peut-être', recoV),
-      if (recoS.isNotEmpty) rail('Séries pour vous', recoS),
-      rail('Derniers films ajoutés', rv, tab: 2),
-      rail('Séries mises à jour', rs, tab: 3),
+      'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
+      'recoV': recoV.isNotEmpty ? rail('Vous aimerez peut-être', recoV) : const SizedBox.shrink(),
+      'recoS': recoS.isNotEmpty ? rail('Séries pour vous', recoS) : const SizedBox.shrink(),
+      'recent': rail('Derniers films ajoutés', rv, tab: 2),
+      'recentS': rail('Séries mises à jour', rs, tab: 3),
+    };
+    // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
+    final hid = Store.homeHidden();
+    return ListView(padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+      if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
+      for (final id in Store.homeOrder())
+        if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
     ]);
   }
 }
+
 
 /// ---------- direct ----------
 class LiveTab extends StatefulWidget {
@@ -2263,6 +2270,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), foot: 'Appliqués au lancement de la lecture.')),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
+      ]),
+      ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
+        _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Barre du bas', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
+        _row(CupertinoIcons.square_grid_2x2_fill, const Color(0xFF30B0C7), 'Écran d\'accueil', value: '${Store.homeIds.length - Store.homeHidden().length} sections', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const HomeSettings()))),
       ]),
       ('Contenu', 'Contenu', CupertinoIcons.square_stack, [
         _row(CupertinoIcons.cube_box_fill, const Color(0xFF32ADE6), 'Sources', value: _srcs.where((s) => s.$1 == Store.activeId).map((s) => s.$2).firstOrNull ?? (_srcs.isEmpty ? 'Ajouter' : ''), chevron: true, onTap: () async {

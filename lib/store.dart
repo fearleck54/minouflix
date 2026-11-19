@@ -166,6 +166,11 @@ class Store {
   static const _setFlagKeys = ['autonext', 'skipauto'];
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
+        if (_p.getStringList('tab_order') != null) 'tab_order': _p.getStringList('tab_order'),
+        if (_p.getStringList('tab_hid') != null) 'tab_hid': _p.getStringList('tab_hid'),
+        if (_p.getInt('tab_start') != null) 'tab_start': _p.getInt('tab_start'),
+        if (_p.getStringList('home_order') != null) 'home_order': _p.getStringList('home_order'),
+        if (_p.getStringList('home_hid') != null) 'home_hid': _p.getStringList('home_hid'),
         for (final k in _setStrKeys)
           if (_p.getString('s_$k') != null) k: _p.getString('s_$k'),
         for (final k in _setFlagKeys)
@@ -178,6 +183,10 @@ class Store {
     for (final k in _setFlagKeys) {
       if (m[k] is bool) await _p.setBool('f_$k', m[k] as bool);
     }
+    for (final k in ['tab_order', 'tab_hid', 'home_order', 'home_hid']) {
+      if (m[k] is List) await _p.setStringList(k, [for (final x in m[k] as List) '$x']);
+    }
+    if (m['tab_start'] is num) await _p.setInt('tab_start', (m['tab_start'] as num).toInt());
     await _p.setInt('settings_t', t);
   }
 
@@ -568,6 +577,65 @@ class Store {
     favTick.value++;     // l'accueil affiche aussi les playlists
     await f;
     if (_prof.isEmpty) await _touchSel();
+  }
+
+  /// change quand la barre du bas ou l'écran d'accueil sont personnalisés : l'accueil se redessine tout de suite
+  static final persoTick = ValueNotifier<int>(0);
+
+  // ---- barre du bas : ordre des onglets, onglets cachés, onglet d'ouverture (0 Accueil, 1 Direct, 2 Films, 3 Séries, 4 Sport) — synchronisés
+  static List<int> tabOrder() {
+    final l = [for (final x in _p.getStringList('tab_order') ?? const <String>[]) if (int.tryParse(x) != null && int.parse(x) >= 0 && int.parse(x) <= 4) int.parse(x)];
+    final out = l.toSet().toList();
+    for (var i = 0; i <= 4; i++) {
+      if (!out.contains(i)) out.add(i);
+    }
+    return out;
+  }
+
+  static Set<int> tabHidden() => {for (final x in _p.getStringList('tab_hid') ?? const <String>[]) if (int.tryParse(x) != null) int.parse(x)};
+  /// 0..4 = cet onglet ; 9 = le dernier ouvert ; -1 = le premier de la barre
+  static int tabStart() => _p.getInt('tab_start') ?? -1;
+  static int get lastTab => _p.getInt('tab_last') ?? 0;
+  static Future<void> setLastTab(int t) => _p.setInt('tab_last', t);
+
+  /// onglets affichés, dans l'ordre choisi ; mode enfant : sans Direct ni Sport ; jamais vide
+  static List<int> tabsVisible({bool kid = false}) {
+    final hid = tabHidden();
+    final l = [for (final t in tabOrder()) if (!hid.contains(t) && !(kid && (t == 1 || t == 4))) t];
+    return l.isEmpty ? [0] : l;
+  }
+
+  static int initialTab({bool kid = false}) {
+    final vis = tabsVisible(kid: kid), st = tabStart();
+    if (st == 9) return vis.contains(lastTab) ? lastTab : vis.first;
+    if (st >= 0 && vis.contains(st)) return st;
+    return vis.first;
+  }
+
+  static Future<void> setTabs(List<int> order, Set<int> hidden, int start) async {
+    await _p.setStringList('tab_order', [for (final t in order) '$t']);
+    await _p.setStringList('tab_hid', [for (final t in hidden) '$t']);
+    await _p.setInt('tab_start', start);
+    await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    persoTick.value++;
+  }
+
+  // ---- écran d'accueil : sections affichées et leur ordre (synchronisés)
+  static const homeIds = ['hero', 'continue', 'mylist', 'soon', 'playlists', 'downloads', 'top10', 'affiche', 'sport', 'chains', 'recoV', 'recoS', 'recent', 'recentS'];
+  static List<String> homeOrder() {
+    final l = [for (final x in _p.getStringList('home_order') ?? const <String>[]) if (homeIds.contains(x)) x].toSet().toList();
+    for (final x in homeIds) {
+      if (!l.contains(x)) l.add(x);
+    }
+    return l;
+  }
+
+  static Set<String> homeHidden() => (_p.getStringList('home_hid') ?? const <String>[]).toSet();
+  static Future<void> setHome(List<String> order, Set<String> hidden) async {
+    await _p.setStringList('home_order', order);
+    await _p.setStringList('home_hid', hidden.toList());
+    await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    persoTick.value++;
   }
 
   // ---- dernières recherches

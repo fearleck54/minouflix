@@ -745,9 +745,9 @@ class NavPill extends StatelessWidget {
   final int index;
   final void Function(int) onSelect;
   final VoidCallback onSearch;
-  final Set<int> hidden;
+  final List<int> order;      // onglets affichés, dans l'ordre choisi (0 Accueil, 1 Direct, 2 Films, 3 Séries, 4 Sport)
   final PageController? pages;      // glissement entre onglets : la pastille suit le doigt
-  const NavPill({super.key, required this.index, required this.onSelect, required this.onSearch, this.hidden = const {}, this.pages});
+  const NavPill({super.key, required this.index, required this.onSelect, required this.onSearch, this.order = const [0, 1, 2, 3, 4], this.pages});
 
   static const _tabs = [
     (CupertinoIcons.house_fill, 'Accueil'),
@@ -778,7 +778,7 @@ class NavPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final wide = isWide(context);
-    final vis = [for (var k = 0; k < _tabs.length; k++) if (!hidden.contains(k)) k];
+    final vis = order;
     final n = vis.length;
     final bar = glass(
       child: SizedBox(
