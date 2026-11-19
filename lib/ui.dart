@@ -148,6 +148,8 @@ class _FocusCardState extends State<FocusCard> {
         final top = horiz ? o.dx : o.dy, len = horiz ? me.size.width : me.size.height, vpLen = horiz ? vp.size.width : vp.size.height;
         final cont = pos.pixels + top;
         // position fixe pour la rangée / la tuile active (centrage régulier) ; près du début de la liste : tout en haut
+        // rangée horizontale : on ne la fait défiler que si l'élément n'est pas entièrement visible (monter / descendre ne la déplace plus)
+        if (horiz && top >= 40 && top + len <= vpLen - 40) return true;
         double target = cont < vpLen * (horiz ? 0.45 : 0.8) ? pos.minScrollExtent : (horiz ? cont - vpLen * 0.2 : cont + len / 2 - vpLen * 0.42);
         target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
         if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
