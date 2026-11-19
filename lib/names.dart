@@ -147,7 +147,7 @@ List<Chan> groupChannels(List<Item> items, Map<String, String> catNames) {
   return out;
 }
 
-const tntOrder = ['tf1', 'france 2', 'france 3', 'canal+', 'france 5', 'm6', 'arte', 'c8', 'w9', 'tmc', 'tfx', 'nrj 12', 'lcp', 'france 4', 'bfm tv', 'cnews', 'c star', 'gulli', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'lci', 'france info', 't18', 'novo19', 'paris premiere'];
+const tntOrder = ['tf1', 'france 2', 'france 3', 'france 4', 'france 5', 'm6', 'arte', 'lcp', 'w9', 'tmc', 'tfx', 'gulli', 'bfm tv', 'cnews', 'lci', 'france info', 'c star', 't18', 'novo19', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'canal+', 'c8', 'nrj 12', 'paris premiere'];
 
 bool _tntLogged = false;
 
@@ -159,6 +159,7 @@ List<Chan> tntSort(List<Chan> l) {
     t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ');
     // « france2 », « france ch2 », « FRANCE CH2 HDR » → « france 2 » ; « nrj12 » → « nrj 12 »
     t = t.replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj)\s*(?:ch\s*)?(\d)'), (m) => '${m[1]} ${m[2]}');
+    t = t.replaceAll(RegExp(r'\b(la chaine parlementaire|public senat)\b'), 'lcp').replaceAll('franceinfo', 'france info').replaceAll('cstar', 'c star').replaceAll('cmi tv', 't18').replaceAll('lequipe', 'l equipe');
     return t.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
