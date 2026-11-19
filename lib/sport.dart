@@ -26,7 +26,54 @@ const leagues = [
   League('l2', 'Ligue 2', 'soccer/fra.2', false, Color(0xFF0F8A7A), [r'^bein sports [12]$', r'^bein sports max']),
   League('f1', 'Formule 1', 'racing/f1', true, Color(0xFFE10600), [r'^canal\+ (formula|formule) ?1$', r'^canal\+ sport 360$', r'^canal\+ sport$', r'^canal\+$']),
   League('cc', 'Champions Cup (rugby)', 'rugby/271937', false, Color(0xFF0E8A55), [r'^bein sports [123]$', r'^france 2$']),
+  // football
+  League('seriea', 'Serie A', 'soccer/ita.1', false, Color(0xFF1E6FD9), _chFoot),
+  League('bund', 'Bundesliga', 'soccer/ger.1', false, Color(0xFFD9342B), _chFoot),
+  League('cdf', 'Coupe de France', 'soccer/fra.coupe_de_france', false, Color(0xFF2E7D6B), _chFoot),
+  League('ecl', 'Ligue Conférence', 'soccer/uefa.europa.conf', false, Color(0xFF23A455), _chFoot),
+  League('nl', 'Ligue des nations', 'soccer/uefa.nations', false, Color(0xFF3F51B5), _chFoot),
+  League('euro', 'Euro', 'soccer/uefa.euro', false, Color(0xFF1565C0), _chFoot),
+  League('wc', 'Coupe du monde', 'soccer/fifa.world', false, Color(0xFF8E1B3E), _chFoot),
+  League('cwc', 'Coupe du monde des clubs', 'soccer/fifa.cwc', false, Color(0xFFB8860B), _chFoot),
+  League('por', 'Liga Portugal', 'soccer/por.1', false, Color(0xFF2E8B57), _chFoot),
+  League('ned', 'Eredivisie', 'soccer/ned.1', false, Color(0xFFE65100), _chFoot),
+  // rugby
+  League('six', 'Tournoi des Six Nations', 'rugby/180659', false, Color(0xFF7B1FA2), _chRugby),
+  League('trc', 'Rugby Championship', 'rugby/244293', false, Color(0xFF00897B), _chRugby),
+  League('rwc', 'Coupe du monde de rugby', 'rugby/164205', false, Color(0xFFAD1457), _chRugby),
+  League('prem', 'Premiership', 'rugby/267979', false, Color(0xFF5E35B1), _chRugby),
+  League('urc', 'United Rugby Championship', 'rugby/270557', false, Color(0xFF00838F), _chRugby),
+  League('chal', 'Challenge Cup (rugby)', 'rugby/272073', false, Color(0xFF558B2F), _chRugby),
+  // basketball, football américain, hockey
+  League('nba', 'NBA', 'basketball/nba', false, Color(0xFFC8102E), _chUs),
+  League('nfl', 'NFL', 'football/nfl', false, Color(0xFF013369), _chUs),
+  League('nhl', 'NHL', 'hockey/nhl', false, Color(0xFF1D6FA5), _chUs),
 ];
+
+const _chFoot = [r'^canal\+ foot$', r'^canal\+ sport$', r'^canal\+ live \d+$', r'^bein sports', r'^rmc sport'];
+const _chRugby = [r'^canal\+ sport$', r'^canal\+ live \d+$', r'^bein sports', r'^france [23]$', r'^tf1$'];
+const _chUs = [r'^bein sports', r'^rmc sport', r'^canal\+ sport$'];
+
+/// sport d'une compétition (d'après la source des matchs) et ordre d'affichage
+String sportName(League l) => switch (l.espn.split('/').first) {
+      'soccer' => 'Football',
+      'rugby' => 'Rugby',
+      'basketball' => 'Basketball',
+      'football' => 'Football américain',
+      'hockey' => 'Hockey sur glace',
+      'racing' => 'Formule 1',
+      _ => 'Autres',
+    };
+const sportOrder = ['Football', 'Rugby', 'Basketball', 'Football américain', 'Hockey sur glace', 'Formule 1'];
+IconData sportIcon(String sp) => switch (sp) {
+      'Football' => Icons.sports_soccer,
+      'Rugby' => Icons.sports_rugby,
+      'Basketball' => Icons.sports_basketball,
+      'Football américain' => Icons.sports_football,
+      'Hockey sur glace' => Icons.sports_hockey,
+      'Formule 1' => Icons.sports_motorsports,
+      _ => Icons.sports,
+    };
 
 const _lgLogo = {'top14': 'asset:assets/clubs/lg-top14.webp', 'l1': 'asset:assets/clubs/lg-l1.png', 'ucl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2.png', 'el': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2310.png', 'pl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/23.png', 'liga': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/15.png', 'l2': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/96.png', 'f1': 'https://a.espncdn.com/i/teamlogos/leagues/500/f1.png'};
 
@@ -70,6 +117,16 @@ class Ev {
   bool get live => st == 'in';
   bool get post => st == 'post';
 }
+
+/// l'une des deux équipes est suivie (Réglages › Sport › Mes équipes)
+bool followed(Ev e) {
+  if (e.f1) return false;
+  final t = {for (final x in Store.sportTeams) x.toLowerCase()};
+  return t.contains(e.h.name.toLowerCase()) || t.contains(e.a.name.toLowerCase());
+}
+
+/// derniers matchs chargés (sert à proposer les équipes à suivre sans tout recharger)
+List<Ev> lastEvents = const [];
 
 String _clubLogo(String name, String logo) {
   if (logo.isNotEmpty && !logo.contains('/countries/')) return logo;
@@ -155,6 +212,7 @@ Future<List<Ev>> fetchSport(Iterable<String> keys) async {
     if (a.live != b.live) return a.live ? -1 : 1;
     return a.ts.compareTo(b.ts);
   });
+  lastEvents = l;
   return l;
 }
 
@@ -177,7 +235,7 @@ Widget _logo(String u, {double s = 26}) {
   return netLogo(u, s);
 }
 
-/// carte de match (grille et rangée de l'accueil)
+/// carte de match COMPACTE (grille et rangée de l'accueil) : deux équipes, heure ou score, chaîne de couleur de la compétition ; équipes suivies en surbrillance, mode sans spoil
 class SportCard extends StatelessWidget {
   final Ev e;
   final double? width;
@@ -185,81 +243,88 @@ class SportCard extends StatelessWidget {
   final bool noDay;
   const SportCard({super.key, required this.e, required this.onTap, this.width, this.noDay = false});
 
+  /// matchs terminés dont le score a été découvert en touchant la carte (mode sans spoil)
+  static final revealed = <String>{};
+  static final tick = ValueNotifier<int>(0);
+
   @override
-  Widget build(BuildContext context) {
-    final l = lgOf(e.lg);
-    final w = e.post && !e.f1 ? (int.tryParse(e.h.score ?? '') ?? 0).compareTo(int.tryParse(e.a.score ?? '') ?? 0) : 0;
-    Widget row(Side s, bool lost) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Row(children: [
-            _logo(s.logo, s: 22),
-            const SizedBox(width: 10),
-            Expanded(child: Text(s.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14.5, w: 620, color: lost ? kMut : kText))),
-            if (!e.f1 && e.st != 'pre' && s.score != null) Text(s.score!, style: T(15, w: 800, color: lost ? kMut : kText)),
-          ]),
-        );
-    final when = whenLabel(e, day: !noDay);
-    return SizedBox(
-      width: width,
-      child: FocusCard(
-        onTap: onTap,
-        radius: 16,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            // fond teinté aux couleurs de la compétition, motif du sport et logo en filigrane : chaque ligue a sa tuile
-            gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color.alphaBlend(l.color.withOpacity(0.28), const Color(0xFF12151C)), const Color(0xFF12151C)]),
-            border: Border.all(color: e.live ? const Color(0xFFE5484D) : l.color.withOpacity(0.38), width: 0.8),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Container(width: 4, color: l.color),
-              Expanded(
-                child: Stack(children: [
-                  Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _Motif(l)))),
-                  if (!Perf.lite) Positioned(right: -8, bottom: -12, child: IgnorePointer(child: Opacity(opacity: 0.14, child: LgIcon(e.lg, size: 76)))),
-                  Padding(
-                  padding: const EdgeInsets.fromLTRB(13, 10, 14, 10),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                    Row(children: [
-                      LgIcon(e.lg, size: 15),
-                      const SizedBox(width: 6),
-                      Expanded(child: Text(l.n, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(11.5, w: 700, color: Color.lerp(l.color, Colors.white, 0.6)!))),
-                      if (e.live)
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFFE5484D), shape: BoxShape.circle)),
-                          const SizedBox(width: 5),
-                          Text('EN DIRECT', style: T(10.5, w: 750, ls: 0.04, color: const Color(0xFFFF7A80))),
-                        ])
-                      else if (e.post)
-                        Text('Terminé', style: T(11.5, w: 600, color: kMut))
-                      else
-                        Text(when, style: T(13, w: 700)),
-                    ]),
-                    const SizedBox(height: 7),
-                    if (e.f1) ...[
-                      Text(e.h.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(15.5, w: 720)),
-                      const SizedBox(height: 2),
-                      Text(e.a.short + (e.post && e.a.score != null && e.a.score!.isNotEmpty ? '  ·  🏆 ${e.a.score}' : ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: T(13, w: 500, color: kMut)),
-                    ] else ...[
-                      row(e.h, w < 0),
-                      row(e.a, w > 0),
-                    ],
-                    if (e.lieu.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(e.lieu, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(11.5, w: 450, color: const Color(0xFF6F7889))),
-                    ],
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: tick,
+        builder: (_, __, ___) {
+          final l = lgOf(e.lg);
+          final hide = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !revealed.contains(e.id);
+          final mine = followed(e);
+          final w = e.post && !e.f1 && !hide ? (int.tryParse(e.h.score ?? '') ?? 0).compareTo(int.tryParse(e.a.score ?? '') ?? 0) : 0;
+          final star = Store.sportTeams.map((x) => x.toLowerCase()).toSet();
+          Widget row(Side s, bool lost) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.5),
+                child: Row(children: [
+                  _logo(s.logo, s: 20),
+                  const SizedBox(width: 9),
+                  Expanded(child: Text(s.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: star.contains(s.name.toLowerCase()) ? 800 : 600, color: lost ? kMut : kText))),
+                  if (star.contains(s.name.toLowerCase())) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFC857))),
+                  if (!e.f1 && e.st != 'pre' && s.score != null && !hide) Padding(padding: const EdgeInsets.only(left: 8), child: Text(s.score!, style: T(14.5, w: 800, color: lost ? kMut : kText))),
+                ]),
+              );
+          final when = whenLabel(e, day: !noDay);
+          final right = e.live
+              ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFFE5484D), shape: BoxShape.circle)),
+                  const SizedBox(height: 4),
+                  Text('DIRECT', style: T(10, w: 800, ls: 0.04, color: const Color(0xFFFF7A80))),
+                ])
+              : e.post
+                  ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(hide ? Icons.visibility_off_rounded : Icons.check_rounded, size: 15, color: kMut),
+                      const SizedBox(height: 3),
+                      Text(hide ? 'Score\nmasqué' : 'Terminé', textAlign: TextAlign.center, style: T(10, w: 600, color: kMut, h: 1.15)),
+                    ])
+                  : Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, style: T(12.5, w: 700, h: 1.25));
+          return SizedBox(
+            width: width,
+            child: FocusCard(
+              onTap: hide
+                  ? () {
+                      revealed.add(e.id);
+                      tick.value++;
+                    }
+                  : onTap,
+              radius: 14,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [Color.alphaBlend(l.color.withOpacity(mine ? 0.40 : 0.22), const Color(0xFF12151C)), const Color(0xFF12151C)]),
+                  border: Border.all(color: e.live ? const Color(0xFFE5484D) : (mine ? const Color(0xFFFFC857).withOpacity(0.7) : l.color.withOpacity(0.38)), width: mine ? 1.2 : 0.8),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: IntrinsicHeight(
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Container(width: 4, color: l.color),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(11, 8, 8, 8),
+                        child: e.f1
+                            ? Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                                Text(e.h.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14.5, w: 720)),
+                                const SizedBox(height: 2),
+                                Text(e.a.short + (e.post && e.a.score != null && e.a.score!.isNotEmpty ? '  ·  🏆 ${e.a.score}' : ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, w: 500, color: kMut)),
+                              ])
+                            : Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [row(e.h, w < 0), row(e.a, w > 0)]),
+                      ),
+                    ),
+                    Container(
+                      width: 62,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      color: const Color(0x14000000),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 15), const SizedBox(height: 4), Flexible(child: right)]),
+                    ),
                   ]),
                 ),
-                ]),
               ),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
+            ),
+          );
+        },
+      );
 }
 
 /// motif discret selon le sport : ligne et rond de touche (foot), lignes du terrain (rugby), damier (course)
@@ -373,6 +438,25 @@ const _lgSub = {
   'pl': 'Football · Angleterre',
   'liga': 'Football · Espagne',
   'f1': 'Course · Monde',
+  'seriea': 'Football · Italie',
+  'bund': 'Football · Allemagne',
+  'cdf': 'Football · France',
+  'ecl': 'Football · Europe',
+  'nl': 'Football · Europe',
+  'euro': 'Football · Europe',
+  'wc': 'Football · Monde',
+  'cwc': 'Football · Monde',
+  'por': 'Football · Portugal',
+  'ned': 'Football · Pays-Bas',
+  'six': 'Rugby · Europe',
+  'trc': 'Rugby · Hémisphère sud',
+  'rwc': 'Rugby · Monde',
+  'prem': 'Rugby · Angleterre',
+  'urc': 'Rugby · Europe',
+  'chal': 'Rugby · Europe',
+  'nba': 'Basketball · États-Unis',
+  'nfl': 'Football américain · États-Unis',
+  'nhl': 'Hockey · Amérique du Nord',
 };
 
 /// bandeau de la compétition choisie : couleurs, motif du sport, grand logo
@@ -425,13 +509,38 @@ class SportTab extends StatefulWidget {
 }
 
 class _SportTabState extends State<SportTab> {
-  String lg = '';
+  String sp = '';      // sport choisi (« Football »…), vide = tous
+  String lg = '';      // compétition choisie, vide = toutes celles du sport
+  bool mine = false;   // seulement mes équipes
 
-  Future<void> _manage(BuildContext ctx) async {
-    final keys = await manageLeagues(ctx);
-    if (keys == null) return;
-    if (lg.isNotEmpty && !keys.contains(lg)) lg = '';
-    widget.onKeys(keys);
+  Future<void> _more(BuildContext ctx) async {
+    final r = await appSheet<String>(
+      context: ctx,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 6),
+          ListTile(leading: const Icon(Icons.emoji_events_outlined), title: const Text('Championnats et sports'), subtitle: const Text('Foot, rugby, basket… rangés par sport'), onTap: () => Navigator.pop(ctx, 'lg')),
+          ListTile(leading: const Icon(Icons.star_outline_rounded), title: const Text('Mes équipes'), subtitle: const Text('Leurs matchs passent en tête'), onTap: () => Navigator.pop(ctx, 'teams')),
+          ListTile(leading: const Icon(Icons.tune_rounded), title: const Text('Réglages du Sport'), subtitle: const Text('Scores masqués, rangée de l\'accueil'), onTap: () => Navigator.pop(ctx, 'set')),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (!ctx.mounted) return;
+    if (r == 'lg') {
+      final keys = await manageLeagues(ctx);
+      if (keys == null) return;
+      final spn = {for (final k in keys) sportName(lgOf(k))};
+      if (sp.isNotEmpty && !spn.contains(sp)) sp = '';
+      if (lg.isNotEmpty && !keys.contains(lg)) lg = '';
+      widget.onKeys(keys);
+    } else if (r == 'teams') {
+      await manageTeams(ctx, lastEvents);
+      if (mounted) setState(() {});
+    } else if (r == 'set') {
+      await Navigator.push(ctx, softRoute((_) => SportSettings(onKeys: widget.onKeys)));
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -444,7 +553,10 @@ class _SportTabState extends State<SportTab> {
         if (!snap.hasData) return const SkeletonPage(rows: true);
         final all = snap.data!;
         final keys = [for (final k in knownLeagues(Store.sportKeys)) lgOf(k)];
-        final l = lg.isEmpty ? all : all.where((e) => e.lg == lg).toList();
+        final sports = [for (final n in sportOrder) if (keys.any((k) => sportName(k) == n)) n];
+        final hasTeams = Store.sportTeams.isNotEmpty;
+        final inSport = keys.where((k) => sp.isEmpty || sportName(k) == sp).toList();
+        final l = all.where((e) => (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e))).toList();
         final live = l.where((e) => e.live).toList();
         final next = l.where((e) => !e.live && !e.post).toList();
         final hero = live.isNotEmpty ? live.first : (next.isNotEmpty ? next.first : null);
@@ -452,34 +564,70 @@ class _SportTabState extends State<SportTab> {
         for (final e in l.where((e) => !e.live)) {
           groups.putIfAbsent(dayTitle(e), () => []).add(e);
         }
+        // dans une journée, les matchs de mes équipes d'abord
+        for (final g in groups.values) {
+          g.sort((a, b) => (followed(a) == followed(b)) ? a.ts.compareTo(b.ts) : (followed(a) ? -1 : 1));
+        }
         final cw = wide ? 270.0 : 256.0;
+        // 1re ligne : Tout · Mes équipes · sports · +
+        final r1 = ['Tout', if (hasTeams) '★ Mes équipes', ...sports, '+'];
+        int sel1() {
+          if (mine) return 1;
+          if (sp.isEmpty) return 0;
+          return r1.indexOf(sp);
+        }
         return ListView(padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
           Chips(
-            labels: ['Tout', ...keys.map((k) => k.n), '+'],
-            leading: [null, for (final k in keys) LgIcon(k.k, size: 20), const Icon(Icons.add, size: 18)],
-            tints: [null, for (final k in keys) k.color, null],
-            selected: lg.isEmpty ? 0 : keys.indexWhere((k) => k.k == lg) + 1,
+            labels: r1,
+            leading: [null, if (hasTeams) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFC857)), for (final n in sports) Icon(sportIcon(n), size: 18), const Icon(Icons.add, size: 18)],
+            selected: sel1(),
             onSelect: (v) {
-              if (v == keys.length + 1) {
-                _manage(context);
+              final plus = r1.length - 1;
+              if (v == plus) {
+                _more(context);
+              } else if (v == 0) {
+                setState(() {
+                  sp = '';
+                  lg = '';
+                  mine = false;
+                });
+              } else if (hasTeams && v == 1) {
+                setState(() {
+                  mine = true;
+                  sp = '';
+                  lg = '';
+                });
               } else {
-                setState(() => lg = v == 0 ? '' : keys[v - 1].k);
+                setState(() {
+                  mine = false;
+                  sp = r1[v];
+                  lg = '';
+                });
               }
             },
           ),
-          if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text('Aucun match prévu ces prochains jours.', style: T(15, color: kMut)))),
+          // 2e ligne : compétitions du sport choisi
+          if (sp.isNotEmpty && inSport.length > 1)
+            Chips(
+              labels: ['Toutes', for (final k in inSport) k.n],
+              leading: [null, for (final k in inSport) LgIcon(k.k, size: 18)],
+              tints: [null, for (final k in inSport) k.color],
+              selected: lg.isEmpty ? 0 : inSport.indexWhere((k) => k.k == lg) + 1,
+              onSelect: (v) => setState(() => lg = v == 0 ? '' : inSport[v - 1].k),
+            ),
+          if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(15, color: kMut)))),
           if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),
           if (hero != null) SportHero(e: hero, onTap: () => widget.onOpen(hero)),
           if (live.length > 1) ...[
             const SectionTitle('🔴 En direct'),
-            SizedBox(height: 124, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: live.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: live[i], width: cw, noDay: true, onTap: () => widget.onOpen(live[i])))),
+            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: live.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: live[i], width: cw, onTap: () => widget.onOpen(live[i])))),
           ],
           for (final g in groups.entries) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
               child: Row(children: [Expanded(child: Text(g.key, style: T(19, w: 700, ls: -0.02))), Text('${g.value.length} match${g.value.length > 1 ? 's' : ''}', style: T(14, w: 500, color: kMut))]),
             ),
-            SizedBox(height: 124, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: g.value.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onTap: () => widget.onOpen(g.value[i])))),
+            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: g.value.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onTap: () => widget.onOpen(g.value[i])))),
           ],
         ]);
       },
@@ -487,46 +635,227 @@ class _SportTabState extends State<SportTab> {
   }
 }
 
-/// ajouter / retirer des championnats et les réordonner (appui long + glisser) ; null si rien n'a changé
+/// championnats et sports, rangés par sport (Football : Ligue 1, Ligue des champions… ; Rugby : Top 14, Champions Cup…) ; null si rien n'a changé
 Future<List<String>?> manageLeagues(BuildContext ctx) async {
-  final sel = [...knownLeagues(Store.sportKeys)];
-  final order = [...sel, for (final l in leagues) if (!sel.contains(l.k)) l.k];
+  final sel = {...knownLeagues(Store.sportKeys)};
+  final open = <String>{for (final k in sel) sportName(lgOf(k))};
   await appSheet<void>(
     context: ctx,
     isScrollControlled: true,
     builder: (c) => StatefulBuilder(
       builder: (c, set) => SafeArea(
         child: SizedBox(
-          height: MediaQuery.sizeOf(c).height * 0.72,
+          height: MediaQuery.sizeOf(c).height * 0.78,
           child: Column(children: [
-            Padding(padding: const EdgeInsets.fromLTRB(22, 20, 22, 4), child: Align(alignment: Alignment.centerLeft, child: Text('Mes sports', style: T(20, w: 750)))),
-            Padding(padding: const EdgeInsets.fromLTRB(22, 0, 22, 8), child: Align(alignment: Alignment.centerLeft, child: Text('Coche pour afficher, glisse pour changer l\'ordre.', style: T(13, color: kMut)))),
+            Padding(padding: const EdgeInsets.fromLTRB(22, 18, 22, 4), child: Align(alignment: Alignment.centerLeft, child: Text('Championnats et sports', style: T(20, w: 750)))),
+            Padding(padding: const EdgeInsets.fromLTRB(22, 0, 22, 8), child: Align(alignment: Alignment.centerLeft, child: Text('Déplie un sport et coche ses compétitions.', style: T(13, color: kMut)))),
             Expanded(
-              child: ReorderableListView(
-                onReorder: (a, b) => set(() {
-                  if (b > a) b--;
-                  order.insert(b, order.removeAt(a));
-                }),
-                children: [
-                  for (final k in order)
-                    CheckboxListTile(
-                      key: ValueKey(k),
-                      value: sel.contains(k),
-                      activeColor: Colors.white,
-                      checkColor: Colors.black,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      secondary: const Icon(Icons.drag_handle, color: kMut),
-                      title: Row(children: [LgIcon(k, size: 22), const SizedBox(width: 10), Expanded(child: Text(lgOf(k).n, style: T(16, w: 600)))]),
-                      onChanged: (v) => set(() => v == true ? sel.add(k) : sel.remove(k)),
+              child: ListView(children: [
+                for (final sp in [...sportOrder, 'Autres'])
+                  if (leagues.any((l) => sportName(l) == sp)) ...[
+                    ListTile(
+                      leading: Icon(sportIcon(sp), color: kAccent),
+                      title: Text(sp, style: T(16.5, w: 700)),
+                      subtitle: Text('${leagues.where((l) => sportName(l) == sp && sel.contains(l.k)).length} sur ${leagues.where((l) => sportName(l) == sp).length} choisies'),
+                      trailing: Icon(open.contains(sp) ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: kMut),
+                      onTap: () => set(() => open.contains(sp) ? open.remove(sp) : open.add(sp)),
                     ),
-                ],
-              ),
+                    if (open.contains(sp))
+                      for (final l in leagues.where((l) => sportName(l) == sp))
+                        CheckboxListTile(
+                          value: sel.contains(l.k),
+                          activeColor: Colors.white,
+                          checkColor: Colors.black,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: const EdgeInsets.only(left: 40, right: 16),
+                          title: Row(children: [LgIcon(l.k, size: 22), const SizedBox(width: 10), Expanded(child: Text(l.n, style: T(15.5, w: 600)))]),
+                          onChanged: (v) => set(() => v == true ? sel.add(l.k) : sel.remove(l.k)),
+                        ),
+                  ],
+              ]),
             ),
           ]),
         ),
       ),
-    ));
-  final keys = [for (final k in order) if (sel.contains(k)) k];
+    ),
+  );
+  // l'ordre suit les sports puis la liste des compétitions
+  final keys = [for (final l in leagues) if (sel.contains(l.k)) l.k]
+    ..sort((a, b) {
+      final sa = sportOrder.indexOf(sportName(lgOf(a))), sb = sportOrder.indexOf(sportName(lgOf(b)));
+      return sa != sb ? sa.compareTo(sb) : leagues.indexWhere((l) => l.k == a).compareTo(leagues.indexWhere((l) => l.k == b));
+    });
   if (keys.isEmpty || keys.join() == Store.sportKeys.join()) return null;
   return keys;
+}
+
+/// équipes suivies : on coche celles qu'on veut parmi les équipes des matchs chargés (recherche possible)
+Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
+  final byLg = <String, Map<String, Side>>{};
+  for (final e in events) {
+    if (e.f1) continue;
+    for (final s in [e.h, e.a]) {
+      if (s.name == '?' || s.name.isEmpty) continue;
+      byLg.putIfAbsent(e.lg, () => {})[s.name] = s;
+    }
+  }
+  final mine = {...Store.sportTeams};
+  final qc = TextEditingController();
+  var q = '';
+  await appSheet<void>(
+    context: ctx,
+    isScrollControlled: true,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) {
+        final groups = [
+          for (final k in knownLeagues(Store.sportKeys))
+            if (byLg[k] != null) (lgOf(k), (byLg[k]!.values.where((s) => q.isEmpty || s.name.toLowerCase().contains(q)).toList()..sort((a, b) => a.name.compareTo(b.name)))),
+        ];
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(c).height * 0.8,
+            child: Column(children: [
+              Padding(padding: const EdgeInsets.fromLTRB(22, 18, 22, 4), child: Align(alignment: Alignment.centerLeft, child: Text('Mes équipes', style: T(20, w: 750)))),
+              Padding(padding: const EdgeInsets.fromLTRB(22, 0, 22, 8), child: Align(alignment: Alignment.centerLeft, child: Text('Leurs matchs passent en tête, avec une étoile.', style: T(13, color: kMut)))),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(color: const Color(0x3D767680), borderRadius: BorderRadius.circular(12)),
+                  child: Row(children: [
+                    const Icon(Icons.search_rounded, size: 18, color: kMut),
+                    const SizedBox(width: 8),
+                    Expanded(child: AppField(controller: qc, onChanged: (v) => set(() => q = v.toLowerCase().trim()), style: T(16, w: 500), decoration: InputDecoration(hintText: 'Rechercher une équipe', hintStyle: T(16, color: kMut), border: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero))),
+                  ]),
+                ),
+              ),
+              Expanded(
+                child: groups.isEmpty
+                    ? Center(child: Text('Les équipes apparaissent quand les matchs sont chargés.', style: T(14, color: kMut)))
+                    : ListView(children: [
+                        for (final g in groups)
+                          if (g.$2.isNotEmpty) ...[
+                            Padding(padding: const EdgeInsets.fromLTRB(22, 14, 22, 4), child: Row(children: [LgIcon(g.$1.k, size: 18), const SizedBox(width: 8), Text(g.$1.n, style: T(13, w: 700, color: kMut))])),
+                            for (final t in g.$2)
+                              CheckboxListTile(
+                                value: mine.contains(t.name),
+                                activeColor: const Color(0xFFFFC857),
+                                checkColor: Colors.black,
+                                controlAffinity: ListTileControlAffinity.trailing,
+                                secondary: _logo(t.logo, s: 26),
+                                title: Text(t.name, style: T(15.5, w: 600)),
+                                onChanged: (v) {
+                                  set(() => v == true ? mine.add(t.name) : mine.remove(t.name));
+                                  Store.setSportTeams(mine.toList());
+                                },
+                              ),
+                          ],
+                      ]),
+              ),
+            ]),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// Réglages › Personnaliser › Sport
+class SportSettings extends StatefulWidget {
+  final void Function(List<String>)? onKeys;
+  const SportSettings({super.key, this.onKeys});
+  @override
+  State<SportSettings> createState() => _SportSettingsState();
+}
+
+class _SportSettingsState extends State<SportSettings> {
+  Widget _card(List<Widget> rows) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(16), border: Border.all(color: kEdge, width: 0.8)),
+            child: Column(children: [
+              for (var i = 0; i < rows.length; i++) ...[if (i > 0) const Divider(height: 0.5, thickness: 0.5, indent: 18, color: kEdge), rows[i]],
+            ]),
+          ),
+        ),
+      );
+
+  Widget _row(String t, String sub, {Widget? trailing, required VoidCallback onTap}) => FocusCard(
+        onTap: onTap,
+        radius: 0,
+        focusScale: 1,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 12, 16, 12),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(t, style: T(16.5, w: 600)), if (sub.isNotEmpty) Text(sub, style: T(12.5, color: kMut, h: 1.3))])),
+            if (trailing != null) trailing,
+          ]),
+        ),
+      );
+
+  Widget _head(String t) => Padding(padding: const EdgeInsets.fromLTRB(26, 22, 22, 8), child: Text(t.toUpperCase(), style: T(12, w: 700, ls: 0.09, color: kMut)));
+  Widget _sw(bool v) => ExcludeFocus(child: IgnorePointer(child: Switch(value: v, activeColor: Colors.white, activeTrackColor: const Color(0xFF30D158), onChanged: (_) {})));
+  Widget _check(bool on) => on ? const Icon(Icons.check_rounded, color: kAccent) : const SizedBox.shrink();
+
+  @override
+  Widget build(BuildContext context) {
+    final spoil = Store.flag('sport_nospoil', false);
+    final hs = Store.str('home_sport'), hn = int.tryParse(Store.str('home_sport_n')) ?? 10;
+    return Scaffold(
+      body: LargeTitle(
+        title: 'Sport',
+        onBack: () => Navigator.pop(context),
+        children: [
+          _head('Contenu'),
+          _card([
+            _row('Championnats et sports', '${Store.sportKeys.length} suivis, rangés par sport', trailing: const Icon(Icons.chevron_right_rounded, color: kMut), onTap: () async {
+              final keys = await manageLeagues(context);
+              if (keys != null) {
+                widget.onKeys != null ? widget.onKeys!(keys) : await Store.saveSportKeys(keys);
+                Store.persoTick.value++;
+              }
+              if (mounted) setState(() {});
+            }),
+            _row('Mes équipes', Store.sportTeams.isEmpty ? 'Aucune équipe suivie' : '${Store.sportTeams.length} suivie${Store.sportTeams.length > 1 ? 's' : ''}', trailing: const Icon(Icons.chevron_right_rounded, color: kMut), onTap: () async {
+              await manageTeams(context, lastEvents);
+              if (mounted) setState(() {});
+            }),
+          ]),
+          _head('Scores'),
+          _card([
+            _row('Masquer les scores', 'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir', trailing: _sw(spoil), onTap: () async {
+              await Store.setFlag('sport_nospoil', !spoil);
+              SportCard.tick.value++;
+              if (mounted) setState(() {});
+            }),
+          ]),
+          _head('Rangée Sport de l\'accueil'),
+          _card([
+            _row('Tous mes championnats', '', trailing: _check(hs != 'mine'), onTap: () async {
+              await Store.setStr('home_sport', 'all');
+              Store.persoTick.value++;
+              if (mounted) setState(() {});
+            }),
+            _row('Mes équipes seulement', '', trailing: _check(hs == 'mine'), onTap: () async {
+              await Store.setStr('home_sport', 'mine');
+              Store.persoTick.value++;
+              if (mounted) setState(() {});
+            }),
+          ]),
+          const SizedBox(height: 12),
+          _card([
+            for (final n in const [4, 6, 10])
+              _row('$n matchs au maximum', '', trailing: _check(hn == n), onTap: () async {
+                await Store.setStr('home_sport_n', '$n');
+                Store.persoTick.value++;
+                if (mounted) setState(() {});
+              }),
+          ]),
+        ],
+      ),
+    );
+  }
 }

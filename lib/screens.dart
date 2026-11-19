@@ -21,6 +21,7 @@ import 'version.dart';
 import 'keys.dart' show kTmdbKey;
 import 'subs.dart';
 import 'perso.dart';
+import 'ouvoir.dart';
 import 'store.dart';
 import 'account_ui.dart';
 import 'sync.dart';
@@ -679,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAll();
     _checkUpdate();
     Epg.version.addListener(_epgChanged);
-    Store.persoTick.addListener(_epgChanged);      // barre du bas et accueil personnalisés : on redessine
+    Store.persoTick.addListener(_persoChanged);      // barre du bas et accueil personnalisés : on redessine
     _tick = Timer.periodic(const Duration(minutes: 1), (_) => _epgChanged());
     _sync();
     _syncT = Timer.periodic(const Duration(seconds: 45), (_) => _sync());
@@ -729,6 +730,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  String _sportSeen = Store.sportKeys.join(',');
+  void _persoChanged() {
+    if (!mounted) return;
+    final k = Store.sportKeys.join(',');
+    if (k != _sportSeen) {
+      _sportSeen = k;
+      sport = fetchSport(Store.sportKeys);      // championnats changés dans Réglages
+    }
+    setState(() {});
+  }
+
   void _epgChanged() {
     if (mounted) setState(() {});
   }
@@ -736,7 +748,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    Store.persoTick.removeListener(_epgChanged);
+    Store.persoTick.removeListener(_persoChanged);
     Connect.stop();
     _tick?.cancel();
     _pc.dispose();
@@ -997,25 +1009,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
-  /// match : on lance la chaîne habituelle de la compétition si on la trouve, sinon on ouvre le Direct « Sport »
-  void openEv(Ev e) {
+  /// match : on cherche la chaîne qui le diffuse (guide du fournisseur, sinon chaînes habituelles de la compétition) ; si une seule chaîne est sûre, elle démarre
+  Future<void> openEv(Ev e) async {
     if (kStore) {
       // version store : le sport reste un calendrier (aucune chaîne lancée depuis un match)
       if (tab != 4) setState(() => tab = 4);
       return;
     }
-    for (final p in lgOf(e.lg).ch) {
-      final rx = RegExp(p);
-      final c = chans.where((c) => rx.hasMatch(norm(c.name))).firstOrNull;
-      if (c != null) {
-        playChan(c);
-        return;
-      }
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Recherche de la chaîne…')));
+    final picks = await whereToWatch(e, chans);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    if (picks.isEmpty) {
+      setState(() {
+        liveTheme = 'sport';
+        tab = 1;
+      });
+      return;
     }
-    setState(() {
-      liveTheme = 'sport';
-      tab = 1;
-    });
+    if (picks.first.score >= 5 && (picks.length == 1 || picks[1].score < 5)) {
+      await Store.setStr('lgch_${e.lg}', picks.first.c.key);
+      playChan(picks.first.c);
+      return;
+    }
+    final c = await showWatchSheet(context, e, picks);
+    if (c != null && mounted) playChan(c);
   }
 
   void info(Item it) {
@@ -1475,8 +1493,10 @@ class HomeTab extends StatelessWidget {
         future: sport,
         builder: (_, s) {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-          final evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post)).take(10).toList();
-          return Rail(title: 'Sport', height: 124, count: evs.length, onMore: () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs[i], width: sw, onTap: () => onEv(evs[i])));
+          var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
+          if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
+          evs = evs.take(int.tryParse(Store.str('home_sport_n')) ?? 10).toList();
+          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
         },
       ),
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -2273,6 +2293,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
         _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Barre du bas', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
+        _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
+              await Store.saveSportKeys(k);
+              Store.persoTick.value++;
+            })))),
         _row(CupertinoIcons.square_grid_2x2_fill, const Color(0xFF30B0C7), 'Écran d\'accueil', value: '${Store.homeIds.length - Store.homeHidden().length} sections', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const HomeSettings()))),
       ]),
       ('Contenu', 'Contenu', CupertinoIcons.square_stack, [

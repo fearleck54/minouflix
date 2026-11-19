@@ -78,6 +78,9 @@ class Epg {
 
   static bool get loaded => _by.isNotEmpty;
 
+  /// programmes déjà lus d'une chaîne : [début, fin, titre]
+  static List<List<Object>> programs(String id) => _by[id] ?? const [];
+
   static EpgNow? now(String id) {
     final l = _by[id];
     if (l == null) return null;

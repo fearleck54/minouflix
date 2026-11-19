@@ -163,7 +163,7 @@ class Store {
 
   // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
   static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub'];
-  static const _setFlagKeys = ['autonext', 'skipauto'];
+  static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil'];
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
         if (_p.getStringList('tab_order') != null) 'tab_order': _p.getStringList('tab_order'),
@@ -171,6 +171,7 @@ class Store {
         if (_p.getInt('tab_start') != null) 'tab_start': _p.getInt('tab_start'),
         if (_p.getStringList('home_order') != null) 'home_order': _p.getStringList('home_order'),
         if (_p.getStringList('home_hid') != null) 'home_hid': _p.getStringList('home_hid'),
+        if (_p.getStringList('sport_teams') != null) 'sport_teams': _p.getStringList('sport_teams'),
         for (final k in _setStrKeys)
           if (_p.getString('s_$k') != null) k: _p.getString('s_$k'),
         for (final k in _setFlagKeys)
@@ -183,7 +184,7 @@ class Store {
     for (final k in _setFlagKeys) {
       if (m[k] is bool) await _p.setBool('f_$k', m[k] as bool);
     }
-    for (final k in ['tab_order', 'tab_hid', 'home_order', 'home_hid']) {
+    for (final k in ['tab_order', 'tab_hid', 'home_order', 'home_hid', 'sport_teams']) {
       if (m[k] is List) await _p.setStringList(k, [for (final x in m[k] as List) '$x']);
     }
     if (m['tab_start'] is num) await _p.setInt('tab_start', (m['tab_start'] as num).toInt());
@@ -634,6 +635,14 @@ class Store {
   static Future<void> setHome(List<String> order, Set<String> hidden) async {
     await _p.setStringList('home_order', order);
     await _p.setStringList('home_hid', hidden.toList());
+    await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    persoTick.value++;
+  }
+
+  // ---- sport : équipes suivies (noms affichés par la source des matchs), synchronisées
+  static List<String> get sportTeams => _p.getStringList('sport_teams') ?? const [];
+  static Future<void> setSportTeams(List<String> v) async {
+    await _p.setStringList('sport_teams', v);
     await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
     persoTick.value++;
   }
