@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'journal.dart';
+import 'perf.dart';
+import 'connect.dart';
+import 'auth.dart';
 import 'store.dart';
 import 'ui.dart';
 import 'xtream.dart';
@@ -47,6 +50,9 @@ Future<void> testSource(BuildContext context) async {
 
 Future<List<(bool, String)>> _lines(Creds c) async {
   final out = <(bool, String)>[];
+  out.add((true, 'Appareil : ${Device.tv ? 'télé (reçoit les commandes)' : 'téléphone ou tablette'}.'));
+  out.add((Account.signedIn, Account.signedIn ? 'Compte MinouFlix : connecté (${Account.email}).' : 'Compte MinouFlix : non connecté (la télécommande et la synchro en ont besoin).'));
+  if (Account.signedIn) out.add((Connect.canSend, Connect.canSend ? 'Télécommande : prête.' : 'Télécommande : indisponible (clé du compte absente) : déconnecte puis reconnecte le compte.'));
   final x = Xtream(c);
   final t0 = DateTime.now();
   try {

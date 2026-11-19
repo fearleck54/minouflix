@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart' show CupertinoPageRoute, CupertinoIcons,
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/material.dart' as mat show Text;
+import 'journal.dart';
 import 'l10n.dart';
 export 'l10n.dart' show L;
 import 'package:flutter/services.dart';
@@ -152,10 +153,21 @@ Widget _placeholder(String title) => Container(
       child: Text(title, textAlign: TextAlign.center, maxLines: 4, overflow: TextOverflow.ellipsis, style: T(12, w: 600, color: const Color(0xFF7F8BA0))),
     );
 
+int _imgErrs = 0;
+
+/// les premiers échecs de chargement d'image sont notés dans le journal (adresse sans paramètres) : l'écran « Test de la source » permet de les relire
+void _imgErr(String url, Object e) {
+  if (_imgErrs++ >= 6) return;
+  Journal.add('Image non chargée (${Uri.tryParse(url)?.host ?? '?'})', e);
+}
+
 /// w : largeur de décodage en pixels (les images ne sont plus décodées à leur taille d'origine : moins de mémoire, défilement plus fluide)
 Widget netImage(String url, String title, {BoxFit fit = BoxFit.cover, Alignment alignment = Alignment.center, int w = 520}) => url.isEmpty
     ? _placeholder(title)
-    : CachedNetworkImage(imageUrl: url, fit: fit, alignment: alignment, memCacheWidth: Perf.img(w), fadeInDuration: Duration(milliseconds: Perf.lite ? 0 : 200), placeholder: (_, __) => _placeholder(''), errorWidget: (_, __, ___) => _placeholder(title));
+    : CachedNetworkImage(imageUrl: url, fit: fit, alignment: alignment, memCacheWidth: Perf.img(w), fadeInDuration: Duration(milliseconds: Perf.lite ? 0 : 200), placeholder: (_, __) => _placeholder(''), errorWidget: (_, u, e) {
+      _imgErr(u, e);
+      return _placeholder(title);
+    });
 
 /// précharge l'image de fond d'un titre (dès qu'on sait laquelle) pour qu'elle soit déjà là à l'ouverture
 void warmBackdrop(BuildContext context, Item it) {
@@ -732,9 +744,9 @@ class NavPill extends StatelessWidget {
   static const _tabs = [
     (CupertinoIcons.house_fill, 'Accueil'),
     (CupertinoIcons.tv_fill, 'Direct'),
-    (CupertinoIcons.sportscourt_fill, 'Sport'),
     (CupertinoIcons.film_fill, 'Films'),
     (CupertinoIcons.rectangle_stack_fill, 'Séries'),
+    (CupertinoIcons.sportscourt_fill, 'Sport'),
   ];
   static const _ink = Color(0xFFF2F4FA);
 

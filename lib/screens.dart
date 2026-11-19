@@ -327,6 +327,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                 Row(children: [
                                   if (widget.onCancel != null) ...[RoundButton(size: 44, label: 'Retour', onTap: widget.onCancel, child: const Ic('back', size: 20)), const SizedBox(width: 12)],
                                   Expanded(child: Text('Catégories', style: T(34, w: 800, ls: -0.04))),
+                                  // télé : « Charger » tout en haut, sans avoir à descendre toute la liste à la télécommande
+                                  if (tv) PillButton(label: total == 0 ? 'Charger' : 'Charger ($total)', icon: 'play', primary: true, height: 48, onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save),
                                 ]),
                                 const SizedBox(height: 4),
                                 Text('Seules les catégories cochées sont téléchargées. Tu pourras les changer dans Réglages.', style: T(14, color: kMut, h: 1.35)),
@@ -650,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// pages qu'on fait défiler au doigt (téléphone, tablette) ; la télé garde un empilement simple
   Widget _swipePages(List<Widget> pages, bool kid) {
-    final vis = [for (var i = 0; i < pages.length; i++) if (!(kid && (i == 1 || i == 2))) i];
+    final vis = [for (var i = 0; i < pages.length; i++) if (!(kid && (i == 1 || i == 4))) i];
     final idx = vis.indexOf(tab).clamp(0, vis.length - 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_pc.hasClients || _slide || (_pc.page ?? idx).round() == idx) return;
@@ -995,7 +997,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void openEv(Ev e) {
     if (kStore) {
       // version store : le sport reste un calendrier (aucune chaîne lancée depuis un match)
-      if (tab != 2) setState(() => tab = 2);
+      if (tab != 4) setState(() => tab = 4);
       return;
     }
     for (final p in lgOf(e.lg).ch) {
@@ -1101,20 +1103,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     }
-    if (kid && (tab == 1 || tab == 2)) tab = 0;
-    final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, hidden: kid ? const {1, 2} : const {}, pages: Device.tv ? null : _pc);
+    if (kid && (tab == 1 || tab == 4)) tab = 0;
+    final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, hidden: kid ? const {1, 4} : const {}, pages: Device.tv ? null : _pc);
     final pages = [
       HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) => setState(() => tab = v), onChan: playChan, onEv: openEv, onResume: resume),
       LiveTab(chans: chans, busy: busy.contains(Kind.live), theme: liveTheme, onTheme: (t) => setState(() => liveTheme = t), onPlay: playChan, onHide: () => setState(() => _derive(Kind.live))),
+      LibTab(kind: Kind.vod, lib: libs[Kind.vod], busy: busy.contains(Kind.vod), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
+      LibTab(kind: Kind.series, lib: libs[Kind.series], busy: busy.contains(Kind.series), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
       SportTab(future: sport, onOpen: openEv, onKeys: (k) async {
         await Store.saveSportKeys(k);
         if (mounted) setState(() => sport = fetchSport(k));
       }),
-      LibTab(kind: Kind.vod, lib: libs[Kind.vod], busy: busy.contains(Kind.vod), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
-      LibTab(kind: Kind.series, lib: libs[Kind.series], busy: busy.contains(Kind.series), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
     ];
-    final title = tab == 0 ? (Store.name.isEmpty ? 'Accueil' : 'Bonjour ${Store.name}') : ['', 'Direct', 'Sport', 'Films', 'Séries'][tab];
-    final heroTab = tab == 0 || tab == 3 || tab == 4;
+    final title = tab == 0 ? (Store.name.isEmpty ? 'Accueil' : 'Bonjour ${Store.name}') : ['', 'Direct', 'Films', 'Séries', 'Sport'][tab];
+    final heroTab = tab == 0 || tab == 2 || tab == 3;
     return Scaffold(
       body: Stack(children: [
         Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: pages) : _swipePages(pages, kid)),
@@ -1453,7 +1455,7 @@ class HomeTab extends StatelessWidget {
         builder: (_, s) {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           final evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post)).take(10).toList();
-          return Rail(title: 'Sport', height: 124, count: evs.length, onMore: () => onTab(2), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs[i], width: sw, onTap: () => onEv(evs[i])));
+          return Rail(title: 'Sport', height: 124, count: evs.length, onMore: () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs[i], width: sw, onTap: () => onEv(evs[i])));
         },
       ),
       Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -1463,8 +1465,8 @@ class HomeTab extends StatelessWidget {
       ],
       if (recoV.isNotEmpty) rail('Vous aimerez peut-être', recoV),
       if (recoS.isNotEmpty) rail('Séries pour vous', recoS),
-      rail('Derniers films ajoutés', rv, tab: 3),
-      rail('Séries mises à jour', rs, tab: 4),
+      rail('Derniers films ajoutés', rv, tab: 2),
+      rail('Séries mises à jour', rs, tab: 3),
     ]);
   }
 }

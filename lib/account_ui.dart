@@ -49,6 +49,7 @@ class _AuthState extends State<AuthScreen> {
       _polling = true;
       final m = await Pairing.poll(code);
       _polling = false;
+      if (m == null && mounted) setState(() {});      // l'incident éventuel (Pairing.last) s'affiche
       if (m == null || !mounted) return;
       _poll?.cancel();
       final e = await Account.signIn('${m['e']}', '${m['p']}');
@@ -108,6 +109,7 @@ class _AuthState extends State<AuthScreen> {
               Text(Pairing.show(code), style: T(32, w: 850, ls: 0.1)),
               const SizedBox(height: 4),
               Text('Sur le téléphone : Réglages → Connecter une télé, puis saisis ce code.', style: T(13, color: kMut)),
+              if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, style: T(13, color: const Color(0xFFFFB86B), h: 1.35))),
             ]),
           ),
           if (phone.url != null) phone.card(qr: AuthLayout.wide(context) ? 150 : 110),

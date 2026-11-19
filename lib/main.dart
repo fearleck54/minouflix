@@ -30,7 +30,7 @@ void main() {
     if (!kIsWeb) MediaKit.ensureInitialized();
     await Store.init();
     L.init();
-    Device.tv = await Connect.isTv();     // télé Android : mode léger (sans flou, sans défilement automatique) et mises en page de salon
+    Device.tv = await Connect.isTv() || (kIsWeb && Uri.base.queryParameters['tv'] == '1');     // télé Android : mode léger (sans flou, sans défilement automatique) et mises en page de salon
     if (Perf.lite) {
       PaintingBinding.instance.imageCache
         ..maximumSizeBytes = 36 << 20     // 36 Mo d'images décodées au lieu de 100
