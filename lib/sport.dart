@@ -577,6 +577,64 @@ class _SportTabState extends State<SportTab> {
           if (sp.isEmpty) return 0;
           return r1.indexOf(sp);
         }
+        if (Device.tv) {
+          Widget item(String label, IconData ic, bool on, VoidCallback f, {Color? tint}) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: FocusCard(
+                  radius: 14,
+                  focusScale: 1.0,
+                  onTap: f,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    decoration: BoxDecoration(color: on ? Colors.white.withOpacity(0.14) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+                    child: Row(children: [
+                      Icon(ic, size: 24, color: tint ?? (on ? Colors.white : kMut)),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(19, w: on ? 750 : 550, color: on ? Colors.white : kText))),
+                    ]),
+                  ),
+                ),
+              );
+          void pick(String s, String g, bool m) => setState(() {
+                sp = s;
+                lg = g;
+                mine = m;
+              });
+          final side = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 40), children: [
+            item('Tout', Icons.sports_rounded, sp.isEmpty && !mine, () => pick('', '', false)),
+            if (hasTeams) item('Mes équipes', Icons.star_rounded, mine, () => pick('', '', true), tint: const Color(0xFFFFC857)),
+            for (final n in sports) ...[
+              item(n, sportIcon(n), sp == n && !mine, () => pick(n, '', false)),
+              if (sp == n && !mine && inSport.length > 1) ...[
+                Padding(padding: const EdgeInsets.only(left: 22), child: item('Toutes', Icons.chevron_right_rounded, lg.isEmpty, () => pick(n, '', false))),
+                for (final k in inSport) Padding(padding: const EdgeInsets.only(left: 22), child: item(k.n, Icons.chevron_right_rounded, lg == k.k, () => pick(n, k.k, false), tint: k.color)),
+              ],
+            ],
+            const SizedBox(height: 10),
+            item('Réglages', Icons.tune_rounded, false, () => _more(context)),
+          ]);
+          Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 300, onTap: () => widget.onOpen(e))]);
+          final main = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 60), children: [
+            if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(20, color: kMut)))),
+            if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),
+            if (hero != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: SportHero(e: hero, onTap: () => widget.onOpen(hero))),
+            if (live.length > 1) ...[
+              Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 10), child: Text('🔴 En direct', style: T(24, w: 750))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: grid(live)),
+            ],
+            for (final g in groups.entries) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
+                child: Row(children: [Expanded(child: Text(g.key, style: T(24, w: 750, ls: -0.02))), Text('${g.value.length} match${g.value.length > 1 ? 's' : ''}', style: T(16, w: 500, color: kMut))]),
+              ),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: grid(g.value)),
+            ],
+          ]);
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Row(children: [SizedBox(width: 290, child: side), const SizedBox(width: 12), Expanded(child: main)]),
+          );
+        }
         return ListView(padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
           Chips(
             labels: r1,

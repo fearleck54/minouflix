@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
+import 'package:app_links/app_links.dart';
 import 'package:media_kit/media_kit.dart';
+import 'pairing.dart';
 import 'account_ui.dart';
 import 'auth.dart';
 import 'connect.dart';
@@ -46,6 +48,7 @@ void main() {
     await demoSetup();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     runApp(const MinouFlix());
+    MinouFlix.listenLinks();
   }, (e, st) => Journal.add('Erreur', e, st));
 }
 
@@ -56,6 +59,51 @@ class MinouFlix extends StatelessWidget {
   Widget build(BuildContext context) => ValueListenableBuilder<String>(valueListenable: L.changed, builder: (_, lang, __) => _app(lang));
 
   /// changer de langue relance l'interface (clé = langue) : tous les textes se retraduisent
+  static final navKey = GlobalKey<NavigatorState>();
+  static bool _linkBusy = false;
+
+  /// minouflix://pair?c=CODE (QR de la télé) : une confirmation, puis le compte et les sources partent vers la télé
+  static Future<void> _onLink(Uri u) async {
+    if (u.scheme != 'minouflix' || u.host != 'pair' || _linkBusy) return;
+    final code = Pairing.norm(u.queryParameters['c'] ?? '');
+    final ctx = navKey.currentContext;
+    if (code.length != 8 || ctx == null) return;
+    _linkBusy = true;
+    try {
+      String? e;
+      if (!Account.signedIn) {
+        e = 'Connecte-toi d\'abord à ton compte MinouFlix, puis scanne à nouveau le code.';
+      } else {
+        final ok = await showDialog<bool>(
+          context: ctx,
+          builder: (c) => AppDialog(
+            title: Text('Connecter la télé ?', style: T(18, w: 700)),
+            content: Text('Ton compte et tes sources seront envoyés à la télé (${Pairing.show(code)}).'),
+            actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Connecter'))],
+          ),
+        );
+        if (ok != true) return;
+        e = await Pairing.send(code);
+      }
+      final c2 = navKey.currentContext;
+      if (c2 != null && c2.mounted) ScaffoldMessenger.maybeOf(c2)?.showSnackBar(SnackBar(content: Text(e ?? 'Envoyé : la télé se connecte.')));
+    } finally {
+      _linkBusy = false;
+    }
+  }
+
+  static void listenLinks() {
+    if (kIsWeb) return;
+    try {
+      final al = AppLinks();
+      al.uriLinkStream.listen(_onLink, onError: (_) {});
+      Future.delayed(const Duration(seconds: 2), () async {
+        final first = await al.getInitialLink();
+        if (first != null) _onLink(first);
+      });
+    } catch (_) {}
+  }
+
   Widget _app(String lang) => MaterialApp(
         key: ValueKey(lang),
         locale: Locale(lang),
@@ -70,6 +118,15 @@ class MinouFlix extends StatelessWidget {
           scaffoldBackgroundColor: const Color(0xFF06080D),
           canvasColor: const Color(0xFF06080D),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8CFF), brightness: Brightness.dark, surface: const Color(0xFF0E121B)),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: const Color(0x2EFFFFFF),
+            contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: Device.tv ? 20 : 15),
+            labelStyle: const TextStyle(color: Color(0xFF9AA3B5)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF5B8CFF), width: 2.5)),
+          ),
           // menus et messages façon iOS : angles larges, fond sombre translucide, filet fin
           popupMenuTheme: PopupMenuThemeData(
             color: const Color(0xF01B1F2A),
@@ -89,6 +146,7 @@ class MinouFlix extends StatelessWidget {
         // taille de texte du système respectée, bornée pour ne rien casser
         builder: (ctx, child) => MediaQuery(data: MediaQuery.of(ctx).copyWith(textScaler: MediaQuery.of(ctx).textScaler.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3)), child: child ?? const SizedBox.shrink()),
         shortcuts: {...WidgetsApp.defaultShortcuts, const SingleActivator(LogicalKeyboardKey.select): const ActivateIntent()},
+        navigatorKey: navKey,
         home: const Boot(),
       );
 }

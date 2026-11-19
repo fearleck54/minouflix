@@ -1,3 +1,5 @@
+import 'package:qr_flutter/qr_flutter.dart';
+
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart' hide Text;
@@ -101,15 +103,22 @@ class _AuthState extends State<AuthScreen> {
         text: create ? 'Crée ton compte pour retrouver ta liste et ta reprise partout.' : 'Connecte-toi à ton compte.',
         side: !Connect.tvNow ? const [] : [
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(16)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Déjà connecté sur ton téléphone ?', style: T(14, color: kMut)),
-              const SizedBox(height: 4),
-              Text(Pairing.show(code), style: T(32, w: 850, ls: 0.1)),
-              const SizedBox(height: 4),
-              Text('Sur le téléphone : Réglages → Connecter une télé, puis saisis ce code.', style: T(13, color: kMut)),
-              if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, style: T(13, color: const Color(0xFFFFB86B), h: 1.35))),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(20)),
+            child: Row(children: [
+              Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)), child: QrImageView(data: 'minouflix://pair?c=$code', size: 170, padding: EdgeInsets.zero, backgroundColor: Colors.white)),
+              const SizedBox(width: 22),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Déjà connecté sur ton téléphone ?', style: T(20, w: 700)),
+                  const SizedBox(height: 8),
+                  Text('Scanne ce code : l\'appli s\'ouvre et connecte la télé.', style: T(16, color: kMut, h: 1.35)),
+                  const SizedBox(height: 12),
+                  Text(Pairing.show(code), style: T(30, w: 850, ls: 0.1)),
+                  Text('ou Réglages → Connecter une télé', style: T(14, color: kMut)),
+                  if (Pairing.last.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(Pairing.last, style: T(14, color: const Color(0xFFFFB86B), h: 1.35))),
+                ]),
+              ),
             ]),
           ),
           if (phone.url != null) phone.card(qr: AuthLayout.wide(context) ? 150 : 110),

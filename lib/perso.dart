@@ -3,7 +3,7 @@ import 'package:flutter/material.dart' hide Text;
 import 'store.dart';
 import 'ui.dart';
 
-/// Réglages › Barre du bas : onglets affichés, ordre de gauche à droite, onglet d'ouverture
+/// Réglages › Onglets : onglets affichés, ordre de gauche à droite, onglet d'ouverture
 class TabsSettings extends StatefulWidget {
   const TabsSettings({super.key});
   @override
@@ -84,7 +84,7 @@ class _TabsState extends State<TabsSettings> {
     final vis = order.where((t) => !hid.contains(t)).toList();
     return Scaffold(
       body: LargeTitle(
-        title: 'Barre du bas',
+        title: 'Onglets',
         onBack: () => Navigator.pop(context),
         children: [
           Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 14), child: Text('Choisis les onglets affichés et leur ordre, de gauche à droite.', style: T(14, color: kMut, h: 1.4))),

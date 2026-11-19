@@ -2292,7 +2292,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
-        _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Barre du bas', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
+        _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Onglets', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
         _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
               await Store.saveSportKeys(k);
               Store.persoTick.value++;
