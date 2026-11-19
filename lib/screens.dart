@@ -997,7 +997,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     final alts = [for (final v in c.v) (v.label, x.liveUrlOf(v.item))];
     // zapping : les chaînes du même thème, dans l'ordre affiché
-    final near = chans.where((o) => o.theme == c.theme).toList();
+    var near = chans.where((o) => o.theme == c.theme).toList();
+    if (c.theme == 'tnt') near = tntSort(near);
     final at = near.indexOf(c);
     final zap = [
       for (final o in near)
@@ -1498,7 +1499,7 @@ class HomeTab extends StatelessWidget {
           var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
           if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
           evs = evs.take(int.tryParse(Store.str('home_sport_n')) ?? 10).toList();
-          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: () => onTab(4), moreLabel: Device.tv ? 'Tout voir' : 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
+          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: Device.tv ? null : () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
         },
       ),
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -1510,9 +1511,9 @@ class HomeTab extends StatelessWidget {
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
     return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
-      // télé : pas de grande affiche ni de calendrier des épisodes ; le Top 10 passe tout en haut
+      // télé : pas de grande affiche ; le Top 10 passe tout en haut
       if (Device.tv) const SizedBox(height: 8) else if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
-      for (final id in Device.tv ? ['top10', ...Store.homeOrder().where((x) => x != 'top10' && x != 'soon')] : Store.homeOrder())
+      for (final id in Device.tv ? ['top10', ...Store.homeOrder().where((x) => x != 'top10')] : Store.homeOrder())
         if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
     ]);
   }
@@ -2969,8 +2970,11 @@ class _DetailScreenState extends State<DetailScreen> {
               const SectionTitle('Épisodes'),
               Chips(labels: [for (final s in seasons) 'Saison $s'], selected: seasons.indexOf(season).clamp(0, seasons.length - 1), onSelect: (v) => setState(() => season = seasons[v])),
               for (final e in eps.where((e) => e.season == season))
-                FocusCard(
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Device.tv ? 40 : 0),
+                  child: FocusCard(
                   radius: 14,
+                  focusScale: Device.tv ? 1.0 : 1.06,
                   onTap: () => _playEp(e),
                   child: Container(
                     decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0x14FFFFFF), width: 0.6))),
@@ -2978,10 +2982,11 @@ class _DetailScreenState extends State<DetailScreen> {
                     child: Row(children: [
                       SizedBox(width: 34, child: Text('${e.number}', style: T(20, w: 750, color: kMut))),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(e.title.isEmpty ? 'Épisode ${e.number}' : e.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(15.5, w: 600))),
+                      Expanded(child: Text(e.title.isEmpty ? 'Épisode ${e.number}' : e.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(Device.tv ? 19 : 15.5, w: 600))),
                       const Ic('play', size: 20, color: kMut),
                     ]),
                   ),
+                ),
                 ),
             ],
             if (fi != null && fi.cast.isNotEmpty)
@@ -3614,7 +3619,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _tvT?.cancel();
     _playSub?.cancel();
     _tvPlay.dispose();
-    for (final n in _tvPool) {
+    for (final n in [..._tvPool, ..._failNodes]) {
       n.dispose();
     }
     _tr?.cancel();
@@ -3669,9 +3674,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _tvShow();
   }
 
+  final List<FocusNode> _failNodes = [FocusNode(debugLabel: 'autre qualité'), FocusNode(debugLabel: 'retour échec')];
+
   KeyEventResult _tvKey(FocusNode node, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final k = e.logicalKey;
+    if (_fail != null) {
+      // message d'échec : ← → passent d'un bouton à l'autre, OK valide
+      final ns = [_retryNode, if (_alts.length > 1) _failNodes[0], _failNodes[1]];
+      final i = ns.indexWhere((n) => n.hasFocus);
+      if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
+        ns[i < 0 ? 0 : (i + (k == LogicalKeyboardKey.arrowLeft ? -1 : 1)).clamp(0, ns.length - 1)].requestFocus();
+        return KeyEventResult.handled;
+      }
+      if (i < 0 && (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown)) {
+        _retryNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
     final down = e is KeyDownEvent;
     final onBar = FocusManager.instance.primaryFocus != node;
     if (k == LogicalKeyboardKey.mediaPlayPause || k == LogicalKeyboardKey.mediaPlay || k == LogicalKeyboardKey.mediaPause) {
@@ -3801,8 +3822,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         _tvBtn(player.state.playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, player.state.playing ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
                         if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
                         if (!_live) _tvBtn(CupertinoIcons.goforward_10, '+10 s', () => _tvSeek(1)),
-                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne -', () => _zapBy(-1)),
-                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne +', () => _zapBy(1)),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne +', () => _zapBy(1)),
+                        if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne -', () => _zapBy(-1)),
                         if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, 'Qualité ${_alts[_alt].$1}', _qualityMenu),
                         _tvBtn(CupertinoIcons.captions_bubble, 'Audio / sous-titres', _tracks),
                         _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
@@ -3827,7 +3848,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         focusNode: _main,
         autofocus: true,
         onKeyEvent: (node, e) {
-          if (Device.tv && _fail == null) return _tvKey(node, e);
+          if (Device.tv) return _tvKey(node, e);
           if (e is! KeyDownEvent) return KeyEventResult.ignored;
           final k = e.logicalKey;
           final onBar = FocusManager.instance.primaryFocus != node;
@@ -3908,8 +3929,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const SizedBox(height: 20),
                   Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                     _OvBtn(node: _retryNode, label: 'Réessayer', primary: true, onTap: _retryNow),
-                    if (_alts.length > 1) _OvBtn(label: 'Autre qualité', onTap: _otherQuality),
-                    _OvBtn(label: 'Retour', onTap: () => Navigator.maybePop(context)),
+                    if (_alts.length > 1) _OvBtn(node: _failNodes[0], label: 'Autre qualité', onTap: _otherQuality),
+                    _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.maybePop(context)),
                   ]),
                 ]),
               ),

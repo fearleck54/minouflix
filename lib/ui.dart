@@ -106,36 +106,70 @@ class _FocusCardState extends State<FocusCard> {
         final o = me.localToGlobal(Offset.zero, ancestor: vp);
         final top = horiz ? o.dx : o.dy, len = horiz ? me.size.width : me.size.height, vpLen = horiz ? vp.size.width : vp.size.height;
         final cont = pos.pixels + top;
-        double? target;
-        if (cont < vpLen * 0.6) {
-          target = pos.minScrollExtent;
-        } else if (top < 70 || top + len > vpLen - 70) {
-          target = cont + len / 2 - vpLen / 2;
-        }
-        if (target != null) {
-          target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
-          if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
-        }
+        // position fixe pour la rangée / la tuile active (centrage régulier) ; près du début de la liste : tout en haut
+        double target = cont < vpLen * (horiz ? 0.45 : 0.6) ? pos.minScrollExtent : (horiz ? cont - vpLen * 0.2 : cont + len / 2 - vpLen * 0.42);
+        target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+        if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
       }
       return true;
     });
   }
 
-  /// télécommande dans une rangée horizontale : gauche / droite restent sur la rangée (jamais de saut à la ligne voisine) ; au bout, rien ne bouge
-  bool _rail(KeyEvent e) {
+  /// télécommande : on choisit nous-mêmes l'élément voisin (même rangée pour ← →, rangée la plus proche pour ↑ ↓, élément le plus aligné) :
+  /// jamais de saut par-dessus une rangée, jamais de changement de ligne au bout d'une rangée
+  bool _nav(KeyEvent e) {
     final k = e.logicalKey;
-    if (!Device.tv || e is KeyUpEvent || (k != LogicalKeyboardKey.arrowLeft && k != LogicalKeyboardKey.arrowRight)) return false;
+    if (!Device.tv || e is KeyUpEvent) return false;
+    final horiz = k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight;
+    final vert = k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown;
+    if (!horiz && !vert) return false;
     final sc = Scrollable.maybeOf(context);
-    if (sc == null || sc.position is PageMetrics || (sc.axisDirection != AxisDirection.left && sc.axisDirection != AxisDirection.right)) return false;
-    final box = context.findRenderObject();
-    final cy = box is RenderBox && box.attached ? box.localToGlobal(box.size.center(Offset.zero)).dy : null;
-    final node = _node;
-    node.focusInDirection(k == LogicalKeyboardKey.arrowLeft ? TraversalDirection.left : TraversalDirection.right);
-    scheduleMicrotask(() {
-      final r = FocusManager.instance.primaryFocus?.rect;
-      if (cy != null && r != null && (r.center.dy - cy).abs() > r.height * 0.6) node.requestFocus();
-    });
-    return true;
+    if (sc != null && sc.position is PageMetrics) return false;
+    final me = _node.rect;
+    final scope = _node.nearestScope;
+    if (scope == null) return false;
+    final cand = <FocusNode>[
+      for (final n in scope.traversalDescendants)
+        if (n != _node && n.context != null && n.canRequestFocus && !n.skipTraversal && n.rect.width > 0) n
+    ];
+    FocusNode? best;
+    if (horiz) {
+      final right = k == LogicalKeyboardKey.arrowRight;
+      var bd = double.infinity;
+      for (final n in cand) {
+        final r = n.rect;
+        if ((r.center.dy - me.center.dy).abs() > me.height * 0.6) continue;      // même rangée seulement
+        final d = right ? r.center.dx - me.center.dx : me.center.dx - r.center.dx;
+        if (d > 4 && d < bd) {
+          bd = d;
+          best = n;
+        }
+      }
+      if (best == null && sc != null && (sc.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right)) return true;      // bout de rangée : on ne bouge pas
+      if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
+    } else {
+      final down = k == LogicalKeyboardKey.arrowDown;
+      // rangée la plus proche dans le sens demandé
+      var nearest = double.infinity;
+      for (final n in cand) {
+        final d = down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy;
+        if (d > me.height * 0.5 && d < nearest) nearest = d;
+      }
+      if (nearest == double.infinity) return false;
+      var bd = double.infinity;
+      for (final n in cand) {
+        final r = n.rect;
+        final d = down ? r.center.dy - me.center.dy : me.center.dy - r.center.dy;
+        if (d < me.height * 0.5 || (d - nearest).abs() > 40) continue;
+        final dx = (r.center.dx - me.center.dx).abs();
+        if (dx < bd) {
+          bd = dx;
+          best = n;
+        }
+      }
+    }
+    best?.requestFocus();
+    return best != null || horiz;
   }
 
   @override
@@ -157,7 +191,7 @@ class _FocusCardState extends State<FocusCard> {
         },
         onKeyEvent: (_, e) {
           final k = e.logicalKey;
-          if (_rail(e)) return KeyEventResult.handled;
+          if (_nav(e)) return KeyEventResult.handled;
           if (e is KeyDownEvent && widget.onLong != null && (k == LogicalKeyboardKey.contextMenu || k == LogicalKeyboardKey.gameButtonX)) {
             widget.onLong!();
             return KeyEventResult.handled;

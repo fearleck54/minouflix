@@ -1,3 +1,4 @@
+import 'journal.dart';
 import 'xtream.dart';
 
 /// Même logique que le module web MinouFlix (appli.py) : noms nettoyés, regroupement des qualités, thèmes, plateformes.
@@ -148,6 +149,8 @@ List<Chan> groupChannels(List<Item> items, Map<String, String> catNames) {
 
 const tntOrder = ['tf1', 'france 2', 'france 3', 'canal+', 'france 5', 'm6', 'arte', 'c8', 'w9', 'tmc', 'tfx', 'nrj 12', 'lcp', 'france 4', 'bfm tv', 'cnews', 'c star', 'gulli', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'lci', 'france info', 't18', 'novo19', 'paris premiere'];
 
+bool _tntLogged = false;
+
 List<Chan> tntSort(List<Chan> l) {
   // nom nettoyé : sans parenthèses, qualité (HD, FHD, 4K…), pays, ponctuation ; « france2 » → « france 2 »
   String clean(String n) {
@@ -169,6 +172,11 @@ List<Chan> tntSort(List<Chan> l) {
     return best < 0 ? 99 : best + 0.5;
   }
 
+  if (!_tntLogged && l.isNotEmpty) {
+    _tntLogged = true;
+    final un = [for (final c in l) if (r(c) >= 99) c.name];
+    Journal.add('TNT : ${l.length} chaînes, ${un.length} sans rang : ${un.take(12).join(' | ')}');
+  }
   final idx = {for (var i = 0; i < l.length; i++) l[i]: i};
   return [...l]..sort((a, b) => r(a) != r(b) ? r(a).compareTo(r(b)) : idx[a]!.compareTo(idx[b]!));
 }

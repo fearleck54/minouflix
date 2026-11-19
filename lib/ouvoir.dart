@@ -31,15 +31,9 @@ Future<List<List<Object>>> _progs(Chan c) async {
   List<List<Object>> out = [...Epg.programs(c.epgId)];      // guide déjà en mémoire : instantané
   final x = Epg.src;
   if (out.isEmpty && x != null) {
-    for (final v in c.v.take(2)) {
-      try {
-        final l = await x.shortEpg(v.item.id).timeout(const Duration(seconds: 4));
-        if (l.isNotEmpty) {
-          out = l;
-          break;
-        }
-      } catch (_) {}
-    }
+    try {
+      out = await x.shortEpg(c.v.first.item.id).timeout(const Duration(seconds: 3));
+    } catch (_) {}
   }
   _progCache[c.key] = (DateTime.now(), out);
   return out;
@@ -56,14 +50,20 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans) async {
       if (p.hasMatch(norm(c.name)) && !base.contains(c)) base.add(c);
     }
   }
-  final extra = [for (final c in chans) if (c.theme == 'sport' && !base.contains(c)) c].take(25).toList();
-  final cands = [...base, ...extra].take(32).toList();
+  final extra = [for (final c in chans) if (c.theme == 'sport' && !base.contains(c)) c].take(24).toList();
   final th = _tokens(e.h), ta = _tokens(e.a);
   final lgw = norm(l.n).split(RegExp(r'[^a-z0-9]+')).where((w) => w.length >= 3 && !const {'ligue', 'cup', 'coupe', 'des', 'de'}.contains(w)).toSet();
   final fav = Store.str('lgch_${e.lg}');
   final out = <WatchPick>[];
-  for (var i = 0; i < cands.length; i += 12) {
-    final chunk = cands.skip(i).take(12).toList();
+  final deadline = DateTime.now().add(const Duration(seconds: 8));      // jamais plus de 8 s d'attente
+  // lots : d'abord la chaîne choisie la dernière fois, puis les chaînes habituelles de la compétition, puis le reste du sport
+  final favC = [for (final c in base) if (c.key == fav) c, for (final c in chans) if (c.key == fav && !base.contains(c)) c];
+  final lots = <List<Chan>>[
+    if (favC.isNotEmpty) favC,
+    for (var i = 0; i < base.length; i += 8) [for (final c in base.skip(i).take(8)) if (!favC.contains(c)) c],
+    for (var i = 0; i < extra.length; i += 8) extra.skip(i).take(8).toList(),
+  ].where((x) => x.isNotEmpty).toList();
+  for (final chunk in lots) {
     final res = await Future.wait([for (final c in chunk) _progs(c)]);
     for (var j = 0; j < chunk.length; j++) {
       var best = 0;
@@ -83,9 +83,9 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans) async {
         }
       }
       final habit = base.contains(chunk[j]);
-      if (best > 0 || habit) out.add(WatchPick(chunk[j], best > 0 ? why : 'Chaîne habituelle de ${l.n}', best + (habit ? 0 : 0)));
+      if (best > 0 || habit) out.add(WatchPick(chunk[j], best > 0 ? why : 'Chaîne habituelle de ${l.n}', best));
     }
-    if (out.any((p) => p.score >= 6)) break;      // preuve sûre (les deux équipes, à l'heure) : inutile de lire le reste
+    if (out.any((p) => p.score >= 5) || DateTime.now().isAfter(deadline)) break;      // preuve sûre ou temps écoulé
   }
   out.sort((a, b) {
     final r = b.score.compareTo(a.score);
