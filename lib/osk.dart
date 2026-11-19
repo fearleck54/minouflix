@@ -145,9 +145,9 @@ class _TvKeyboardState extends State<TvKeyboard> {
         ),
       );
 
-  Widget _row(String keys, {int pad = 0}) => Row(children: [
+  Widget _row(String keys, {int pad = 0, bool first = false}) => Row(children: [
         if (pad > 0) Spacer(flex: pad),
-        for (final c in keys.split('')) _key(shift ? c.toUpperCase() : c, () => _add(c), flex: 2),
+        for (final (i, c) in keys.split('').indexed) _key(shift ? c.toUpperCase() : c, () => _add(c), flex: 2, autofocus: first && i == 0),
         if (pad > 0) Spacer(flex: pad),
       ]);
 
@@ -173,9 +173,9 @@ class _TvKeyboardState extends State<TvKeyboard> {
               child: mat.Text('$shown▏', maxLines: 1, overflow: TextOverflow.ellipsis, style: T(21, w: 500)),
             ),
             const SizedBox(height: 8),
-            _row(_digits),
+            _row(_digits, first: widget.numeric),
             if (!widget.numeric) ...[
-              _row(rows[0]),
+              _row(rows[0], first: true),
               _row(rows[1], pad: 10 - rows[1].length),
               _row(rows[2], pad: 10 - rows[2].length),
               _row(_sym, pad: 0),
@@ -185,7 +185,7 @@ class _TvKeyboardState extends State<TvKeyboard> {
               if (!widget.numeric) _key(L.en ? 'space' : 'espace', () => _add(' '), flex: 8),
               _key('', _del, flex: 3, icon: Icons.backspace_outlined),
               _key(L.en ? 'Cancel' : 'Annuler', () => Navigator.pop(context), flex: 4),
-              _key('OK', () => Navigator.pop(context, t), flex: 4, autofocus: true, fill: const Color(0xFF3B6FE0)),
+              _key('OK', () => Navigator.pop(context, t), flex: 4, fill: const Color(0xFF3B6FE0)),
             ]),
           ]),
         ),

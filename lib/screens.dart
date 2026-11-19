@@ -1894,7 +1894,24 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: SizedBox(
             width: double.infinity,
-            child: CupertinoSlidingSegmentedControl<int>(
+            child: Device.tv
+                ? Row(children: [
+                    for (final (i, n) in ['Tout', 'Films', 'Séries'].indexed)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: FocusCard(
+                          radius: 14,
+                          preferred: (_only == null ? 0 : (_only == Kind.vod ? 1 : 2)) == i,
+                          onTap: () => setState(() => _only = i == 1 ? Kind.vod : (i == 2 ? Kind.series : null)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 10),
+                            color: (_only == null ? 0 : (_only == Kind.vod ? 1 : 2)) == i ? const Color(0xFF5B6475) : const Color(0x3D767680),
+                            child: Text(n, style: T(16, w: 650)),
+                          ),
+                        ),
+                      ),
+                  ])
+                : CupertinoSlidingSegmentedControl<int>(
               groupValue: _only == null ? 0 : (_only == Kind.vod ? 1 : 2),
               backgroundColor: const Color(0x3D767680),
               thumbColor: const Color(0xFF5B6475),
