@@ -146,16 +146,31 @@ List<Chan> groupChannels(List<Item> items, Map<String, String> catNames) {
   return out;
 }
 
-const tntOrder = ['tf1', 'france 2', 'france 3', 'canal+', 'france 5', 'm6', 'arte', 'lcp', 'w9', 'tmc', 'tfx', 'gulli', 'bfm tv', 'cnews', 'lci', 'france info', 'c star', 't18', 'novo19', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'paris premiere', 'france 4'];
+const tntOrder = ['tf1', 'france 2', 'france 3', 'canal+', 'france 5', 'm6', 'arte', 'c8', 'w9', 'tmc', 'tfx', 'nrj 12', 'lcp', 'france 4', 'bfm tv', 'cnews', 'c star', 'gulli', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'lci', 'france info', 't18', 'novo19', 'paris premiere'];
 
 List<Chan> tntSort(List<Chan> l) {
-  int r(Chan c) {
-    final i = tntOrder.indexOf(norm(c.name).replaceFirst(RegExp(r' (films|tv)$'), ''));
-    return i < 0 ? 99 : i;
+  // nom nettoyé : sans parenthèses, qualité (HD, FHD, 4K…), pays, ponctuation ; « france2 » → « france 2 »
+  String clean(String n) {
+    var t = norm(n).replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ');
+    t = t.replaceAll(RegExp(r'\b(4k|uhd|fhd|hd|sd|hevc|h265|h264|fr|vf|multi|live|direct)\b'), ' ');
+    t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ').replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj|c)(\d)'), (m) => '${m[1]} ${m[2]}');
+    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  double r(Chan c) {
+    final t = clean(c.name);
+    var i = tntOrder.indexOf(t);
+    if (i < 0) i = tntOrder.indexOf(t.replaceFirst(RegExp(r' (films|tv)$'), ''));
+    if (i >= 0) return i.toDouble();
+    var best = -1;
+    for (var k = 0; k < tntOrder.length; k++) {
+      if (t.startsWith('${tntOrder[k]} ') && (best < 0 || tntOrder[k].length > tntOrder[best].length)) best = k;
+    }
+    return best < 0 ? 99 : best + 0.5;
   }
 
   final idx = {for (var i = 0; i < l.length; i++) l[i]: i};
-  return [...l]..sort((a, b) => r(a) != r(b) ? r(a) - r(b) : idx[a]! - idx[b]!);
+  return [...l]..sort((a, b) => r(a) != r(b) ? r(a).compareTo(r(b)) : idx[a]!.compareTo(idx[b]!));
 }
 
 // ---------------------------------------------------------------- films & séries

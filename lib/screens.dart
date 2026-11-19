@@ -1498,7 +1498,7 @@ class HomeTab extends StatelessWidget {
           var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
           if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
           evs = evs.take(int.tryParse(Store.str('home_sport_n')) ?? 10).toList();
-          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
+          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: () => onTab(4), moreLabel: Device.tv ? 'Tout voir' : 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
         },
       ),
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -1510,8 +1510,9 @@ class HomeTab extends StatelessWidget {
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
     return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
-      if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
-      for (final id in Store.homeOrder())
+      // télé : pas de grande affiche ni de calendrier des épisodes ; le Top 10 passe tout en haut
+      if (Device.tv) const SizedBox(height: 8) else if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
+      for (final id in Device.tv ? ['top10', ...Store.homeOrder().where((x) => x != 'top10' && x != 'soon')] : Store.homeOrder())
         if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
     ]);
   }
@@ -1638,7 +1639,8 @@ class LibTab extends StatelessWidget {
     final hero = lb.recent.where((i) => i.rating >= 6).take(7).toList();
     final pad = MediaQuery.paddingOf(context);
     return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
-      if (hero.length >= 3) HeroBanner(items: hero, detailFor: detailFor, onPlay: onPlay, onInfo: onOpen) else SizedBox(height: pad.top + 70),
+      if (hero.length >= 3 && !Device.tv) HeroBanner(items: hero, detailFor: detailFor, onPlay: onPlay, onInfo: onOpen) else SizedBox(height: Device.tv ? 8 : pad.top + 70),
+      if (Device.tv) rail(kind == Kind.vod ? 'Derniers films ajoutés' : 'Dernières séries ajoutées', lb.recent),      // télé : pas de grande affiche, les derniers ajouts en premier
       if (plats.isNotEmpty)
         Rail(
           title: 'Plateformes',
@@ -1667,7 +1669,7 @@ class LibTab extends StatelessWidget {
         count: genres.length,
         builder: (_, i) => GenreTile(name: genres[i].label, onTap: () => _grid(context, pretty(genres[i].label), uniqueTitles(lb.inCats([genres[i].id])))),
       ),
-      rail(kind == Kind.vod ? 'Derniers films ajoutés' : 'Dernières séries ajoutées', lb.recent),
+      if (!Device.tv) rail(kind == Kind.vod ? 'Derniers films ajoutés' : 'Dernières séries ajoutées', lb.recent),
       rail('Mieux notés', lb.top),
       for (final t in themes) rail(t.value.$1, uniqueTitles(lb.inCats(t.value.$2.map((c) => c.id)).take(60)).take(16).toList(), more: () => _grid(context, t.value.$1, uniqueTitles(lb.inCats(t.value.$2.map((c) => c.id))))),
       Padding(
@@ -2326,7 +2328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), foot: 'Appliqués au lancement de la lecture.')),
-        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', const [('', 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', const [('', 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
+        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
         _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
         if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
@@ -3193,7 +3195,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _bufferSecs(n);
       await n.setProperty('network-timeout', '15');
       await n.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
-      final dec = Store.str('dec_live');
+      final dec = Store.str('dec_live').isEmpty && Device.tv ? 'sw' : Store.str('dec_live');      // télé : décodage logiciel par défaut (image TNT propre)
       await n.setProperty('deinterlace', dec.contains('di') ? 'yes' : 'no');
       if (dec.contains('sw')) await n.setProperty('hwdec', 'no');
     } catch (_) {}
