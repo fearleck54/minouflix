@@ -37,6 +37,8 @@ import 'profils.dart';
 import 'sources.dart';
 import 'pin_guard.dart';
 import 'osk.dart';
+import 'trakt.dart';
+import 'trakt_ui.dart';
 import 'person.dart';
 import 'ui.dart';
 import 'xtream.dart';
@@ -1510,6 +1512,12 @@ class HomeTab extends StatelessWidget {
       'recoS': recoS.isNotEmpty ? rail('Séries pour vous', recoS) : const SizedBox.shrink(),
       'recent': rail('Derniers films ajoutés', rv, tab: 2),
       'recentS': rail('Séries mises à jour', rs, tab: 3),
+      'trakt': !Trakt.linked
+          ? const SizedBox.shrink()
+          : FutureBuilder<List<Item>>(
+              future: Trakt.inCatalog([...uniqueTitles(vl?.rows ?? []), ...uniqueTitles(sl?.rows ?? [])]),
+              builder: (_, s) => rail('Ma liste Trakt', s.data ?? const []),
+            ),
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
@@ -2368,6 +2376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
+        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Compte lié' : 'Non lié', chevron: true, onTap: () => traktSheet(context, () => setState(() {}))),
         _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Onglets', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
         _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
               await Store.saveSportKeys(k);
@@ -3630,6 +3639,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       p.t = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       p.hidden = false;
       Store.saveProg(p);
+      Trakt.watched(p);
     }
   }
 

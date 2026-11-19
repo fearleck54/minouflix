@@ -622,7 +622,7 @@ class Store {
   }
 
   // ---- écran d'accueil : sections affichées et leur ordre (synchronisés)
-  static const homeIds = ['hero', 'continue', 'mylist', 'soon', 'playlists', 'downloads', 'top10', 'affiche', 'sport', 'chains', 'recoV', 'recoS', 'recent', 'recentS'];
+  static const homeIds = ['hero', 'continue', 'mylist', 'soon', 'playlists', 'downloads', 'top10', 'affiche', 'sport', 'chains', 'recoV', 'recoS', 'recent', 'recentS', 'trakt'];
   static List<String> homeOrder() {
     final l = [for (final x in _p.getStringList('home_order') ?? const <String>[]) if (homeIds.contains(x)) x].toSet().toList();
     for (final x in homeIds) {
