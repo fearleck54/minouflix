@@ -162,6 +162,15 @@ class _FocusCardState extends State<FocusCard> {
           best = n;
         }
       }
+      // on change de zone (grille → colonne de filtres, et inversement) : on arrive sur l'élément actif de la zone, pas sur celui qui se trouve à la même hauteur
+      final mine = _vScroll(context);
+      if (best == null || _vScroll(best.context!) != mine) {
+        final pref = [
+          for (final n in cand)
+            if (_vScroll(n.context!) != mine && n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true && (right ? n.rect.center.dx > me.center.dx : n.rect.center.dx < me.center.dx)) n
+        ];
+        if (pref.isNotEmpty) best = pref.first;
+      }
       if (best == null && sc != null && (sc.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right)) return true;      // bout de rangée : on ne bouge pas
       if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
     } else {
@@ -185,7 +194,7 @@ class _FocusCardState extends State<FocusCard> {
         row = [for (final n in group) if ((dist(n) - nearest).abs() <= 40) n];
       }
       final pref = row.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
-      if (pref.isNotEmpty && !widget.preferred) {
+      if (pref.isNotEmpty) {
         pref.first.requestFocus();
         return true;
       }
@@ -1761,6 +1770,7 @@ class TvMenuItem extends StatelessWidget {
         child: FocusCard(
           radius: 14,
           focusScale: 1.0,
+          preferred: on,
           autofocus: autofocus,
           onTap: onTap,
           child: Container(

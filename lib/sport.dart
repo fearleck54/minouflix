@@ -583,6 +583,7 @@ class _SportTabState extends State<SportTab> {
                 child: FocusCard(
                   radius: 14,
                   focusScale: 1.0,
+                  preferred: on,
                   onTap: f,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
