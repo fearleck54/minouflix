@@ -1877,16 +1877,16 @@ class _SearchScreenState extends State<SearchScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(16), border: Border.all(color: kEdge, width: 0.8)),
+            height: Device.tv ? null : 50,
+            padding: Device.tv ? null : const EdgeInsets.symmetric(horizontal: 14),
+            decoration: Device.tv ? null : BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(16), border: Border.all(color: kEdge, width: 0.8)),
             child: Row(children: [
-              const Ic('search', size: 20, color: kMut),
-              const SizedBox(width: 10),
+              if (!Device.tv) const Ic('search', size: 20, color: kMut),
+              if (!Device.tv) const SizedBox(width: 10),
               Expanded(child: AppField(controller: _tc, autofocus: true, style: T(17, w: 500), onChanged: (v) {
                 setState(() => q = v);
                 _askPerson(v);
-              }, decoration: InputDecoration(hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true))),
+              }, decoration: InputDecoration(prefixIcon: Device.tv ? const Ic('search', size: 20, color: kMut) : null, hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true))),
             ]),
           ),
         ),

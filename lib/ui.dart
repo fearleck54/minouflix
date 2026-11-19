@@ -676,7 +676,7 @@ class Rail extends StatelessWidget {
   Widget build(BuildContext context) => count == 0
       ? const SizedBox.shrink()
       : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SectionTitle(title, onMore: onMore, moreLabel: moreLabel),
+          SectionTitle(title, onMore: Device.tv ? null : onMore, moreLabel: moreLabel),
           SizedBox(
             height: height,
             child: ListView.separated(
@@ -684,9 +684,27 @@ class Rail extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: count,
+              itemCount: count + (Device.tv && onMore != null ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: builder,
+              itemBuilder: (c, i) => i < count
+                  ? builder(c, i)
+                  : Padding(
+                      padding: const EdgeInsets.only(bottom: 44),
+                      child: FocusCard(
+                        onTap: onMore!,
+                        radius: 16,
+                        child: Container(
+                          width: 150,
+                          alignment: Alignment.center,
+                          color: const Color(0x14FFFFFF),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.arrow_forward_rounded, size: 34, color: Colors.white),
+                            const SizedBox(height: 8),
+                            Text(moreLabel.isEmpty ? 'Tout voir' : moreLabel, style: T(16, w: 650)),
+                          ]),
+                        ),
+                      ),
+                    ),
             ),
           ),
         ]);
