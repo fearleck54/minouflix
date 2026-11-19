@@ -153,7 +153,9 @@ class Xtream {
     }
     if (last is XtreamError) throw last;
     if (last is TimeoutException) throw XtreamError('Le serveur ne répond pas (délai dépassé) : vérifie l\'adresse, ta connexion, et qu\'aucun autre appareil n\'utilise déjà l\'abonnement.');
-    throw XtreamError('Serveur injoignable : vérifie l\'adresse du serveur et ta connexion Internet.');
+    final d = '$last'.replaceAll(RegExp(r'\s+'), ' ');
+    Journal.add('Fournisseur injoignable', last);
+    throw XtreamError('Serveur injoignable (${last.runtimeType}${d.length > 8 ? ' : ${d.substring(0, d.length > 110 ? 110 : d.length)}' : ''}) : vérifie l\'adresse du serveur et ta connexion Internet.');
   }
 
   // ---- source « playlist M3U » : même interface que Xtream, les flux sont des adresses directes (portées par Item.ext)
