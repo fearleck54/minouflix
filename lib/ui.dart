@@ -444,7 +444,8 @@ class Poster extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLong;      // appui long (OK maintenu à la télécommande)
   final Widget? badge;             // pastille en surimpression (ex. « − » pour retirer d'une playlist)
-  const Poster({super.key, required this.item, required this.width, required this.onTap, this.onLong, this.badge});
+  final FocusNode? focusNode;
+  const Poster({super.key, required this.item, required this.width, required this.onTap, this.onLong, this.badge, this.focusNode});
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -457,6 +458,7 @@ class Poster extends StatelessWidget {
               child: FocusCard(
               onTap: onTap,
               onLong: onLong,
+              focusNode: focusNode,
               radius: 15,
               child: AspectRatio(
                 aspectRatio: 2 / 3,

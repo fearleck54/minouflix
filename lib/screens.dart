@@ -1800,6 +1800,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   String q = '';
   final TextEditingController _tc = TextEditingController();
+  final FocusNode _firstNode = FocusNode(debugLabel: 'premier résultat');
   Kind? _only;     // filtre : tout / films / séries
   String _pName = '';     // recherche par acteur ou réalisateur (TMDB) : titres du catalogue où la personne apparaît
   List<Item> _pItems = const [];
@@ -1865,6 +1866,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _pT?.cancel();
     Connect.query.removeListener(_remote);
     _tc.dispose();
+    _firstNode.dispose();
     super.dispose();
   }
 
@@ -1898,6 +1900,9 @@ class _SearchScreenState extends State<SearchScreen> {
               Expanded(child: AppField(controller: _tc, autofocus: true, style: T(17, w: 500), onChanged: (v) {
                 setState(() => q = v);
                 _askPerson(v);
+              }, onSubmitted: (_) {
+                // télé : le clavier validé, le curseur va sur le premier résultat
+                if (Device.tv) Future.delayed(const Duration(milliseconds: 500), () => mounted && _firstNode.context != null ? _firstNode.requestFocus() : null);
               }, decoration: InputDecoration(prefixIcon: Device.tv ? const Ic('search', size: 20, color: kMut) : null, hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true))),
             ]),
           ),
@@ -1976,6 +1981,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             (_, i) => Poster(
                               item: sec.$2[i],
                               width: w,
+                              focusNode: i == 0 && sec.$1 == (pl.isNotEmpty ? 'Avec $_pName' : (l.any((x) => x.kind == Kind.vod) ? 'Films' : 'Séries')) ? _firstNode : null,
                               onTap: () {
                                 Store.addRecentSearch(q);
                                 Navigator.pop(context);
