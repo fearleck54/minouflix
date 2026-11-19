@@ -1773,7 +1773,6 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   String q = '';
-  }
   final TextEditingController _tc = TextEditingController();
   Kind? _only;     // filtre : tout / films / séries
   String _pName = '';     // recherche par acteur ou réalisateur (TMDB) : titres du catalogue où la personne apparaît
