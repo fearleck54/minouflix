@@ -635,6 +635,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _details = <String, Future<Detail?>>{};
   late Future<List<Ev>> sport = fetchSport(Store.sportKeys);
   int tab = 0;
+  bool _quit = false;     // Retour : un second appui rapide quitte l'appli
   String liveTheme = '';
 
   // catalogue par catégorie (cache disque d'abord, puis réseau) et avancement « 12/40 »
@@ -1117,9 +1118,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ];
     final title = tab == 0 ? (Store.name.isEmpty ? 'Accueil' : 'Bonjour ${Store.name}') : ['', 'Direct', 'Films', 'Séries', 'Sport'][tab];
     final heroTab = tab == 0 || tab == 2 || tab == 3;
-    return Scaffold(
+    return PopScope(
+      // Retour : d'abord à l'Accueil ; sur l'Accueil, un second appui dans les 2 s quitte l'appli
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (tab != 0) {
+          setState(() => tab = 0);
+          return;
+        }
+        if (_quit) {
+          SystemNavigator.pop();
+          return;
+        }
+        _quit = true;
+        Timer(const Duration(seconds: 2), () => _quit = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Appuie encore sur Retour pour quitter')));
+      },
+      child: Scaffold(
       body: Stack(children: [
-        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: pages) : _swipePages(pages, kid)),
+        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: [for (var i = 0; i < pages.length; i++) ExcludeFocus(excluding: i != tab, child: pages[i])]) : _swipePages(pages, kid)),
         // en-tête : titre à gauche, réglages à droite (navigation au centre sur grand écran)
         Positioned(
           top: 0,
@@ -1182,7 +1200,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         if (!wide) Positioned(left: 12 + pad.left, right: 12 + pad.right, bottom: pad.bottom + 6, child: nav),
       ]),
-    );
+    ));
   }
 }
 

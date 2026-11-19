@@ -74,7 +74,8 @@ class FocusCard extends StatefulWidget {
   final VoidCallback? onLong;       // appui long (OK maintenu à la télécommande)
   final bool autofocus;
   final double focusScale;      // agrandissement quand la ligne est sélectionnée (1 = aucun : lignes de liste dans un cadre)
-  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06});
+  final VoidCallback? onFocus;      // appelé quand l'élément prend le focus (télécommande) : les onglets changent de page dès qu'on s'y arrête
+  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus});
   @override
   State<FocusCard> createState() => _FocusCardState();
 }
@@ -89,10 +90,17 @@ class _FocusCardState extends State<FocusCard> {
         autofocus: widget.autofocus,
         onFocusChange: (f) {
           setState(() => focused = f);
-          if (f) Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
+          if (f) {
+            Scrollable.ensureVisible(context, alignment: 0.5, duration: const Duration(milliseconds: 180), curve: Curves.easeOut);
+            widget.onFocus?.call();
+          }
         },
         onKeyEvent: (_, e) {
           final k = e.logicalKey;
+          if (e is KeyDownEvent && widget.onLong != null && (k == LogicalKeyboardKey.contextMenu || k == LogicalKeyboardKey.gameButtonX)) {
+            widget.onLong!();
+            return KeyEventResult.handled;
+          }
           final ok = k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter || k == LogicalKeyboardKey.gameButtonA;
           if (ok && widget.onLong != null) {
             // appui bref = action, OK maintenu = action longue
@@ -830,6 +838,8 @@ class NavPill extends StatelessWidget {
         HapticFeedback.selectionClick();
         onSelect(k);
       },
+      onFocus: Device.tv && k != index ? () => onSelect(k) : null,
+      autofocus: Device.tv && on,      // télé : au lancement, le focus est sur l'onglet ouvert (flèche bas = entrer dans la page)
       radius: 30,
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: wide ? 22 : 2),
