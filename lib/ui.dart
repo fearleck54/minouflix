@@ -93,6 +93,22 @@ class _FocusCardState extends State<FocusCard> {
     super.dispose();
   }
 
+  /// liste verticale qui contient ce widget (null : hors de toute liste, ex. barre d'onglets)
+  static ScrollableState? _vScroll(BuildContext c) {
+    ScrollableState? r;
+    c.visitAncestorElements((e) {
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        if (st.axisDirection == AxisDirection.down || st.axisDirection == AxisDirection.up) {
+          r = st;
+          return false;
+        }
+      }
+      return true;
+    });
+    return r;
+  }
+
   /// télé : fait défiler chaque liste parente juste ce qu'il faut ; près du début d'une liste, on remonte tout en haut (le grand visuel redevient visible)
   void _reveal() {
     final me = context.findRenderObject();
@@ -150,26 +166,32 @@ class _FocusCardState extends State<FocusCard> {
       if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
     } else {
       final down = k == LogicalKeyboardKey.arrowDown;
-      // rangée la plus proche dans le sens demandé
-      var nearest = double.infinity;
-      for (final n in cand) {
-        final d = down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy;
-        if (d > me.height * 0.5 && d < nearest) nearest = d;
+      double dist(FocusNode n) => down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy;
+      final mine = _vScroll(context);
+      // 1) la même liste d'abord (rangées au-dessus / au-dessous), 2) sinon ce qui est hors de la liste (barre d'onglets…)
+      var group = [for (final n in cand) if (_vScroll(n.context!) == mine && dist(n) > me.height * 0.5) n];
+      if (group.isEmpty) group = [for (final n in cand) if (_vScroll(n.context!) != mine && dist(n) > me.height * 0.5) n];
+      if (group.isEmpty) return false;
+      List<FocusNode> row;
+      if (mine == null && down) {
+        // on entre dans la liste depuis la barre : toujours sa toute première rangée (même si la liste est défilée)
+        double content(FocusNode n) => n.rect.center.dy + (_vScroll(n.context!)?.position.pixels ?? 0);
+        final inList = group.where((n) => _vScroll(n.context!) != null).toList();
+        if (inList.isNotEmpty) group = inList;
+        final top = group.map(content).reduce((a, b) => a < b ? a : b);
+        row = [for (final n in group) if ((content(n) - top).abs() <= 40) n];
+      } else {
+        final nearest = group.map(dist).reduce((a, b) => a < b ? a : b);
+        row = [for (final n in group) if ((dist(n) - nearest).abs() <= 40) n];
       }
-      if (nearest == double.infinity) return false;
-      var bd = double.infinity;
-      final row = <FocusNode>[
-        for (final n in cand)
-          if ((down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy) >= me.height * 0.5 && ((down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy) - nearest).abs() <= 40) n
-      ];
       final pref = row.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
-      if (pref.isNotEmpty && !(widget.preferred)) {
+      if (pref.isNotEmpty && !widget.preferred) {
         pref.first.requestFocus();
         return true;
       }
+      var bd = double.infinity;
       for (final n in row) {
-        final r = n.rect;
-        final dx = (r.center.dx - me.center.dx).abs();
+        final dx = (n.rect.center.dx - me.center.dx).abs();
         if (dx < bd) {
           bd = dx;
           best = n;

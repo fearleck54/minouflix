@@ -83,4 +83,41 @@ void main() {
     await _press(t, LogicalKeyboardKey.arrowUp, 7);
     expect(_focused(nodes)?.startsWith('r0-'), isTrue, reason: 'doit remonter tout en haut : ${_focused(nodes)}');
   });
+
+  testWidgets('barre au-dessus : on y monte puis on redescend sur la PREMIÈRE rangée, même liste défilée', (t) async {
+    t.view.physicalSize = const Size(1920, 1080);
+    t.view.devicePixelRatio = 1;
+    final nodes = <String, FocusNode>{};
+    final pill = FocusNode();
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(children: [
+          Positioned.fill(
+            top: 120,
+            child: ListView(cacheExtent: 1800, children: [
+              for (var r = 0; r < 8; r++)
+                SizedBox(
+                  height: 200,
+                  child: ListView(scrollDirection: Axis.horizontal, children: [
+                    for (var c = 0; c < 6; c++) SizedBox(width: 150, child: FocusCard(focusNode: nodes['r$r-c$c'] = FocusNode(), onTap: () {}, child: const SizedBox(width: 140, height: 190))),
+                  ]),
+                ),
+            ]),
+          ),
+          Positioned(top: 0, left: 0, child: SizedBox(width: 300, height: 100, child: FocusCard(focusNode: pill, preferred: true, autofocus: true, onTap: () {}, child: const SizedBox(width: 280, height: 90)))),
+        ]),
+      ),
+    ));
+    await t.pumpAndSettle();
+    await _press(t, LogicalKeyboardKey.arrowDown);
+    expect(_focused(nodes), 'r0-c0');
+    await _press(t, LogicalKeyboardKey.arrowDown, 6);
+    expect(_focused(nodes)?.startsWith('r6-'), isTrue, reason: _focused(nodes));
+    await _press(t, LogicalKeyboardKey.arrowUp, 6);
+    expect(_focused(nodes)?.startsWith('r0-'), isTrue, reason: 'doit repasser par la 1re rangée : ${_focused(nodes)}');
+    await _press(t, LogicalKeyboardKey.arrowUp);
+    expect(pill.hasFocus, isTrue);
+    await _press(t, LogicalKeyboardKey.arrowDown);
+    expect(_focused(nodes)?.startsWith('r0-'), isTrue, reason: _focused(nodes));
+  });
 }
