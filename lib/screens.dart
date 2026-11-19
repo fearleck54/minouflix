@@ -1020,23 +1020,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (tab != 4) setState(() => tab = 4);
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Recherche de la chaîne…')));
-    final picks = await whereToWatch(e, chans);
+    // 1) la chaîne retenue la dernière fois pour cette compétition : lecture immédiate (sauf si le guide montre autre chose)
+    final fav = chans.where((c) => c.key == Store.str('lgch_${e.lg}')).firstOrNull;
+    if (fav != null && await quickCheck(e, fav)) {
+      if (mounted) playChan(fav);
+      return;
+    }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    if (picks.isEmpty) {
-      setState(() {
-        liveTheme = 'sport';
-        tab = 1;
-      });
-      return;
-    }
-    if (picks.first.score >= 5 && (picks.length == 1 || picks[1].score < 5)) {
-      await Store.setStr('lgch_${e.lg}', picks.first.c.key);
-      playChan(picks.first.c);
-      return;
-    }
-    final c = await showWatchSheet(context, e, picks);
+    // 2) sinon : la liste s'affiche tout de suite (chaînes habituelles), le guide la précise au fur et à mesure
+    final live = ValueNotifier<List<WatchPick>>(quickPicks(e, chans));
+    final busy = ValueNotifier<bool>(true);
+    unawaited(whereToWatch(e, chans, progress: (l) => live.value = l).then((l) {
+      if (l.isNotEmpty) live.value = l;
+    }).whenComplete(() => busy.value = false));
+    final c = await showWatchSheet(context, e, live, busy);
     if (c != null && mounted) playChan(c);
   }
 

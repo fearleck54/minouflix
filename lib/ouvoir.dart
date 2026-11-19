@@ -41,7 +41,39 @@ Future<List<List<Object>>> _progs(Chan c) async {
 
 /// Où voir ce match ? Pour chaque chaîne candidate (habituelles de la compétition + chaînes de sport), on lit son guide et on cherche les deux équipes
 /// dans le titre du programme à l'heure du match : c'est la preuve la plus sûre. Sans preuve, on propose les chaînes habituelles de la compétition.
-Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans) async {
+/// choix immédiat, sans réseau : chaînes habituelles de la compétition (ou chaînes de sport)
+List<WatchPick> quickPicks(Ev e, List<Chan> chans) {
+  final l = lgOf(e.lg);
+  final base = <Chan>[];
+  for (final p in [for (final x in l.ch) RegExp(x)]) {
+    for (final c in chans) {
+      if (p.hasMatch(norm(c.name)) && !base.contains(c)) base.add(c);
+    }
+  }
+  final src = base.isNotEmpty ? base : [for (final c in chans) if (c.theme == 'sport') c].take(8).toList();
+  return [for (final c in src.take(8)) WatchPick(c, base.isNotEmpty ? 'Chaîne habituelle de ${l.n}' : 'Chaîne de sport', 0)];
+}
+
+/// la chaîne retenue la dernière fois diffuse-t-elle encore ce match ? (vrai aussi quand le guide ne dit rien : on ne fait pas attendre)
+Future<bool> quickCheck(Ev e, Chan c) async {
+  try {
+    final th = _tokens(e.h), ta = _tokens(e.a);
+    final progs = await _progs(c).timeout(const Duration(milliseconds: 2500));
+    var known = false;
+    for (final p in progs) {
+      final st = p[0] as int, en = p[1] as int;
+      if (en < e.ts - 600 || st > e.ts + 7200) continue;
+      known = true;
+      final n = norm('${p[2]}');
+      if (th.any(n.contains) || ta.any(n.contains)) return true;
+    }
+    return !known;      // programme connu à cette heure mais sans rapport avec le match : on cherche ailleurs
+  } catch (_) {
+    return true;
+  }
+}
+
+Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List<WatchPick>)? progress}) async {
   final l = lgOf(e.lg);
   final pats = [for (final p in l.ch) RegExp(p)];
   final base = <Chan>[];
@@ -85,25 +117,40 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans) async {
       final habit = base.contains(chunk[j]);
       if (best > 0 || habit) out.add(WatchPick(chunk[j], best > 0 ? why : 'Chaîne habituelle de ${l.n}', best));
     }
+    progress?.call(_sorted(out, base, fav));
     if (out.any((p) => p.score >= 5) || DateTime.now().isAfter(deadline)) break;      // preuve sûre ou temps écoulé
   }
-  out.sort((a, b) {
+  return _sorted(out, base, fav);
+}
+
+List<WatchPick> _sorted(List<WatchPick> out, List<Chan> base, String fav) {
+  final l = [...out];
+  l.sort((a, b) {
     final r = b.score.compareTo(a.score);
     if (r != 0) return r;
     final fa = a.c.key == fav ? 0 : 1, fb = b.c.key == fav ? 0 : 1;
     if (fa != fb) return fa.compareTo(fb);
     return base.indexOf(a.c).compareTo(base.indexOf(b.c));
   });
-  return out.take(8).toList();
+  return l.take(8).toList();
 }
 
 /// feuille « Où le voir » : la chaîne la plus probable en tête ; le choix est retenu pour cette compétition
-Future<Chan?> showWatchSheet(BuildContext context, Ev e, List<WatchPick> picks) => appSheet<Chan>(
+Future<Chan?> showWatchSheet(BuildContext context, Ev e, ValueNotifier<List<WatchPick>> live, ValueNotifier<bool> busy) => appSheet<Chan>(
       context: context,
       builder: (ctx) => SafeArea(
-        child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(8, 12, 8, 12), children: [
+        child: ValueListenableBuilder<List<WatchPick>>(
+        valueListenable: live,
+        builder: (_, picks, __) => ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(8, 12, 8, 12), children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 2), child: Text('Où le voir ?', style: T(19, w: 750))),
-          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: Text('${e.h.short} – ${e.a.short}', style: T(14, color: kMut))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(children: [
+              Expanded(child: Text('${e.h.short} – ${e.a.short}', style: T(14, color: kMut))),
+              ValueListenableBuilder<bool>(valueListenable: busy, builder: (_, b, __) => b ? Text('Vérification du guide…', style: T(13, color: kMut)) : const SizedBox.shrink()),
+            ]),
+          ),
+          if (picks.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text('Aucune chaîne trouvée : ouvre l\'onglet Direct › Sport.', style: T(15, color: kMut))),
           for (var i = 0; i < picks.length; i++)
             ListTile(
               autofocus: i == 0,
@@ -119,5 +166,6 @@ Future<Chan?> showWatchSheet(BuildContext context, Ev e, List<WatchPick> picks) 
               },
             ),
         ]),
+      ),
       ),
     );

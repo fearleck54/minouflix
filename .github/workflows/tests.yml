@@ -1,0 +1,16 @@
+name: Tests
+
+on:
+  push:
+    paths: ['lib/**', 'test/**', 'pubspec.yaml', '.github/workflows/tests.yml']
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - run: flutter test 2>&1 | tail -80
