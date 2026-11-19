@@ -252,6 +252,7 @@ class SportCard extends StatelessWidget {
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
         valueListenable: tick,
         builder: (_, __, ___) {
+          final z = Device.tv ? 1.3 : 1.0;      // télé : textes plus grands (lisibles à 3 m)
           final l = lgOf(e.lg);
           final hide = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !revealed.contains(e.id);
           final mine = followed(e);
@@ -260,11 +261,11 @@ class SportCard extends StatelessWidget {
           Widget row(Side s, bool lost) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2.5),
                 child: Row(children: [
-                  _logo(s.logo, s: 20),
+                  _logo(s.logo, s: 20 * z),
                   const SizedBox(width: 9),
-                  Expanded(child: Text(s.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: star.contains(s.name.toLowerCase()) ? 800 : 600, color: lost ? kMut : kText))),
+                  Expanded(child: Text(s.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14 * z, w: star.contains(s.name.toLowerCase()) ? 800 : 600, color: lost ? kMut : kText))),
                   if (star.contains(s.name.toLowerCase())) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFC857))),
-                  if (!e.f1 && e.st != 'pre' && s.score != null && !hide) Padding(padding: const EdgeInsets.only(left: 8), child: Text(s.score!, style: T(14.5, w: 800, color: lost ? kMut : kText))),
+                  if (!e.f1 && e.st != 'pre' && s.score != null && !hide) Padding(padding: const EdgeInsets.only(left: 8), child: Text(s.score!, style: T(14.5 * z, w: 800, color: lost ? kMut : kText))),
                 ]),
               );
           final when = whenLabel(e, day: !noDay);
@@ -272,15 +273,15 @@ class SportCard extends StatelessWidget {
               ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFFE5484D), shape: BoxShape.circle)),
                   const SizedBox(height: 4),
-                  Text('DIRECT', style: T(10, w: 800, ls: 0.04, color: const Color(0xFFFF7A80))),
+                  Text('DIRECT', style: T(10 * z, w: 800, ls: 0.04, color: const Color(0xFFFF7A80))),
                 ])
               : e.post
                   ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(hide ? Icons.visibility_off_rounded : Icons.check_rounded, size: 15, color: kMut),
+                      Icon(hide ? Icons.visibility_off_rounded : Icons.check_rounded, size: 15 * z, color: kMut),
                       const SizedBox(height: 3),
-                      Text(hide ? 'Score\nmasqué' : 'Terminé', textAlign: TextAlign.center, style: T(10, w: 600, color: kMut, h: 1.15)),
+                      Text(hide ? 'Score\nmasqué' : 'Terminé', textAlign: TextAlign.center, style: T(10 * z, w: 600, color: kMut, h: 1.15)),
                     ])
-                  : Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, style: T(12.5, w: 700, h: 1.25));
+                  : Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, style: T(12.5 * z, w: 700, h: 1.25));
           return SizedBox(
             width: width,
             child: FocusCard(
@@ -306,18 +307,18 @@ class SportCard extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(11, 8, 8, 8),
                         child: e.f1
                             ? Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(e.h.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14.5, w: 720)),
+                                Text(e.h.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14.5 * z, w: 720)),
                                 const SizedBox(height: 2),
-                                Text(e.a.short + (e.post && e.a.score != null && e.a.score!.isNotEmpty ? '  ·  🏆 ${e.a.score}' : ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, w: 500, color: kMut)),
+                                Text(e.a.short + (e.post && e.a.score != null && e.a.score!.isNotEmpty ? '  ·  🏆 ${e.a.score}' : ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5 * z, w: 500, color: kMut)),
                               ])
                             : Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [row(e.h, w < 0), row(e.a, w > 0)]),
                       ),
                     ),
                     Container(
-                      width: 62,
+                      width: 62 * z,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       color: const Color(0x14000000),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 15), const SizedBox(height: 4), Flexible(child: right)]),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 15 * z), const SizedBox(height: 4), Flexible(child: right)]),
                     ),
                   ]),
                 ),
@@ -614,7 +615,7 @@ class _SportTabState extends State<SportTab> {
             const SizedBox(height: 10),
             item('Réglages', Icons.tune_rounded, false, () => _more(context)),
           ]);
-          Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 300, onTap: () => widget.onOpen(e))]);
+          Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 390, onTap: () => widget.onOpen(e))]);
           final main = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 60), children: [
             if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(20, color: kMut)))),
             if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),

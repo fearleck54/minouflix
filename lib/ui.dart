@@ -93,6 +93,30 @@ class _FocusCardState extends State<FocusCard> {
     super.dispose();
   }
 
+  /// banc d'essai (scripts/outils/tv_parcours.sh) : chaque élément qui prend le focus est noté dans le journal système (texte, position)
+  void _trace() {
+    String? out;
+    var n = 0;
+    void v(Element e) {
+      if (out != null || n++ > 80) return;
+      final w = e.widget;
+      if (w is Text) {
+        out = w.data;
+        return;
+      }
+      if (w is mat.Text) {
+        out = w.data;
+        return;
+      }
+      e.visitChildren(v);
+    }
+
+    (context as Element).visitChildren(v);
+    final r = _node.rect;
+    // ignore: avoid_print
+    print('TVFOCUS|${(out ?? '').replaceAll('|', ' ').replaceAll('\n', ' ')}|${r.center.dx.round()}|${r.center.dy.round()}');
+  }
+
   /// liste verticale qui contient ce widget (null : hors de toute liste, ex. barre d'onglets)
   static ScrollableState? _vScroll(BuildContext c) {
     ScrollableState? r;
@@ -124,7 +148,7 @@ class _FocusCardState extends State<FocusCard> {
         final top = horiz ? o.dx : o.dy, len = horiz ? me.size.width : me.size.height, vpLen = horiz ? vp.size.width : vp.size.height;
         final cont = pos.pixels + top;
         // position fixe pour la rangée / la tuile active (centrage régulier) ; près du début de la liste : tout en haut
-        double target = cont < vpLen * (horiz ? 0.45 : 0.6) ? pos.minScrollExtent : (horiz ? cont - vpLen * 0.2 : cont + len / 2 - vpLen * 0.42);
+        double target = cont < vpLen * (horiz ? 0.45 : 0.8) ? pos.minScrollExtent : (horiz ? cont - vpLen * 0.2 : cont + len / 2 - vpLen * 0.42);
         target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
         if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
       }
@@ -226,6 +250,7 @@ class _FocusCardState extends State<FocusCard> {
         onFocusChange: (f) {
           setState(() => focused = f);
           if (f) {
+            if (Device.tv) _trace();
             if (Device.tv) {
               _reveal();
             } else {
@@ -506,7 +531,9 @@ class ChannelRow extends StatelessWidget {
   final VoidCallback onTap;
   final bool separator;
   final VoidCallback? onLong;
-  const ChannelRow({super.key, required this.item, required this.onTap, this.separator = true, this.onLong});
+  final int num;      // numéro de la chaîne dans la liste (télé, TNT) ; 0 : rien
+  final bool show4k;      // masqué quand toutes les chaînes de la liste sont en 4K (information inutile)
+  const ChannelRow({super.key, required this.item, required this.onTap, this.separator = true, this.onLong, this.num = 0, this.show4k = true});
 
   @override
   Widget build(BuildContext context) {
@@ -520,6 +547,7 @@ class ChannelRow extends StatelessWidget {
         decoration: BoxDecoration(border: separator ? const Border(bottom: BorderSide(color: Color(0x14FFFFFF), width: 0.6)) : null),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(children: [
+          if (num > 0) SizedBox(width: 46, child: Text('$num', style: T(22, w: 800, color: kMut))),
           LogoBox(item.icon),
           const SizedBox(width: 14),
           Expanded(
@@ -539,7 +567,7 @@ class ChannelRow extends StatelessWidget {
               ],
             ]),
           ),
-          if (item.is4k)
+          if (item.is4k && show4k)
             Container(
               margin: const EdgeInsets.only(left: 10),
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),

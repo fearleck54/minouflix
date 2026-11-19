@@ -1385,7 +1385,7 @@ class HomeTab extends StatelessWidget {
     Widget rail(String t, List<Item> l, {int? tab}) => Rail(title: t, height: ph, count: l.length.clamp(0, 24), onMore: tab == null ? null : () => onTab(tab), builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => onOpen(l[i])));
     final favCh = Store.favs;
     final mine = [for (final c in chans) if (c.v.any((v) => favCh.contains('live:${v.item.id}'))) c];     // seulement les chaînes marquées d'une étoile
-    final sw = wide ? 270.0 : 256.0;
+    final sw = Device.tv ? 390.0 : (wide ? 270.0 : 256.0);
     final kid = Store.kid;
     final cont = kid ? <Prog>[] : Store.progress();     // mode enfant : pas de reprise ni de téléchargements des adultes
     final favs = Store.favs;
@@ -1499,7 +1499,7 @@ class HomeTab extends StatelessWidget {
           var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
           if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
           evs = evs.take(int.tryParse(Store.str('home_sport_n')) ?? 10).toList();
-          return Rail(title: 'Sport', height: 78, count: evs.length, onMore: Device.tv ? null : () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
+          return Rail(title: 'Sport', height: Device.tv ? 104 : 78, count: evs.length, onMore: Device.tv ? null : () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
         },
       ),
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -1578,7 +1578,7 @@ class _LiveTabState extends State<LiveTab> {
               itemExtent: 100,
               cacheExtent: 1600,
               itemCount: l.length,
-              itemBuilder: (_, i) => ChannelRow(item: l[i], onTap: () {
+              itemBuilder: (_, i) => ChannelRow(item: l[i], num: theme == 'tnt' ? i + 1 : 0, show4k: !l.every((c) => c.is4k), onTap: () {
                 LiveTab.shown = l;
                 widget.onPlay(l[i]);
               }, onLong: () => chanMenu(context, l[i], () => widget.onHide?.call())),
@@ -2843,7 +2843,7 @@ class _DetailScreenState extends State<DetailScreen> {
       if (it.kind == Kind.vod && old != null) PillButton(label: 'Depuis le début', height: 54, onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
       PillButton(label: '+ Ajouter à…', height: 54, onTap: () => collectionSheet(context, fav)),
       if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => launchUrl(Uri.parse('https://www.youtube.com/watch?v=${fi.trailer}'), mode: LaunchMode.externalApplication)),
-      if (it.kind == Kind.vod)
+      if (it.kind == Kind.vod && !Device.tv)      // pas de téléchargement sur la télé
         ValueListenableBuilder<Map<String, double>>(
           valueListenable: Downloads.progress,
           builder: (_, m, __) {
@@ -3036,6 +3036,7 @@ class _DetailScreenState extends State<DetailScreen> {
             const SizedBox(height: 60),
           ],
         ]),
+        if (!Device.tv)      // télé : la touche Retour suffit
         Positioned(
           top: top + 8,
           left: 16,
