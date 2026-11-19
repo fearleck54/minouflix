@@ -1,3 +1,4 @@
+import 'perf.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'dart:async';
@@ -233,6 +234,8 @@ class LoadingScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              SvgPicture.asset('assets/logo.svg', height: Device.tv ? 130 : 96),
+              const SizedBox(height: 26),
               const SizedBox(width: 34, height: 34, child: Spinner(strokeWidth: 3, color: Colors.white70)),
               const SizedBox(height: 22),
               Text(status, textAlign: TextAlign.center, style: T(16, w: 600, color: kMut, h: 1.4)),

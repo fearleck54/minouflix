@@ -10,6 +10,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'about.dart';
 import 'epg.dart';
 import 'extras.dart';
@@ -1175,7 +1176,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             padding: EdgeInsets.fromLTRB(20 + pad.left, pad.top + 8, 20 + pad.right, 12),
             decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [kBg.withOpacity(wide || !heroTab ? 0.97 : 0.72), kBg.withOpacity(0.0)])),
             child: Row(children: [
-              if (wide) ...[Text('MinouFlix', style: T(26, w: 850, ls: -0.04)), const Spacer(), nav, const Spacer()] else Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(28, w: 750, ls: -0.035))),
+              if (wide) ...[SvgPicture.asset('assets/logo.svg', height: 46), const Spacer(), nav, const Spacer()] else Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(28, w: 750, ls: -0.035))),
               _SettingsButton(onTap: _settings),
             ]),
           ),
