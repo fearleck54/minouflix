@@ -1136,7 +1136,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, order: order, pages: Device.tv ? null : _pc);
     final pages = [
-      HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) => setState(() => tab = v), onChan: playChan, onEv: openEv, onResume: resume),
+      HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) {
+        if (Device.tv) NavPill.jump(v);
+        setState(() => tab = v);
+      }, onChan: playChan, onEv: openEv, onResume: resume),
       LiveTab(chans: chans, busy: busy.contains(Kind.live), theme: liveTheme, onTheme: (t) => setState(() => liveTheme = t), onPlay: playChan, onHide: () => setState(() => _derive(Kind.live))),
       LibTab(kind: Kind.vod, lib: libs[Kind.vod], busy: busy.contains(Kind.vod), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
       LibTab(kind: Kind.series, lib: libs[Kind.series], busy: busy.contains(Kind.series), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),

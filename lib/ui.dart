@@ -994,6 +994,17 @@ class NavPill extends StatelessWidget {
   final PageController? pages;      // glissement entre onglets : la pastille suit le doigt
   const NavPill({super.key, required this.index, required this.onSelect, required this.onSearch, this.order = const [0, 1, 2, 3, 4], this.pages});
 
+  /// télé : nœuds de focus des onglets ; `jump` donne le focus à l'onglet choisi (ex. « Tout voir » d'une rangée) sans repasser par l'Accueil
+  static final nodes = {for (var k = 0; k < 5; k++) k: FocusNode(debugLabel: 'tab$k')};
+  static bool hold = false;
+  static void jump(int k) {
+    hold = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nodes[k]?.requestFocus();
+      Future.delayed(const Duration(milliseconds: 400), () => hold = false);
+    });
+  }
+
   static const _tabs = [
     (CupertinoIcons.house_fill, 'Accueil'),
     (CupertinoIcons.tv_fill, 'Direct'),
@@ -1083,7 +1094,10 @@ class NavPill extends StatelessWidget {
         HapticFeedback.selectionClick();
         onSelect(k);
       },
-      onFocus: Device.tv && k != index ? () => onSelect(k) : null,
+      onFocus: Device.tv && k != index ? () {
+              if (!hold) onSelect(k);
+            } : null,
+      focusNode: nodes[k],
       preferred: on,
       autofocus: Device.tv && on,      // télé : au lancement, le focus est sur l'onglet ouvert (flèche bas = entrer dans la page)
       radius: 30,
