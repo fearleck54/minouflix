@@ -96,7 +96,17 @@ class MinouFlix extends StatelessWidget {
         e = await Pairing.send(code);
       }
       final c2 = navKey.currentContext;
-      if (c2 != null && c2.mounted) ScaffoldMessenger.maybeOf(c2)?.showSnackBar(SnackBar(content: Text(e ?? 'Envoyé : la télé se connecte.')));
+      // résultat toujours visible (une petite fenêtre, pas un message qui disparaît) : on sait si ça a marché
+      if (c2 != null && c2.mounted) {
+        await showDialog<void>(
+          context: c2,
+          builder: (c) => AppDialog(
+            title: Text(e == null ? 'Envoyé ✓' : 'Envoi impossible', style: T(18, w: 700)),
+            content: Text(e ?? 'La télé se connecte, quelques secondes.'),
+            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+          ),
+        );
+      }
     } finally {
       _linkBusy = false;
     }

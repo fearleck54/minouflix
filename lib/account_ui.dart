@@ -52,19 +52,29 @@ class _AuthState extends State<AuthScreen> {
       if (_polling || busy) return;      // une requête lente ne doit pas en lancer une deuxième
       _polling = true;
       final m = await Pairing.poll(code);
-      _polling = false;
-      if (m == null && mounted) setState(() {});      // l'incident éventuel (Pairing.last) s'affiche
-      if (m == null || !mounted) return;
-      _poll?.cancel();
+      if (m == null) {
+        _polling = false;
+        if (mounted) setState(() {});      // l'incident éventuel (Pairing.last) s'affiche
+        return;
+      }
+      if (!mounted) return;
       setState(() => _linked = true);      // le téléphone a répondu : on le montre tout de suite
-      final e = await Account.signIn('${m['e']}', '${m['p']}');
+      var e = await Account.signIn('${m['e']}', '${m['p']}');
       if (e != null) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        e = await Account.signIn('${m['e']}', '${m['p']}');      // un 2e essai avant d'abandonner (coupure brève)
+      }
+      if (e != null) {
+        // échec : on garde l'écoute (le paquet reste sur le serveur), un nouveau scan ou le prochain tour réessaie
+        _polling = false;
         if (mounted) setState(() {
           _linked = false;
           msg = e;
         });
         return;
       }
+      _poll?.cancel();
+      unawaited(Pairing.clear(code));      // le paquet n'est effacé qu'une fois la connexion réussie
       if (m['c'] is Map) {
         final c = Creds.fromJson((m['c'] as Map).cast<String, dynamic>());
         if (c != null) await Store.saveCreds(c);

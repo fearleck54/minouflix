@@ -33,11 +33,19 @@ class Pairing {
     final c = await Store.creds();
     final box = await AesGcm.with256bits().encrypt(utf8.encode(jsonEncode({'e': Account.email, 'p': pw, 'c': c?.toJson(), 't': DateTime.now().millisecondsSinceEpoch})), secretKey: await _key(code));
     try {
+      await clear(code);      // un ancien paquet du même code (essai précédent) est remplacé
       final r = await http.post(Uri.parse('$kSbUrl/rest/v1/pairing'), headers: _h(code), body: jsonEncode({'code': code, 'payload': base64Encode(box.concatenation())})).timeout(const Duration(seconds: 12));
       return r.statusCode < 300 ? null : 'Envoi impossible : le serveur répond ${r.statusCode}.';
     } catch (_) {
       return 'Connexion au serveur impossible depuis le téléphone.';
     }
+  }
+
+  /// télé : efface le paquet une fois la connexion réussie
+  static Future<void> clear(String code) async {
+    try {
+      await http.delete(Uri.parse('$kSbUrl/rest/v1/pairing?code=eq.$code'), headers: _h(code)).timeout(const Duration(seconds: 10));
+    } catch (_) {}
   }
 
   /// télé : cherche un paquet pour ce code ; {e, p, c} ou null
@@ -53,7 +61,6 @@ class Pairing {
       if (rows.isEmpty) return null;
       final box = SecretBox.fromConcatenation(base64Decode('${rows.first['payload']}'), nonceLength: 12, macLength: 16);
       final m = jsonDecode(utf8.decode(await AesGcm.with256bits().decrypt(box, secretKey: await _key(code)))) as Map<String, dynamic>;
-      await http.delete(Uri.parse('$kSbUrl/rest/v1/pairing?code=eq.$code'), headers: _h(code)).timeout(const Duration(seconds: 10));
       final t = (m['t'] as num?)?.toInt() ?? 0;
       if ((DateTime.now().millisecondsSinceEpoch - t).abs() > 15 * 60 * 1000) {
         last = 'Heure incorrecte sur la télé ou le téléphone (écart de plus de 15 min) : vérifie la date et l\'heure';
