@@ -117,6 +117,23 @@ class _FocusCardState extends State<FocusCard> {
     print('TVFOCUS|${(out ?? '').replaceAll('|', ' ').replaceAll('\n', ' ')}|${r.center.dx.round()}|${r.center.dy.round()}');
   }
 
+  /// rangée horizontale qui contient ce widget (null : hors rangée)
+  static ScrollableState? _hScroll(BuildContext c) {
+    ScrollableState? r;
+    c.visitAncestorElements((e) {
+      if (e is StatefulElement && e.state is ScrollableState) {
+        final st = e.state as ScrollableState;
+        if (st.axisDirection == AxisDirection.left || st.axisDirection == AxisDirection.right) r = st;
+        return false;
+      }
+      return true;
+    });
+    return r;
+  }
+
+  /// dernier élément ayant eu le focus dans chaque rangée : en y revenant avec ↑ ↓, on le retrouve
+  static final Map<ScrollableState, FocusNode> _mem = {};
+
   /// liste verticale qui contient ce widget (null : hors de toute liste, ex. barre d'onglets)
   static ScrollableState? _vScroll(BuildContext c) {
     ScrollableState? r;
@@ -230,6 +247,15 @@ class _FocusCardState extends State<FocusCard> {
         pref.first.requestFocus();
         return true;
       }
+      // rangée déjà visitée : on retombe sur l'élément où l'on s'était arrêté
+      for (final n in row) {
+        final h = _hScroll(n.context!);
+        final m = h == null ? null : _mem[h];
+        if (m != null && m.context != null && row.contains(m)) {
+          m.requestFocus();
+          return true;
+        }
+      }
       var bd = double.infinity;
       for (final n in row) {
         final dx = (n.rect.center.dx - me.center.dx).abs();
@@ -252,7 +278,11 @@ class _FocusCardState extends State<FocusCard> {
         onFocusChange: (f) {
           setState(() => focused = f);
           if (f) {
-            if (Device.tv) _trace();
+            if (Device.tv) {
+              _trace();
+              final h = _hScroll(context);
+              if (h != null) _mem[h] = _node;
+            }
             if (Device.tv) {
               _reveal();
             } else {
