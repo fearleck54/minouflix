@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart' show rootBundle;
+
 import 'journal.dart';
 import 'xtream.dart';
 
@@ -85,6 +89,8 @@ class Chan {
   ChanV get best => v.first;
   bool has(String q) => v.any((x) => x.label.startsWith(q));
   bool get is4k => has('4K');
+  /// logo du fournisseur, sinon logo de secours par le nom
+  String get logo => icon.isNotEmpty ? icon : ChanLogos.of(name);
 }
 
 class ChanV {
@@ -149,22 +155,35 @@ List<Chan> groupChannels(List<Item> items, Map<String, String> catNames) {
 
 const tntOrder = ['tf1', 'france 2', 'france 3', 'france 4', 'france 5', 'm6', 'arte', 'lcp', 'w9', 'tmc', 'tfx', 'gulli', 'bfm tv', 'cnews', 'lci', 'france info', 'c star', 't18', 'novo19', 'tf1 series', 'l equipe', '6ter', 'rmc story', 'rmc decouverte', 'cherie 25', 'canal+', 'c8', 'nrj 12', 'paris premiere'];
 
+/// nom de chaîne nettoyé : sans parenthèses, qualité (HD, FHD, 4K…), pays, ponctuation ; « france2 » → « france 2 »
+String cleanChan(String n) {
+  var t = norm(n).replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ');
+  t = t.replaceAll(RegExp(r'\b(4k|uhd|fhd|hdr|hd|sd|hevc|h265|h264|fr|vf|multi|live|direct)\b'), ' ');
+  t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ');
+  // « france2 », « france ch2 », « FRANCE CH2 HDR » → « france 2 » ; « nrj12 » → « nrj 12 »
+  t = t.replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj)\s*(?:ch\s*)?(\d)'), (m) => '${m[1]} ${m[2]}');
+  t = t.replaceAll(RegExp(r'\b(la chaine parlementaire|public senat)\b'), 'lcp').replaceAll('franceinfo', 'france info').replaceAll('cstar', 'c star').replaceAll('cmi tv', 't18').replaceAll('lequipe', 'l equipe');
+  return t.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+/// logos de secours des chaînes françaises (iptv-org, licence ouverte) quand le fournisseur n'en donne pas
+class ChanLogos {
+  static Map<String, String> _m = const {};
+  static Future<void> load() async {
+    try {
+      final j = jsonDecode(await rootBundle.loadString('assets/chan_logos.json')) as Map;
+      _m = {for (final e in j.entries) '${e.key}': 'https://${e.value}'};
+    } catch (_) {}
+  }
+
+  static String of(String name) => _m[cleanChan(name)] ?? '';
+}
+
 bool _tntLogged = false;
 
 List<Chan> tntSort(List<Chan> l) {
-  // nom nettoyé : sans parenthèses, qualité (HD, FHD, 4K…), pays, ponctuation ; « france2 » → « france 2 »
-  String clean(String n) {
-    var t = norm(n).replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ');
-    t = t.replaceAll(RegExp(r'\b(4k|uhd|fhd|hdr|hd|sd|hevc|h265|h264|fr|vf|multi|live|direct)\b'), ' ');
-    t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ');
-    // « france2 », « france ch2 », « FRANCE CH2 HDR » → « france 2 » ; « nrj12 » → « nrj 12 »
-    t = t.replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj)\s*(?:ch\s*)?(\d)'), (m) => '${m[1]} ${m[2]}');
-    t = t.replaceAll(RegExp(r'\b(la chaine parlementaire|public senat)\b'), 'lcp').replaceAll('franceinfo', 'france info').replaceAll('cstar', 'c star').replaceAll('cmi tv', 't18').replaceAll('lequipe', 'l equipe');
-    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
   double r(Chan c) {
-    final t = clean(c.name);
+    final t = cleanChan(c.name);
     var i = tntOrder.indexOf(t);
     if (i < 0) i = tntOrder.indexOf(t.replaceFirst(RegExp(r' (films|tv)$'), ''));
     if (i >= 0) return i.toDouble();

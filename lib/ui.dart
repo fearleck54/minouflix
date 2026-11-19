@@ -580,7 +580,7 @@ class ChannelRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(children: [
           if (num > 0) SizedBox(width: 46, child: Text('$num', style: T(22, w: 800, color: kMut))),
-          LogoBox(item.icon),
+          LogoBox(item.logo),
           const SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -631,7 +631,7 @@ class ChannelTile extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
         width: 132,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          FocusCard(onTap: onTap, radius: 18, child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0x14FFFFFF))), child: LogoBox(item.icon, w: 132, h: 88, radius: 18))),
+          FocusCard(onTap: onTap, radius: 18, child: Container(decoration: BoxDecoration(border: Border.all(color: const Color(0x14FFFFFF))), child: LogoBox(item.logo, w: 132, h: 88, radius: 18))),
           const SizedBox(height: 8),
           Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: 600)),
           if (_epgFor(item) != null) Text(_epgFor(item)!.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, w: 450, color: kMut)),

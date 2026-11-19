@@ -24,6 +24,7 @@ void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await Journal.init();
+    await ChanLogos.load();
     final prev = FlutterError.onError;
     FlutterError.onError = (d) {
       Journal.add('Erreur d\'affichage', d.exception, d.stack);
