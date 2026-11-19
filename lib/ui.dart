@@ -894,7 +894,11 @@ class _Slide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
-        future: Future.wait<dynamic>([detailFor(item), Tmdb.fiche(item)]),
+        // le serveur du fournisseur peut être lent ou injoignable (Wi-Fi maison) : on n'attend pas plus de 5 s ses détails, l'image vient de TMDB
+        future: Future.wait<dynamic>([
+          detailFor(item).timeout(const Duration(seconds: 5), onTimeout: () => null).catchError((_) => null),
+          Tmdb.fiche(item).timeout(const Duration(seconds: 10), onTimeout: () => null).catchError((_) => null),
+        ]),
         builder: (_, s) {
           final d = s.data?[0] as Detail?;
           final f = s.data?[1] as Fiche?;
