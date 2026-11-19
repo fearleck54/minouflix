@@ -35,3 +35,9 @@
 3. Jeu de captures sans aucun nom de chaîne ou de bouquet réel.
 4. Source de test légale + compte de démonstration.
 5. Passage Apple : retirer SideStore de la chaîne de build ; Google : produire le .aab.
+
+## Vérifié sur les sources officielles (19/11/2026)
+- Google Play : 25 USD une fois. Compte personnel créé après le 13/11/2023 : test fermé avec ≥ 12 testeurs inscrits en continu pendant 14 jours avant l'accès à la production (https://support.google.com/googleplay/android-developer/answer/14151465). Compte organisation : exempté (D-U-N-S requis).
+- Apple : 99 USD/an, identité légale, double authentification, nom légal affiché comme vendeur (https://developer.apple.com/programs/enroll/).
+- Règle Apple 5.2.3 (streaming tiers) : refus fréquent si l'app « donne accès à des flux non autorisés ». Parades : notes de revue disant que l'app ne contient AUCUNE chaîne/catalogue et lit seulement les liens fournis par l'utilisateur ; aucun contenu fourni par défaut ; captures sans noms de chaînes.
+- Google, politique propriété intellectuelle : pas de règle IPTV explicite ; cas Perfect Player / IPTV Smarters retirés sur plainte. Fiche et captures neutres.
