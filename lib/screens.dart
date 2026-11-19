@@ -372,7 +372,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                           controller: _fc,
                                           style: T(16.5, w: 500),
                                           onChanged: (v) => setState(() => filter = v.toLowerCase().trim()),
-                                          decoration: InputDecoration(hintText: 'Rechercher une catégorie', hintStyle: T(16.5, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero),
+                                          decoration: InputDecoration(hintText: 'Rechercher une catégorie', hintStyle: T(16.5, color: kMut), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero),
                                         ),
                                       ),
                                       if (searching) GestureDetector(onTap: () => setState(() { _fc.clear(); filter = ''; }), child: const Icon(Icons.cancel_rounded, size: 20, color: kMut)),
@@ -1773,15 +1773,6 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   String q = '';
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.initial.isNotEmpty) {
-      q = widget.initial;
-      _tc.text = widget.initial;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _askPerson(widget.initial));
-    }
   }
   final TextEditingController _tc = TextEditingController();
   Kind? _only;     // filtre : tout / films / séries
@@ -1833,6 +1824,11 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     Connect.query.addListener(_remote);
+    if (widget.initial.isNotEmpty) {
+      q = widget.initial;
+      _tc.text = widget.initial;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _askPerson(widget.initial));
+    }
     if (Connect.query.value.isNotEmpty) {
       _tc.text = Connect.query.value;
       q = Connect.query.value;
