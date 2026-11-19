@@ -18,6 +18,7 @@ Future<void> chanMenu(BuildContext context, Chan c, VoidCallback changed) async 
     ));
   if (r == 'fav') {
     await Store.toggleFav('live:${c.best.item.id}');
+    changed();
   } else if (r == 'hide') {
     await Store.setHidden({...Store.hidden, c.key});
     changed();

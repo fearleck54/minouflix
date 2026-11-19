@@ -372,7 +372,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                           controller: _fc,
                                           style: T(16.5, w: 500),
                                           onChanged: (v) => setState(() => filter = v.toLowerCase().trim()),
-                                          decoration: InputDecoration(hintText: 'Rechercher une catégorie', hintStyle: T(16.5, color: kMut), border: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero),
+                                          decoration: InputDecoration(hintText: 'Rechercher une catégorie', hintStyle: T(16.5, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero),
                                         ),
                                       ),
                                       if (searching) GestureDetector(onTap: () => setState(() { _fc.clear(); filter = ''; }), child: const Icon(Icons.cancel_rounded, size: 20, color: kMut)),
@@ -679,6 +679,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     unawaited(Connect.isTv().then((_) => Connect.start(_onRemote)));
     _loadAll();
     _checkUpdate();
+    kCatalog = () => [...uniqueTitles(libs[Kind.vod]?.rows ?? []), ...uniqueTitles(libs[Kind.series]?.rows ?? [])];
     Epg.version.addListener(_epgChanged);
     Store.persoTick.addListener(_persoChanged);      // barre du bas et accueil personnalisés : on redessine
     _tick = Timer.periodic(const Duration(minutes: 1), (_) => _epgChanged());
@@ -1049,7 +1050,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void search() {
     _searchOpen = true;
-    Navigator.push(context, softRoute((_) => SearchScreen(items: [...uniqueTitles(libs[Kind.vod]?.rows ?? []), ...uniqueTitles(libs[Kind.series]?.rows ?? [])], onOpen: openItem))).then((_) => _searchOpen = false);
+    kCatalog = () => [...uniqueTitles(libs[Kind.vod]?.rows ?? []), ...uniqueTitles(libs[Kind.series]?.rows ?? [])];
+    Navigator.push(context, softRoute((_) => SearchScreen(items: kCatalog(), onOpen: openItem))).then((_) => _searchOpen = false);
   }
 
   /// MinouFlix Connect : commande reçue d'un autre appareil du même compte
@@ -1163,7 +1165,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
       body: Stack(children: [
-        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? IndexedStack(index: tab, children: [for (var i = 0; i < pages.length; i++) ExcludeFocus(excluding: i != tab, child: pages[i])]) : _swipePages(pages, order)),
+        Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? KeyedSubtree(key: ValueKey(tab), child: pages[tab]) : _swipePages(pages, order)),
         // en-tête : titre à gauche, réglages à droite (navigation au centre sur grand écran)
         Positioned(
           top: 0,
@@ -1757,16 +1759,30 @@ class _BrowseScreenState extends State<BrowseScreen> {
 }
 
 /// ---------- recherche ----------
+/// catalogue films + séries pour la recherche ouverte depuis une fiche (renseigné par l'accueil)
+List<Item> Function() kCatalog = () => const [];
+
 class SearchScreen extends StatefulWidget {
   final List<Item> items;
   final void Function(Item) onOpen;
-  const SearchScreen({super.key, required this.items, required this.onOpen});
+  final String initial;
+  const SearchScreen({super.key, required this.items, required this.onOpen, this.initial = ''});
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
   String q = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initial.isNotEmpty) {
+      q = widget.initial;
+      _tc.text = widget.initial;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _askPerson(widget.initial));
+    }
+  }
   final TextEditingController _tc = TextEditingController();
   Kind? _only;     // filtre : tout / films / séries
   String _pName = '';     // recherche par acteur ou réalisateur (TMDB) : titres du catalogue où la personne apparaît
@@ -1861,7 +1877,7 @@ class _SearchScreenState extends State<SearchScreen> {
               Expanded(child: AppField(controller: _tc, autofocus: true, style: T(17, w: 500), onChanged: (v) {
                 setState(() => q = v);
                 _askPerson(v);
-              }, decoration: InputDecoration(hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), border: InputBorder.none, isCollapsed: true))),
+              }, decoration: InputDecoration(hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true))),
             ]),
           ),
         ),
@@ -2315,6 +2331,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), foot: 'Appliqués au lancement de la lecture.')),
+        _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
+        if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
       ]),
@@ -2971,17 +2989,24 @@ class _DetailScreenState extends State<DetailScreen> {
             if (fi != null && fi.cast.isNotEmpty)
               Rail(
                 title: 'Casting',
-                height: 150,
+                height: 170,
                 count: fi.cast.length,
                 moreLabel: '',
                 builder: (_, i) => SizedBox(
-                  width: 86,
-                  child: Column(children: [
-                    ClipOval(child: SizedBox(width: 76, height: 76, child: fi.cast[i].photo.isEmpty ? Container(color: kBg3) : netImage(tmImg(fi.cast[i].photo, 'w185'), ''))),
-                    const SizedBox(height: 8),
-                    Text(fi.cast[i].name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(12.5, w: 650, h: 1.2)),
-                    Text(fi.cast[i].role, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(11.5, color: kMut)),
-                  ]),
+                  width: 92,
+                  child: FocusCard(
+                    radius: 16,
+                    onTap: () => Navigator.push(context, softRoute((_) => SearchScreen(items: kCatalog(), onOpen: widget.onOpen, initial: fi.cast[i].name))),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(children: [
+                        ClipOval(child: SizedBox(width: 76, height: 76, child: fi.cast[i].photo.isEmpty ? Container(color: kBg3) : netImage(tmImg(fi.cast[i].photo, 'w185'), ''))),
+                        const SizedBox(height: 8),
+                        Text(fi.cast[i].name, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(12.5, w: 650, h: 1.2)),
+                        Text(fi.cast[i].role, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(11.5, color: kMut)),
+                      ]),
+                    ),
+                  ),
                 ),
               ),
             if (saga.isNotEmpty) Rail(title: fi!.sagaName.isEmpty ? 'Saga' : fi.sagaName, height: _posterH(118), count: saga.length, moreLabel: '', builder: (_, i) => Poster(item: saga[i], width: 118, onTap: () => widget.onOpen(saga[i]))),
@@ -3044,6 +3069,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String _epgLine = '';
   Timer? _banner;
   StreamSubscription<Tracks>? _tr;
+  StreamSubscription<bool>? _playSub;
   bool _trSet = false;
   double _rate = 1.0;
   static const _fpsCh = MethodChannel('minou/fps');
@@ -3146,15 +3172,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   /// direct : garde ~10 min en mémoire pour pouvoir mettre en pause et revenir en arrière
+  /// tampon réglable (Réglages › Lecture) : secondes d'avance gardées en mémoire, et d'attente après une coupure
+  static int get bufSecs => (int.tryParse(Store.str('buf_s')) ?? 20).clamp(1, 90);
+
+  Future<void> _bufferSecs(dynamic n) async {
+    await n.setProperty('demuxer-readahead-secs', '$bufSecs');
+    await n.setProperty('cache-secs', '$bufSecs');
+    await n.setProperty('cache-pause-wait', '$bufSecs');
+  }
+
+  Future<void> _bufferVod() async {
+    try {
+      await _bufferSecs(player.platform as dynamic);
+    } catch (_) {}
+  }
+
   Future<void> _bufferLive() async {
     try {
       final dynamic n = player.platform;   // dynamic : la version web (contrôle visuel) n'a pas NativePlayer
       await n.setProperty('cache', 'yes');
-      // télé : cache raisonnable (un énorme tampon sature la mémoire des boîtiers et fait saccader), reconnexion automatique du flux
-      await n.setProperty('demuxer-max-bytes', Device.tv ? '48MiB' : (Perf.lite ? '40MiB' : '200MiB'));
+      // télé : tampon borné en mémoire (un énorme tampon sature les boîtiers et fait saccader), reconnexion automatique du flux
+      await n.setProperty('demuxer-max-bytes', Device.tv ? '96MiB' : (Perf.lite ? '48MiB' : '200MiB'));
       await n.setProperty('demuxer-max-back-bytes', Device.tv ? '48MiB' : (Perf.lite ? '40MiB' : '200MiB'));
-      await n.setProperty('demuxer-readahead-secs', Device.tv ? '30' : (Perf.lite ? '120' : '600'));
-      await n.setProperty('cache-pause-wait', '2');
+      await _bufferSecs(n);
       await n.setProperty('network-timeout', '15');
       await n.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
       await n.setProperty('demuxer-lavf-o', 'fflags=+discardcorrupt');
@@ -3239,7 +3279,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   /// la télé s'adapte à la cadence de la vidéo (24 / 25 / 30 / 50 images par seconde) : plus de saccades
   Future<void> _matchFps() async {
-    if (kIsWeb || !Platform.isAndroid || !Device.tv || _fpsFor == _openedAt.millisecondsSinceEpoch) return;
+    if (kIsWeb || !Platform.isAndroid || !Device.tv || !Store.flag('fpsmatch', false) || _fpsFor == _openedAt.millisecondsSinceEpoch) return;
     try {
       final v = await (player.platform as dynamic).getProperty('container-fps');
       final f = double.tryParse(v) ?? 0;
@@ -3480,6 +3520,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
     _tr = player.stream.tracks.listen(_applyPrefs);
+    _playSub = player.stream.playing.listen((_) {
+      if (mounted && _tvUi) setState(() {});
+    });
     if (widget.zap.isNotEmpty) {
       final e = widget.zap[_zi].epg.isEmpty ? null : Epg.now(widget.zap[_zi].epg);
       if (e != null) _epgLine = '${e.title} · encore ${e.leftMin} min';
@@ -3501,7 +3544,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _endSub = player.stream.completed.listen((c) {
       if (c && _live) _failed('Le direct s\'est interrompu.');     // un direct ne « finit » pas : c'est une coupure
     });
-    if (_live) _bufferLive();
+    if (_live) {
+      _bufferLive();
+    } else {
+      _bufferVod();
+    }
     _posSub = player.stream.position.listen(_onPos);
     Connect.inPlayer = true;
     Connect.player.addListener(_remoteCtl);
@@ -3540,7 +3587,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
     _skipNode.dispose();
-    if (!kIsWeb && Platform.isAndroid && Device.tv) _fpsCh.invokeMethod('set', 0.0).catchError((_) {});
+    if (!kIsWeb && Platform.isAndroid && Device.tv && _fpsFor != 0) _fpsCh.invokeMethod('set', 0.0).catchError((_) {});
     _save();
     _t?.cancel();
     _done?.cancel();
@@ -3550,7 +3597,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _retryNode.dispose();
     _main.dispose();
     _tvT?.cancel();
+    _playSub?.cancel();
     _tvPlay.dispose();
+    for (final n in _tvPool) {
+      n.dispose();
+    }
     _tr?.cancel();
     _banner?.cancel();
     _first.dispose();
@@ -3566,6 +3617,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _seekN = 0;
   DateTime _seekAt = DateTime(2000);
   Duration? _seekTgt;
+  final List<FocusNode> _tvPool = List.generate(10, (i) => FocusNode(debugLabel: 'commande $i'));
+  final List<FocusNode> _tvBtns = [];      // boutons de la barre, de gauche à droite (rempli à chaque affichage)
 
   void _tvShow({bool focus = false}) {
     _tvT?.cancel();
@@ -3577,6 +3630,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _tvHide() {
     _tvT?.cancel();
     if (!mounted) return;
+    if (ModalRoute.of(context)?.isCurrent == false) {      // un panneau (audio, options…) est ouvert : la barre reste
+      _tvT = Timer(const Duration(seconds: 3), _tvHide);
+      return;
+    }
     if (_tvUi) setState(() => _tvUi = false);
     _main.requestFocus();
   }
@@ -3619,6 +3676,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (onBar) {
       if (_tvUi) _tvShow();      // chaque touche repousse la fermeture de la barre
+      if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
+        final i = _tvBtns.indexWhere((n) => n.hasFocus);
+        if (i >= 0) {
+          final j = (i + (k == LogicalKeyboardKey.arrowLeft ? -1 : 1)).clamp(0, _tvBtns.length - 1);
+          _tvBtns[j].requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      }
       if (k == LogicalKeyboardKey.arrowUp && down) {
         _tvHide();
         return KeyEventResult.handled;
@@ -3644,11 +3710,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.arrowUp || k == LogicalKeyboardKey.arrowDown) {
-      if (_live && widget.zap.length > 1) {
-        if (down) _zapBy(k == LogicalKeyboardKey.arrowUp ? -1 : 1);
-      } else if (down) {
-        _tvShow(focus: true);
-      }
+      if (down) _tvShow(focus: true);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -3660,11 +3722,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${x.toString().padLeft(2, '0')}' : '$m:${x.toString().padLeft(2, '0')}';
   }
 
-  Widget _tvBtn(IconData ic, String label, VoidCallback f, {FocusNode? node, bool big = false}) => Padding(
+  Widget _tvBtn(IconData ic, String label, VoidCallback f, {FocusNode? node, bool big = false}) {
+    final nd = node ?? _tvPool[_tvBtns.length];
+    _tvBtns.add(nd);
+    return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           FocusCard(
-            focusNode: node,
+            focusNode: nd,
             radius: 40,
             focusScale: 1.12,
             onTap: () {
@@ -3677,8 +3742,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Text(label, style: T(14, w: 600, color: const Color(0xCCFFFFFF))),
         ]),
       );
+  }
 
-  Widget _tvOverlay() => Positioned.fill(
+  Widget _tvOverlay() {
+    _tvBtns.clear();
+    return Positioned.fill(
         child: IgnorePointer(
           ignoring: !_tvUi,
           child: ExcludeFocus(
@@ -3715,11 +3783,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     Center(
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         _tvBtn(CupertinoIcons.chevron_back, 'Retour', () => Navigator.maybePop(context)),
-                        StreamBuilder<bool>(
-                          stream: player.stream.playing,
-                          initialData: player.state.playing,
-                          builder: (_, sn) => _tvBtn(sn.data == true ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, sn.data == true ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
-                        ),
+                        _tvBtn(player.state.playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, player.state.playing ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
                         if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
                         if (!_live) _tvBtn(CupertinoIcons.goforward_10, '+10 s', () => _tvSeek(1)),
                         if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne +', () => _zapBy(-1)),
@@ -3736,6 +3800,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
         ),
       );
+  }
 
   @override
   Widget build(BuildContext context) => PopScope(

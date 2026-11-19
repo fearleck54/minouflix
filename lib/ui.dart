@@ -92,6 +92,19 @@ class _FocusCardState extends State<FocusCard> {
     super.dispose();
   }
 
+  /// télé : si la carte est déjà bien visible dans sa liste, on ne fait pas défiler (plus fluide, plus de page qui saute)
+  bool _visible() {
+    if (!Device.tv) return false;
+    final sc = Scrollable.maybeOf(context);
+    final vp = sc?.context.findRenderObject();
+    final me = context.findRenderObject();
+    if (vp is! RenderBox || me is! RenderBox || !me.attached || !vp.attached) return false;
+    final o = me.localToGlobal(Offset.zero, ancestor: vp);
+    final horiz = sc!.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right;
+    const m = 70.0;
+    return horiz ? (o.dx >= m && o.dx + me.size.width <= vp.size.width - m) : (o.dy >= m && o.dy + me.size.height <= vp.size.height - m);
+  }
+
   /// télécommande dans une rangée horizontale : gauche / droite restent sur la rangée (jamais de saut à la ligne voisine) ; au bout, rien ne bouge
   bool _rail(KeyEvent e) {
     final k = e.logicalKey;
@@ -118,7 +131,7 @@ class _FocusCardState extends State<FocusCard> {
         onFocusChange: (f) {
           setState(() => focused = f);
           if (f) {
-            Scrollable.ensureVisible(context, alignment: 0.5, duration: Duration(milliseconds: Device.tv ? 110 : 180), curve: Curves.easeOut);
+            if (!_visible()) Scrollable.ensureVisible(context, alignment: 0.5, duration: Duration(milliseconds: Device.tv ? 110 : 180), curve: Curves.easeOut);
             widget.onFocus?.call();
           }
         },
@@ -437,7 +450,7 @@ class ChannelRow extends StatelessWidget {
               child: Text('4K', style: T(Device.tv ? 14 : 11.5, w: 700, color: const Color(0xFF8F99AB))),
             ),
           const SizedBox(width: 6),
-          FavButton(favKey: 'live:${item.best.item.id}', size: 44, plain: true),
+          if (Device.tv) ExcludeFocus(child: IgnorePointer(child: FavButton(favKey: 'live:${item.best.item.id}', size: 44, plain: true))) else FavButton(favKey: 'live:${item.best.item.id}', size: 44, plain: true),
         ]),
       ),
     );

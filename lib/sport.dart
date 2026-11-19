@@ -785,7 +785,7 @@ Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
                   child: Row(children: [
                     const Icon(Icons.search_rounded, size: 18, color: kMut),
                     const SizedBox(width: 8),
-                    Expanded(child: AppField(controller: qc, onChanged: (v) => set(() => q = v.toLowerCase().trim()), style: T(16, w: 500), decoration: InputDecoration(hintText: 'Rechercher une équipe', hintStyle: T(16, color: kMut), border: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero))),
+                    Expanded(child: AppField(controller: qc, onChanged: (v) => set(() => q = v.toLowerCase().trim()), style: T(16, w: 500), decoration: InputDecoration(hintText: 'Rechercher une équipe', hintStyle: T(16, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isDense: true, filled: false, contentPadding: EdgeInsets.zero))),
                   ]),
                 ),
               ),
