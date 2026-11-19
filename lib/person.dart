@@ -6,6 +6,7 @@ import 'names.dart';
 import 'screens.dart' show kCatalog;
 import 'tmdb.dart';
 import 'ui.dart';
+import 'xtream.dart';
 
 /// fiche d'un acteur : sa photo, puis ses films et ses séries présents dans le catalogue (sans clavier ni recherche)
 class PersonScreen extends StatefulWidget {
