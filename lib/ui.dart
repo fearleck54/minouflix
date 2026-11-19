@@ -614,6 +614,7 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FocusCard(
+        autofocus: primary && Device.tv,
         onTap: onTap,
         onLong: onLong,
         radius: height / 2,
@@ -1460,7 +1461,50 @@ class AppDialog extends StatelessWidget {
 }
 
 /// Feuille du bas : verre dépoli, grand arrondi en haut, petite poignée ; remplace showModalBottomSheet.
-Future<T?> appSheet<T>({required BuildContext context, required WidgetBuilder builder, bool isScrollControlled = false}) => showModalBottomSheet<T>(
+/// télé : les feuilles du bas deviennent un panneau centré (lisible à 3 m, premier élément déjà sélectionné)
+class _TvPanel extends StatefulWidget {
+  final Widget child;
+  const _TvPanel({required this.child});
+  @override
+  State<_TvPanel> createState() => _TvPanelState();
+}
+
+class _TvPanelState extends State<_TvPanel> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<_TvPanel>() == null) FocusScope.of(context).nextFocus();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final th = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 780, maxHeight: MediaQuery.sizeOf(context).height * 0.88),
+        child: Material(
+          color: const Color(0xFF1B1F2A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26), side: const BorderSide(color: Color(0x24FFFFFF), width: .8)),
+          clipBehavior: Clip.antiAlias,
+          child: Theme(
+            data: th.copyWith(
+              listTileTheme: ListTileThemeData(contentPadding: const EdgeInsets.symmetric(horizontal: 28), minVerticalPadding: 14, horizontalTitleGap: 16, titleTextStyle: T(19, w: 550), subtitleTextStyle: T(15, color: kMut), iconColor: kText, textColor: kText),
+            ),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<T?> appSheet<T>({required BuildContext context, required WidgetBuilder builder, bool isScrollControlled = false}) => Device.tv
+    ? showDialog<T>(context: context, barrierColor: const Color(0xB3000000), builder: (c) => _TvPanel(child: builder(c)))
+    : _appSheet<T>(context: context, builder: builder, isScrollControlled: isScrollControlled);
+
+Future<T?> _appSheet<T>({required BuildContext context, required WidgetBuilder builder, bool isScrollControlled = false}) => showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
       backgroundColor: Colors.transparent,
