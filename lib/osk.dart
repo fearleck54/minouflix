@@ -89,7 +89,12 @@ class _AppFieldState extends State<AppField> {
         return FocusCard(
           radius: 12,
           onTap: _open,
-          child: InputDecorator(decoration: d, isEmpty: t.isEmpty, child: mat.Text(shown, maxLines: 1, overflow: TextOverflow.ellipsis, style: widget.style ?? T(17, w: 500))),
+          child: d.isCollapsed == true
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: mat.Text(t.isEmpty ? (d.hintText ?? '') : shown, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.isEmpty ? (d.hintStyle ?? T(17, w: 400, color: kMut)) : (widget.style ?? T(17, w: 500))),
+                )
+              : InputDecorator(decoration: d, isEmpty: t.isEmpty, child: mat.Text(shown, maxLines: 1, overflow: TextOverflow.ellipsis, style: widget.style ?? T(17, w: 500))),
         );
       },
     );
