@@ -155,8 +155,10 @@ List<Chan> tntSort(List<Chan> l) {
   // nom nettoyé : sans parenthèses, qualité (HD, FHD, 4K…), pays, ponctuation ; « france2 » → « france 2 »
   String clean(String n) {
     var t = norm(n).replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ');
-    t = t.replaceAll(RegExp(r'\b(4k|uhd|fhd|hd|sd|hevc|h265|h264|fr|vf|multi|live|direct)\b'), ' ');
-    t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ').replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj|c)(\d)'), (m) => '${m[1]} ${m[2]}');
+    t = t.replaceAll(RegExp(r'\b(4k|uhd|fhd|hdr|hd|sd|hevc|h265|h264|fr|vf|multi|live|direct)\b'), ' ');
+    t = t.replaceAll(RegExp(r'[^a-z0-9+ ]'), ' ');
+    // « france2 », « france ch2 », « FRANCE CH2 HDR » → « france 2 » ; « nrj12 » → « nrj 12 »
+    t = t.replaceAllMapped(RegExp(r'\b(france|canal|bfm|nrj)\s*(?:ch\s*)?(\d)'), (m) => '${m[1]} ${m[2]}');
     return t.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
