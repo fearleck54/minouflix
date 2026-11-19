@@ -162,14 +162,20 @@ class _FocusCardState extends State<FocusCard> {
           best = n;
         }
       }
-      // on change de zone (grille → colonne de filtres, et inversement) : on arrive sur l'élément actif de la zone, pas sur celui qui se trouve à la même hauteur
+      // on change de zone (grille → colonne de filtres, et inversement) : on arrive sur l'élément actif de la zone, sinon le plus proche en hauteur
       final mine = _vScroll(context);
       if (best == null || _vScroll(best.context!) != mine) {
-        final pref = [
+        final others = [
           for (final n in cand)
-            if (_vScroll(n.context!) != mine && n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true && (right ? n.rect.center.dx > me.center.dx : n.rect.center.dx < me.center.dx)) n
+            if (_vScroll(n.context!) != null && _vScroll(n.context!) != mine && (right ? n.rect.center.dx > me.center.dx : n.rect.center.dx < me.center.dx)) n
         ];
-        if (pref.isNotEmpty) best = pref.first;
+        final pref = others.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
+        if (pref.isNotEmpty) {
+          best = pref.first;
+        } else if (best == null && others.isNotEmpty) {
+          others.sort((x, y) => (x.rect.center.dy - me.center.dy).abs().compareTo((y.rect.center.dy - me.center.dy).abs()));
+          best = others.first;
+        }
       }
       if (best == null && sc != null && (sc.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right)) return true;      // bout de rangée : on ne bouge pas
       if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
