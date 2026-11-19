@@ -118,6 +118,8 @@ class MinouFlix extends StatelessWidget {
           scaffoldBackgroundColor: const Color(0xFF06080D),
           canvasColor: const Color(0xFF06080D),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5B8CFF), brightness: Brightness.dark, surface: const Color(0xFF0E121B)),
+          focusColor: const Color(0x40FFFFFF),
+          listTileTheme: const ListTileThemeData(minVerticalPadding: 10),
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
             fillColor: const Color(0x2EFFFFFF),

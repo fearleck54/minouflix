@@ -510,6 +510,7 @@ class Rail extends StatelessWidget {
           SizedBox(
             height: height,
             child: ListView.separated(
+              cacheExtent: Device.tv ? 1200 : null,
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
               padding: const EdgeInsets.symmetric(horizontal: 20),

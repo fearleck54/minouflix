@@ -635,7 +635,7 @@ class _SportTabState extends State<SportTab> {
             child: Row(children: [SizedBox(width: 290, child: side), const SizedBox(width: 12), Expanded(child: main)]),
           );
         }
-        return ListView(padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
+        return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
           Chips(
             labels: r1,
             leading: [null, if (hasTeams) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFC857)), for (final n in sports) Icon(sportIcon(n), size: 18), const Icon(Icons.add, size: 18)],

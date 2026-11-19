@@ -1507,7 +1507,7 @@ class HomeTab extends StatelessWidget {
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
-    return ListView(padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+    return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
       if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
       for (final id in Store.homeOrder())
         if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
@@ -1635,7 +1635,7 @@ class LibTab extends StatelessWidget {
     final themes = tg.entries.toList()..sort((a, b) => (order.contains(a.key) ? order.indexOf(a.key) : 99) - (order.contains(b.key) ? order.indexOf(b.key) : 99));
     final hero = lb.recent.where((i) => i.rating >= 6).take(7).toList();
     final pad = MediaQuery.paddingOf(context);
-    return ListView(padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+    return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
       if (hero.length >= 3) HeroBanner(items: hero, detailFor: detailFor, onPlay: onPlay, onInfo: onOpen) else SizedBox(height: pad.top + 70),
       if (plats.isNotEmpty)
         Rail(
