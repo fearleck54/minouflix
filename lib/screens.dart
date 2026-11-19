@@ -1574,6 +1574,7 @@ class _LiveTabState extends State<LiveTab> {
           const SizedBox(width: 16),
           Expanded(
             child: ListView.builder(
+              key: ValueKey("$theme|$q|$ql"),
               padding: const EdgeInsets.only(top: 8, bottom: 60),
               itemExtent: 100,
               cacheExtent: 1600,
