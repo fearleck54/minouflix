@@ -1502,6 +1502,7 @@ class HomeTab extends StatelessWidget {
       'top10': FutureBuilder<List<Map>>(
         future: Tmdb.trending(),
         builder: (_, s) {
+          if (s.connectionState != ConnectionState.done) return SizedBox(height: ph + 120);     // pas de liste provisoire qui change une seconde plus tard
           final tr = trendTop(s.data ?? const [], vl, sl);
           final l = tr.isNotEmpty ? tr : top;
           return Rail(title: 'Top 10 cette semaine', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Top10Card(rank: i + 1, item: l[i], width: pw, onTap: () => onOpen(l[i])));

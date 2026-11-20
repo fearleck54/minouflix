@@ -552,7 +552,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       if (sports.isEmpty || sports.contains(sp)) (bySport[sp] ??= []).add(l);
     }
     final firstSel = [for (final l in bySport.values.expand((x) => x)) l].indexWhere((l) => sel.contains(l.k));
-    final cols = tv ? 2 : 1;      // noms entiers : cartes larges
+    const cols = 3;
     return _shell(
       title: _t('Tes compétitions', 'Your competitions'),
       sub: _t('Coche celles que tu suis : leurs matchs passent en premier.', 'Tick the ones you follow: their matches come first.'),
@@ -560,7 +560,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(6),
       content: LayoutBuilder(builder: (context, c) {
-        final w = tv ? 470.0 : c.maxWidth;
+        final w = tv ? 148.0 * cols + 24 : c.maxWidth - 16;
         const gap = 10.0;
         final cw = (w - gap * (cols - 1)) / cols;
         var n = -1;
@@ -577,7 +577,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                       n++;
                       final idx = n;
                       return SizedBox(
-                        width: cw - (tv ? 8 : 0) / cols,
+                        width: cw,
                         child: _PickTile(
                           leading: lgHasLogo(l.k) ? LgIcon(l.k, size: 28) : const Icon(Icons.emoji_events_rounded, size: 24, color: Colors.white70),
                           label: l.n,
@@ -1246,19 +1246,22 @@ class _PickTile extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          constraints: const BoxConstraints(minHeight: 68),
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          constraints: const BoxConstraints(minHeight: 104),
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             color: kBg2,
             gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: on ? [a, b] : [a.withOpacity(0.10), b.withOpacity(0.10)]),
             border: Border.all(color: on ? const Color(0x59FFFFFF) : kEdge, width: on ? 1.5 : 1),
           ),
-          child: Row(children: [
-            Container(width: 40, height: 40, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(on ? 0.16 : 0.08)), child: leading),
-            const SizedBox(width: 10),
-            Expanded(child: Text(label, maxLines: 3, style: T(14, w: 700, h: 1.15))),
-            _Tick(on: on),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Row(children: [
+              Container(width: 40, height: 40, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(on ? 0.16 : 0.08)), child: leading),
+              const Spacer(),
+              _Tick(on: on),
+            ]),
+            const SizedBox(height: 8),
+            SizedBox(width: double.infinity, child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(14, w: 700, h: 1.15))),
           ]),
         ),
       );
