@@ -558,7 +558,7 @@ class _CardState extends State<_Card> {
               bottom: 14,
               right: 10,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(widget.label, maxLines: 2, style: T(17, w: 700, ls: -0.01, color: fg)),
+                Text(widget.label, maxLines: 2, style: T(widget.label.split(' ').any((w) => w.length > 11) ? 15 : 17, w: 700, ls: -0.01, color: fg)),
                 if (widget.sub != null) Text(widget.sub!, maxLines: 1, style: T(13, w: 450, color: on ? fg.withOpacity(0.85) : kMut)),
               ]),
             ),
