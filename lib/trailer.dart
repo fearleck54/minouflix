@@ -93,16 +93,27 @@ class Trailer {
       final v = m.videoOnly.where((s) => s.container == StreamContainer.mp4 && s.videoResolution.height <= 1080).toList()
         ..sort((a, b) => a.videoResolution.height.compareTo(b.videoResolution.height));
       final a = m.audioOnly.where((s) => s.container == StreamContainer.mp4).toList();
-      if (v.isNotEmpty) {
+      // chaque flux est essayé comme le fera le relais (tranche de 1 Mo) : YouTube en refuse certains sans le dire, on prend le premier qui répond
+      Future<bool> ok(String url) async {
         try {
-          final r = await http.get(Uri.parse(v.last.url.toString()), headers: {'User-Agent': ua, 'Range': 'bytes=0-1'}).timeout(const Duration(seconds: 10));
-          Journal.add('Bande-annonce : essai du flux image ${v.last.videoResolution.height}p', 'HTTP ${r.statusCode}');
+          final r = await http.get(Uri.parse(url), headers: {'User-Agent': ua, 'Range': 'bytes=0-1048575'}).timeout(const Duration(seconds: 12));
+          Journal.add('Bande-annonce : essai d\'un flux', 'HTTP ${r.statusCode}');
+          return r.statusCode == 200 || r.statusCode == 206;
         } catch (e) {
-          Journal.add('Bande-annonce : essai du flux image', e);
+          Journal.add('Bande-annonce : essai d\'un flux', e);
+          return false;
         }
       }
-      if (v.isNotEmpty && a.isNotEmpty) return (await _Relay.serve('v', v.last.url.toString(), ua), await _Relay.serve('a', a.withHighestBitrate().url.toString(), ua), ua);
-      if (m.muxed.isNotEmpty) return (await _Relay.serve('v', m.muxed.withHighestBitrate().url.toString(), ua), null, ua);
+
+      if (v.isNotEmpty && a.isNotEmpty) {
+        final au = a.withHighestBitrate().url.toString();
+        for (final x in v.reversed.take(3)) {
+          if (await ok(x.url.toString()) && await ok(au)) return (await _Relay.serve('v', x.url.toString(), ua), await _Relay.serve('a', au, ua), ua);
+        }
+      }
+      for (final x in (m.muxed.toList()..sort((p, q) => q.videoResolution.height.compareTo(p.videoResolution.height)))) {
+        if (await ok(x.url.toString())) return (await _Relay.serve('v', x.url.toString(), ua), null, ua);
+      }
     } catch (e) {
       Journal.add('Bande-annonce : flux YouTube non obtenu', e);
     } finally {
