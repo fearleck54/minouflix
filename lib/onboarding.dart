@@ -560,9 +560,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(6),
       content: LayoutBuilder(builder: (context, c) {
-        final w = math.min(c.maxWidth - 16, 148.0 * cols + 24);
+        final w = math.min(c.maxWidth, 148.0 * cols + 24);
         const gap = 10.0;
-        final cw = (w - gap * (cols - 1)) / cols;
+        final cw = (w - 16 - gap * (cols - 1)) / cols - 0.5;
         var n = -1;
         return SizedBox(
           width: w,
