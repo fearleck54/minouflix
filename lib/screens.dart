@@ -17,7 +17,6 @@ import 'extras.dart';
 import 'journal.dart';
 import 'names.dart';
 import 'tmdb.dart';
-import 'package:path_provider/path_provider.dart';
 import 'sport.dart';
 import 'trailer.dart';
 import 'version.dart';
@@ -2833,7 +2832,7 @@ class _DetailScreenState extends State<DetailScreen> {
       launchUrl(Uri.parse('https://www.youtube.com/watch?v=$id'), mode: LaunchMode.externalApplication);
       return;
     }
-    Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, userAgent: r.$3, title: '${widget.item.title} · Bande-annonce')));
+    Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, debug: true, title: '${widget.item.title} · Bande-annonce')));
   }
 
   String _mmss(int ms) {
@@ -3151,8 +3150,9 @@ class PlayerScreen extends StatefulWidget {
   final int zapAt;
   final Xtream? x;                            // pour le rattrapage (adresse des programmes passés)
   final Future<Fiche?>? tmdb;                 // identifiant TMDB : sert à retrouver intro / récap / générique
-  final String? audioUrl, userAgent;          // bande-annonce : son à part de l'image, agent HTTP exigé par YouTube
-  const PlayerScreen({super.key, this.audioUrl, this.userAgent, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
+  final String? audioUrl;                     // bande-annonce : son à part de l'image
+  final bool debug;
+  const PlayerScreen({super.key, this.audioUrl, this.debug = false, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
@@ -3413,24 +3413,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!mounted || _fail != null) return;
       if (player.state.position == Duration.zero && player.state.duration == Duration.zero) _failed('Le flux ne démarre pas.');
     });
-    if (widget.userAgent != null && _dbg == null) {
+    if (widget.debug && _dbg == null) {
       _dbg = [
         player.stream.error.listen((e) => Journal.add('Bande-annonce : erreur du lecteur', e)),
         player.stream.log.listen((l) => Journal.add('Bande-annonce : lecteur', '${l.prefix} ${l.level} ${l.text}')),
       ];
     }
-    final ua = widget.userAgent;
-    (ua == null ? Future<void>.value() : Future(() async {
-      final dynamic n = player.platform;
-      await n.setProperty('user-agent', ua);
-      // le lecteur Android n'a pas de liste de certificats : on lui donne celle de Mozilla (embarquée) pour ouvrir YouTube en https, vérification gardée
-      final dir = await getTemporaryDirectory();
-      final ca = File('${dir.path}/cacert.pem');
-      if (!ca.existsSync()) await ca.writeAsBytes((await rootBundle.load('assets/cacert.pem')).buffer.asUint8List());
-      await n.setProperty('tls-ca-file', ca.path);
-    })).catchError((e) {
-      Journal.add('Bande-annonce : réglage du lecteur', e);
-    }).then((_) => player.open(Media(url))).then((_) async {
+    Future<void>.value().then((_) => player.open(Media(url))).then((_) async {
       final a = widget.audioUrl;
       if (a == null) return;
       try {
