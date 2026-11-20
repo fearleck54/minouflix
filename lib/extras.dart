@@ -192,13 +192,15 @@ class _CollSheetState extends State<_CollSheet> {
           const SizedBox(height: 6),
           // Ma liste : le titre apparaît aussi sur l'accueil, avec les playlists
           ListTile(
+            autofocus: true,
             contentPadding: EdgeInsets.zero,
             leading: Icon(Store.isFav(widget.itemKey) ? CupertinoIcons.bookmark_fill : CupertinoIcons.bookmark),
             title: Text('Ma liste', style: T(16, w: 650)),
-            trailing: Switch(value: Store.isFav(widget.itemKey), onChanged: (_) async {
+            onTap: () async {
               await Store.toggleFav(widget.itemKey);
               if (mounted) setState(() {});
-            }),
+            },
+            trailing: ExcludeFocus(child: IgnorePointer(child: Switch(value: Store.isFav(widget.itemKey), onChanged: (_) {}))),
           ),
           const Divider(height: 18, color: Color(0x1FFFFFFF)),
           Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('PLAYLISTS', style: T(12, w: 700, ls: 0.09, color: kMut))),

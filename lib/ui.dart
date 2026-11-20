@@ -14,6 +14,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'epg.dart';
 import 'extras.dart' show collectionSheet;
 import 'icons_data.dart';
+import 'onboarding.dart' show Aurora;
 import 'perf.dart';
 export 'perf.dart' show Perf, Device;
 import 'names.dart';
@@ -1513,7 +1514,10 @@ class AuthLayout extends StatelessWidget {
             Text(text, style: T(15, color: kMut)),
           ];
     return Scaffold(
-      body: SafeArea(
+      backgroundColor: Colors.transparent,
+      body: Stack(children: [
+        Positioned.fill(child: Aurora(page: step)),
+        SafeArea(
         child: w && side.isNotEmpty
             ? Center(
                 child: Padding(
@@ -1551,7 +1555,8 @@ class AuthLayout extends StatelessWidget {
                   ]),
                 ),
               ),
-      ),
+        ),
+      ]),
     );
   }
 }
@@ -1813,6 +1818,16 @@ class _LargeTitleState extends State<LargeTitle> {
   @override
   void initState() {
     super.initState();
+    // télécommande : le focus arrive sur la 1re ligne (pas sur Retour, ni nulle part) sauf si la page l'a déjà pris
+    if (Device.tv) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final sc = FocusScope.of(context);
+        if (sc.focusedChild != null) return;
+        sc.nextFocus();
+        sc.nextFocus();
+      });
+    }
     _c.addListener(() {
       final v = (_c.offset / 44).clamp(0.0, 1.0);
       if ((v - _t).abs() > .03) setState(() => _t = v);

@@ -154,21 +154,24 @@ class _AuthState extends State<AuthScreen> {
           ),
         ],
         form: [
-          AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder())),
+          AppField(controller: mail, autofocus: Device.tv, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: InputDecoration(labelText: 'E-mail', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
           const SizedBox(height: 14),
-          AppField(controller: pw, obscureText: true, onSubmitted: (_) => go(), decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder())),
+          AppField(controller: pw, obscureText: true, onSubmitted: (_) => go(), decoration: InputDecoration(labelText: 'Mot de passe', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
           if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: msg!.startsWith('Compte créé') ? const Color(0xFF30D158) : const Color(0xFFFF6B7A)))),
           const SizedBox(height: 22),
-          FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: Spinner(strokeWidth: 2)) : Text(create ? 'Créer mon compte' : 'Se connecter'))),
+          PillButton(primary: true, height: 54, label: busy ? 'Connexion…' : (create ? 'Créer mon compte' : 'Se connecter'), onTap: () {
+            if (!busy) go();
+          }),
           const SizedBox(height: 10),
-          TextButton(onPressed: () => setState(() {
+          PillButton(label: create ? 'J\'ai déjà un compte' : 'Créer un compte', onTap: () => setState(() {
                 create = !create;
                 msg = null;
-              }), child: Text(create ? 'J\'ai déjà un compte' : 'Créer un compte')),
-          TextButton(onPressed: () async {
+              })),
+          const SizedBox(height: 10),
+          PillButton(label: 'Continuer sans compte', onTap: () async {
             await Store.setFlag('noacct', true);
             if (mounted) widget.onDone();
-          }, child: Text('Continuer sans compte', style: T(14, color: kMut))),
+          }),
         ],
       );
 }

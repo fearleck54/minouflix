@@ -217,7 +217,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         child: Scaffold(
           backgroundColor: kBg,
           body: Stack(children: [
-            Positioned.fill(child: _Aurora(tint: _tint, page: step)),
+            Positioned.fill(child: Aurora(tint: _tint, page: step)),
             Positioned.fill(child: _page(context)),
           ]),
         ),
@@ -990,15 +990,15 @@ class _SummaryLine extends StatelessWidget {
 // ======================================================================= fond « aurore »
 
 /// trois halos flous (bleu, rouge, violet teinté par les goûts) qui dérivent lentement ; figé sur la télé et en « réduire les animations »
-class _Aurora extends StatefulWidget {
+class Aurora extends StatefulWidget {
   final Color? tint;
   final int page;
-  const _Aurora({this.tint, required this.page});
+  const Aurora({this.tint, required this.page});
   @override
-  State<_Aurora> createState() => _AuroraState();
+  State<Aurora> createState() => AuroraState();
 }
 
-class _AuroraState extends State<_Aurora> with SingleTickerProviderStateMixin {
+class AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 24));
 
   @override
