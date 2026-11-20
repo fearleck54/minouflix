@@ -17,6 +17,7 @@ class _Relay {
     _targets[key] = (url, ua);
     _srv ??= await HttpServer.bind(InternetAddress.loopbackIPv4, 0)
       ..listen((req) async {
+        Journal.add('Bande-annonce : relais reçoit', '${req.method} ${req.uri.path}');
         final t = _targets[req.uri.path.substring(1)];
         if (t == null) {
           req.response.statusCode = 404;
@@ -28,6 +29,7 @@ class _Relay {
           final range = req.headers.value('range');
           if (range != null) r.headers['Range'] = range;
           final up = await _client.send(r).timeout(const Duration(seconds: 20));
+          Journal.add('Bande-annonce : relais ${req.method} ${req.uri.path}', 'plage ${range ?? '-'} -> HTTP ${up.statusCode} ${up.headers['content-type']} ${up.headers['content-length']}');
           req.response.statusCode = up.statusCode;
           for (final h in ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
             final v = up.headers[h];
