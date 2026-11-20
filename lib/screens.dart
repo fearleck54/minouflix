@@ -3641,7 +3641,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _applyNight() async {
     try {
       final dynamic n = player.platform;
-      await n.setProperty('af', Store.flag('snd_night', false) ? 'lavfi=[acompressor=threshold=0.05:ratio=6:attack=15:release=300:makeup=4]' : '');
+      final f = [
+        if (Store.flag('snd_voice', false)) 'equalizer=f=250:t=q:w=0.7:g=-3,equalizer=f=2500:t=q:w=0.8:g=5',
+        if (Store.flag('snd_night', false)) 'acompressor=threshold=0.05:ratio=6:attack=15:release=300:makeup=4',
+      ];
+      await n.setProperty('af', f.isEmpty ? '' : 'lavfi=[${f.join(',')}]');
     } catch (_) {}
   }
 
@@ -3688,6 +3692,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   IconButton(icon: const Icon(CupertinoIcons.plus_circle_fill), onPressed: () async { await _setDelay(_aDelay + 0.1); set(() {}); }),
                 ]),
                 onLongPress: () async { await _setDelay(0); set(() {}); },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Dialogues renforcés', style: T(15.5, w: 600)),
+                subtitle: Text('Voix plus présentes, musique et bruitages en retrait', style: T(12.5, color: kMut)),
+                value: Store.flag('snd_voice', false),
+                onChanged: (v) async { await Store.setFlag('snd_voice', v); await _applyNight(); set(() {}); },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
