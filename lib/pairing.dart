@@ -24,6 +24,9 @@ class Pairing {
 
   static Future<SecretKey> _key(String code) => Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 50000, bits: 256).deriveKeyFromPassword(password: code, nonce: utf8.encode('minouflix-pair'));
 
+  /// télé : précalcule la clé (lente) pour que le scan soit servi tout de suite
+  static Future<void> warm(String code) => _key(code);
+
   /// téléphone : envoie compte + identifiants IPTV chiffrés ; null = ok, sinon message
   static Future<String?> send(String raw) async {
     final code = norm(raw);

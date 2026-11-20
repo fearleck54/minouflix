@@ -2431,6 +2431,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           widget.onSelection();
         }),
         _row(CupertinoIcons.eye_slash_fill, grey, 'Chaînes masquées', value: Store.hidden.isEmpty ? 'Aucune' : '${Store.hidden.length}', chevron: Store.hidden.isNotEmpty, onTap: Store.hidden.isEmpty ? null : _hiddenPage),
+        if (!Device.tv) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF0A84FF), 'Téléchargements', value: dls.isEmpty ? 'Aucun' : '${dls.length} · ${sizeLabel(dlTotal)}', chevron: true, onTap: _dlPage),
+        _row(CupertinoIcons.folder_fill, grey, 'Cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
         ValueListenableBuilder<(int, int)>(
           valueListenable: widget.progress,
           builder: (_, p, __) => _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Actualiser', value: p.$2 > 0 ? '${p.$1}/${p.$2}' : _ago(Store.catT), trailing: p.$2 > 0 ? const SizedBox(width: 18, height: 18, child: Spinner(strokeWidth: 2)) : null, onTap: () {
@@ -2445,10 +2447,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           if (Connect.canSend && !Connect.tvNow) _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF32ADE6), 'Télécommande', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TelecommandeScreen()))),
           if (!Connect.tvNow) _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
         ]),
-      ('Stockage', 'Stockage', CupertinoIcons.arrow_down_circle, [
-        _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF0A84FF), 'Téléchargements', value: dls.isEmpty ? 'Aucun' : '${dls.length} · ${sizeLabel(dlTotal)}', chevron: true, onTap: _dlPage),
-        _row(CupertinoIcons.folder_fill, grey, 'Cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
-      ]),
       ('Aide', '', CupertinoIcons.question_circle, [
         _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Aide et dépannage', chevron: true, onTap: _aidePage),
         _row(CupertinoIcons.info_circle_fill, grey, 'À propos', value: 'Version $kBuild', chevron: true, onTap: _aboutPage),

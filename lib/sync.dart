@@ -71,6 +71,7 @@ class Sync {
       if (h == null) return false;
       final d0 = await _pull(h);
       if (d0 == null) return false;
+      if (d0.isNotEmpty && !Store.flag('acct_known', false)) await Store.setFlag('acct_known', true);
       final d = <String, dynamic>{...d0};
       var changed = false;
       if (origin && opt('favs')) {

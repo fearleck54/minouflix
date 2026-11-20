@@ -70,9 +70,14 @@ class MinouFlix extends StatelessWidget {
   static String _lastCode = '';
   static DateTime _lastAt = DateTime(2000);
   static Future<void> _onLink(Uri u, [int tries = 0]) async {
-    if (u.scheme != 'minouflix' || u.host != 'pair' || _linkBusy) return;
+    if (u.scheme != 'minouflix' || u.host != 'pair') return;
     final code = Pairing.norm(u.queryParameters['c'] ?? '');
     if (code.length != 8) return;
+    if (tries == 0) Journal.add('Lien reçu');
+    if (_linkBusy) {
+      if (tries < 30) Future.delayed(const Duration(milliseconds: 500), () => _onLink(u, tries + 1));
+      return;
+    }
     // démarrage à froid : l'appli n'est pas encore prête (écran d'accueil, compte) ; on réessaie jusqu'à 15 s
     final ctx = navKey.currentContext;
     if (ctx == null || !Boot.ready) {
@@ -80,8 +85,6 @@ class MinouFlix extends StatelessWidget {
       return;
     }
     if (_lastCode == code && DateTime.now().difference(_lastAt) < const Duration(seconds: 4)) return;      // le même lien arrive parfois deux fois
-    _lastCode = code;
-    _lastAt = DateTime.now();
     _linkBusy = true;
     try {
       String? e;
@@ -98,6 +101,8 @@ class MinouFlix extends StatelessWidget {
         );
         if (ok != true) return;
         e = await Pairing.send(code);
+        _lastCode = code;
+        _lastAt = DateTime.now();
       }
       final c2 = navKey.currentContext;
       // résultat toujours visible (une petite fenêtre, pas un message qui disparaît) : on sait si ça a marché
@@ -195,6 +200,7 @@ class _BootState extends State<Boot> {
   Creds? creds;
   bool loaded = false;
   bool pick = false;      // « Changer les catégories » depuis les réglages
+  bool restoring = false;
   bool authed = _authed();   // sinon : écran de connexion
   static bool _authed() => Account.signedIn || _demo.isNotEmpty || Store.flag('noacct', false);
 
@@ -224,24 +230,32 @@ class _BootState extends State<Boot> {
     creds ??= await Store.creds();
     if (!mounted) return;
     setState(() => authed = true);
-    if (Account.signedIn && creds == null) {
-      final c = await Sync.cloudCreds();
-      if (c != null) {
-        await Store.saveCreds(c);
-        await Sync.run();      // nouvel appareil : retrouve aussi les autres sources, les catégories choisies, les réglages et les playlists
-        if (mounted) setState(() => creds = c);
-      }
+    if (Account.signedIn) {
+      // même compte = mêmes réglages : on les récupère avant de décider quoi afficher (15 s au plus)
+      setState(() => restoring = true);
+      try {
+        final c = creds == null ? await Sync.cloudCreds() : null;
+        if (c != null) {
+          await Store.saveCreds(c);
+          creds = c;
+        }
+        await Sync.run().timeout(const Duration(seconds: 15), onTimeout: () => false);
+      } catch (_) {}
+      if (mounted) setState(() => restoring = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!loaded) return const BrandIntro();
+    if (restoring) return const BrandIntro();
     if (!authed) return AuthScreen(onDone: _afterAuth);
     if (creds == null) return LoginScreen(onDone: (c) => setState(() => creds = c));
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));
     // nouveau compte : parcours de configuration (langue, version, goûts) avant le choix des catégories ; reprise si interrompu
-    if (!Store.hasSelection && !pick && !Store.flag('onb_done', false) && (Store.settingsT == 0 || Store.str('onb_state').isNotEmpty)) {
+    // compte déjà connu du serveur : jamais de configuration d'office (elle reste dans Réglages)
+    final fresh = Account.signedIn ? !Store.flag('acct_known', false) : Store.settingsT == 0;
+    if (!Store.hasSelection && !pick && !Store.flag('onb_done', false) && (fresh || Store.str('onb_state').isNotEmpty)) {
       return OnboardingFlow(onDone: () => setState(() {}));
     }
     if (!Store.hasSelection || pick) {

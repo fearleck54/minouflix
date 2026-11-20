@@ -40,6 +40,8 @@ class _AuthState extends State<AuthScreen> {
   Timer? _poll;
   bool _polling = false;
   bool _linked = false;
+  bool _ready = false;      // QR affiché seulement quand le serveur répond et que la clé est calculée
+  bool _keyOk = false;
 
   @override
   void initState() {
@@ -49,13 +51,20 @@ class _AuthState extends State<AuthScreen> {
         if (mounted) setState(() {});
       });
     }
-    if (Connect.tvNow) _poll = Timer.periodic(const Duration(seconds: 2), (_) async {
+    if (Connect.tvNow) {
+      unawaited(Pairing.warm(code).then((_) => _keyOk = true).catchError((_) {}));
+      _poll = Timer.periodic(const Duration(seconds: 2), (_) => _tick());
+      _tick();
+    }
+  }
+
+  Future<void> _tick() async {
       if (_polling || busy) return;      // une requête lente ne doit pas en lancer une deuxième
       _polling = true;
       final m = await Pairing.poll(code);
       if (m == null) {
         _polling = false;
-        if (mounted) setState(() {});      // l'incident éventuel (Pairing.last) s'affiche
+        if (mounted) setState(() => _ready = _ready || (Pairing.last.isEmpty && _keyOk));      // l'incident éventuel (Pairing.last) s'affiche
         return;
       }
       if (!mounted) return;
@@ -81,7 +90,6 @@ class _AuthState extends State<AuthScreen> {
         if (c != null) await Store.saveCreds(c);
       }
       if (mounted) widget.onDone();
-    });
   }
 
   @override
@@ -145,7 +153,7 @@ class _AuthState extends State<AuthScreen> {
               const SizedBox(height: 4),
               Text('Scanne ce code : l\'appli s\'ouvre et connecte la télé.', textAlign: TextAlign.center, style: T(14, color: kMut, h: 1.3)),
               const SizedBox(height: 12),
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: QrImageView(data: 'minouflix://pair?c=$code', size: 150, padding: EdgeInsets.zero, backgroundColor: Colors.white)),
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: _ready ? QrImageView(data: 'minouflix://pair?c=$code', size: 150, padding: EdgeInsets.zero, backgroundColor: Colors.white) : const SizedBox(width: 150, height: 150, child: Center(child: SizedBox(width: 36, height: 36, child: CircularProgressIndicator(strokeWidth: 3, color: Color(0xFFFF2D45)))))),
               const SizedBox(height: 10),
               Text(Pairing.show(code), style: T(24, w: 850, ls: 0.08)),
               Text('ou Réglages → Connecter une télé', style: T(13, color: kMut)),
@@ -154,7 +162,7 @@ class _AuthState extends State<AuthScreen> {
           ),
         ],
         form: [
-          AppField(controller: mail, autofocus: Device.tv, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: InputDecoration(labelText: 'E-mail', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
+          AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: InputDecoration(labelText: 'E-mail', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
           const SizedBox(height: 14),
           AppField(controller: pw, obscureText: true, onSubmitted: (_) => go(), decoration: InputDecoration(labelText: 'Mot de passe', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
           if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: msg!.startsWith('Compte créé') ? const Color(0xFF30D158) : const Color(0xFFFF6B7A)))),
@@ -188,8 +196,8 @@ class SyncChoiceScreen extends StatefulWidget {
 class _SyncChoiceState extends State<SyncChoiceScreen> {
   Future<void> done() async {
     await Store.setSyncAsked();
-    unawaited(Sync.run());
-    widget.onDone();
+    await Sync.run().timeout(const Duration(seconds: 15), onTimeout: () => false);
+    if (mounted) widget.onDone();
   }
 
   @override
