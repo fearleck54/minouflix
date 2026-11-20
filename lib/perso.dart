@@ -109,7 +109,7 @@ class _TabsState extends State<TabsSettings> {
           Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 14), child: Text('Choisis les onglets affichés et leur ordre, de gauche à droite.', style: T(14, color: kMut, h: 1.4))),
           _card([
             for (var i = 0; i < order.length; i++)
-              Row(children: [
+              Row(key: ValueKey(order[i]), children: [
                 Expanded(
                   child: FocusCard(
                     onTap: () => _toggle(order[i]),
@@ -218,7 +218,7 @@ class _HomeState extends State<HomeSettings> {
     final mv = order.where((x) => x != 'hero').toList();      // la grande affiche reste en haut
     Widget row(String id, {bool movable = true}) {
       final l = labels[id]!, off = hid.contains(id), i = mv.indexOf(id);
-      return Row(children: [
+      return Row(key: ValueKey(id), children: [
         Expanded(
           child: FocusCard(
             onTap: () {
