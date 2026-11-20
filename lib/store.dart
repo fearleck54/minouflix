@@ -538,10 +538,10 @@ class Store {
     await _p.setStringList('sport_keys', v);
     await _p.setInt('meta_t', DateTime.now().millisecondsSinceEpoch);
   }
-  static String str(String k) => _p.getString('s_$k') ?? '';
+  static String str(String k) => _p.getString('s_${_pk(k)}') ?? '';
   static Future<void> setStr(String k, String v) async {
-    await _p.setString('s_$k', v);
-    if (_setStrKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    await _p.setString('s_${_pk(k)}', v);
+    if (_prof.isEmpty && _setStrKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
   }
 
   /// collections perso : nom → clés « vod:1 », « series:2 »
@@ -658,10 +658,14 @@ class Store {
 
   static Future<void> clearRecentSearches() => _p.remove('recent_q');
 
-  static bool flag(String k, [bool def = true]) => _p.getBool('f_$k') ?? def;
+  /// réglages propres à chaque profil (le profil d'origine garde les clés historiques, donc la synchro de compte)
+  static const _profKeys = {'snd_night', 'snd_voice', 'autonext', 'skipauto', 'pref_q', 'pref_aud', 'pref_sub'};
+  static String _pk(String k) => _prof.isNotEmpty && _profKeys.contains(k) ? 'p${_prof}_$k' : k;
+
+  static bool flag(String k, [bool def = true]) => _p.getBool('f_${_pk(k)}') ?? def;
   static Future<void> setFlag(String k, bool v) async {
-    await _p.setBool('f_$k', v);
-    if (_setFlagKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    await _p.setBool('f_${_pk(k)}', v);
+    if (_prof.isEmpty && _setFlagKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
   }
 
   static bool get hasSelection => Kind.values.any((k) => (selection(k) ?? []).isNotEmpty);

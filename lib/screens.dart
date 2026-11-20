@@ -37,6 +37,7 @@ import 'connect.dart';
 import 'telecommande.dart';
 import 'diag.dart';
 import 'profils.dart';
+import 'voice.dart';
 import 'sources.dart';
 import 'pin_guard.dart';
 import 'osk.dart';
@@ -1945,6 +1946,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 // télé : le clavier validé, le curseur va sur le premier résultat
                 if (Device.tv) Future.delayed(const Duration(milliseconds: 500), () => mounted && _firstNode.context != null ? _firstNode.requestFocus() : null);
               }, decoration: InputDecoration(prefixIcon: Device.tv ? const Ic('search', size: 20, color: kMut) : null, hintText: 'Film, série, acteur, réalisateur…', hintStyle: T(17, w: 400, color: kMut), filled: false, border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, isCollapsed: true))),
+              VoiceButton(onResult: (v) {
+                _tc.text = v;
+                setState(() => q = v);
+                _askPerson(v);
+              }),
             ]),
           ),
         ),
@@ -3494,6 +3500,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _playNext() {
     if (_n >= widget.next.length || !mounted) return;
     _save();
+    _nextT?.cancel();
+    if (_nextIn > 0) _nextIn = 0;
     final nx = widget.next[_n++];
     _trSet = false;     // langues préférées appliquées aussi à l'épisode suivant
     setState(() {
@@ -3553,16 +3561,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   /// fin d'épisode : le suivant démarre après 5 s, sauf si on annule
-  Future<void> _autoNext() async {
-    var annule = false;
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 5),
-      content: const Text('Épisode suivant dans 5 s'),
-      action: SnackBarAction(label: 'Annuler', onPressed: () => annule = true),
-    ));
-    await Future<void>.delayed(const Duration(seconds: 5));
-    if (!annule && mounted) _playNext();
+  int _nextIn = 0;
+  Timer? _nextT;
+  final _nextNode = FocusNode();
+
+  /// fin d'épisode : compte à rebours visible (5 s) avant le suivant, annulable
+  void _autoNext() {
+    if (!mounted || _nextIn > 0) return;
+    setState(() => _nextIn = 5);
+    WidgetsBinding.instance.addPostFrameCallback((_) => mounted && _nextIn > 0 ? _nextNode.requestFocus() : null);
+    _nextT = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return t.cancel();
+      if (_nextIn <= 1) {
+        t.cancel();
+        setState(() => _nextIn = 0);
+        _playNext();
+      } else {
+        setState(() => _nextIn--);
+      }
+    });
+  }
+
+  void _cancelNext() {
+    _nextT?.cancel();
+    if (mounted && _nextIn > 0) setState(() => _nextIn = 0);
+    _main.requestFocus();
   }
 
   /// sous-titres trouvés en ligne : liste, puis téléchargement et activation
@@ -3783,6 +3806,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _posSub?.cancel();
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
+    _nextT?.cancel();
+    _nextNode.dispose();
     _skipNode.dispose();
     if (!kIsWeb && Platform.isAndroid && Device.tv && _fpsFor != 0) _fpsCh.invokeMethod('set', 0.0).catchError((_) {});
     _save();
@@ -4115,7 +4140,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ]),
               ),
             ),
-          if (_skipLabel != null && _fail == null)
+          if (_nextIn > 0)
+            Positioned(
+              right: 28,
+              bottom: 110,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  decoration: BoxDecoration(color: const Color(0xCC000000), borderRadius: BorderRadius.circular(99)),
+                  child: Text('Épisode suivant dans $_nextIn s', style: T(16, w: 700)),
+                ),
+                const SizedBox(width: 10),
+                _OvBtn(node: _nextNode, label: 'Annuler', onTap: _cancelNext),
+              ]),
+            ),
+          if (_skipLabel != null && _fail == null && _nextIn == 0)
             Positioned(right: 28, bottom: 110, child: _OvBtn(node: _skipNode, label: _skipLabel!, primary: true, onTap: _doSkip)),
           // titre, affiché quelques secondes au démarrage
           Positioned(
