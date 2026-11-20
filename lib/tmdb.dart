@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -167,15 +168,30 @@ class Tmdb {
 
   /// tendances de la semaine (films et séries)
   static Future<List<Map>> trending() => _top ??= () async {
-        try {
-          final pages = await Future.wait([for (var p = 1; p <= 5; p++) _get('/trending/all/week', {'language': L.tmdb, 'page': '$p'}).then<dynamic>((v) => v).catchError((_) => null)]);
-          return [
-            for (final pg in pages)
-              if (pg != null) for (final x in (pg['results'] as List? ?? []).cast<Map>()) if ((x['media_type'] == 'movie' || x['media_type'] == 'tv') && x['adult'] != true) x,
-          ];
-        } catch (_) {
-          return <Map>[];
+        Future<List<Map>> fresh() async {
+          try {
+            final pages = await Future.wait([for (var p = 1; p <= 5; p++) _get('/trending/all/week', {'language': L.tmdb, 'page': '$p'}).then<dynamic>((v) => v).catchError((_) => null)]);
+            final out = <Map>[
+              for (final pg in pages)
+                if (pg != null) for (final x in (pg['results'] as List? ?? []).cast<Map>()) if ((x['media_type'] == 'movie' || x['media_type'] == 'tv') && x['adult'] != true) x,
+            ];
+            if (out.isNotEmpty) unawaited(Store.setStr('trend_${L.tmdb}', jsonEncode({'t': DateTime.now().millisecondsSinceEpoch, 'l': out})));
+            return out;
+          } catch (_) {
+            return <Map>[];
+          }
         }
+
+        // relance de l'appli : le Top 10 de la dernière fois s'affiche tout de suite (6 h), la mise à jour se fait derrière
+        try {
+          final c = jsonDecode(Store.str('trend_${L.tmdb}'));
+          final l = [for (final x in (c['l'] as List)) Map<String, dynamic>.from(x as Map)];
+          if (l.isNotEmpty) {
+            if (DateTime.now().millisecondsSinceEpoch - (c['t'] as int) > 6 * 3600 * 1000) unawaited(fresh());
+            return l;
+          }
+        } catch (_) {}
+        return fresh();
       }();
 }
 
