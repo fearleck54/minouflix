@@ -10,7 +10,7 @@ import 'l10n.dart';
 import 'onb_prefs.dart';
 import 'perf.dart';
 import 'perso.dart' show HomeSettings;
-import 'sport.dart' show fetchSport, manageLeagues, manageTeams;
+import 'sport.dart' show Side, League, LgIcon, fetchSport, leagues, lgOf, sportName;
 import 'store.dart';
 import 'tmdb.dart' show Tmdb;
 import 'ui.dart';
@@ -63,7 +63,9 @@ const _tr = <String, Map<String, String>>{
   'Mes équipes': {'es': 'Mis equipos', 'de': 'Meine Teams', 'pt': 'As minhas equipas'},
   'Tout est prêt': {'es': 'Todo listo', 'de': 'Alles bereit', 'pt': 'Tudo pronto'},
   'Ton MinouFlix est préparé. Tu pourras tout modifier dans Réglages.': {'es': 'Tu MinouFlix está listo. Podrás cambiarlo todo en Ajustes.', 'de': 'Dein MinouFlix ist vorbereitet. Alles lässt sich später in den Einstellungen ändern.', 'pt': 'O teu MinouFlix está pronto. Podes mudar tudo nas Definições.'},
-  'Découvrir MinouFlix': {'es': 'Descubrir MinouFlix', 'de': 'MinouFlix entdecken', 'pt': 'Descobrir o MinouFlix'},
+  'Choisir mes catégories': {'es': 'Elegir mis categorías', 'de': 'Kategorien wählen', 'pt': 'Escolher as categorias'},
+  'Tes compétitions': {'es': 'Tus competiciones', 'de': 'Deine Wettbewerbe', 'pt': 'As tuas competições'},
+  'Tes équipes': {'es': 'Tus equipos', 'de': 'Deine Teams', 'pt': 'As tuas equipas'},
   'Personnaliser mon accueil': {'es': 'Personalizar mi inicio', 'de': 'Startseite anpassen', 'pt': 'Personalizar o meu início'},
   'Langue': {'es': 'Idioma', 'de': 'Sprache', 'pt': 'Idioma'},
   'Version': {'es': 'Versión', 'de': 'Fassung', 'pt': 'Versão'},
@@ -107,7 +109,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int step = 0, dir = 1;
   final order = <String>[];      // goûts dans l'ordre où ils sont cochés
   final ver = <String>{};
-  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) 4, 5];
+  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) ...[4, 5], 6];
   int get _steps => _seq.length;
   int _next(int s) => _seq[(_seq.indexOf(s) + 1).clamp(0, _seq.length - 1)];
   int _prev(int s) => _seq[(_seq.indexOf(s) - 1).clamp(0, _seq.length - 1)];
@@ -125,7 +127,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     } else {
       try {
         final j = jsonDecode(Store.str('onb_state')) as Map;
-        step = (j['step'] as num?)?.toInt().clamp(0, 5) ?? 0;
+        step = (j['step'] as num?)?.toInt().clamp(0, 6) ?? 0;
         order.addAll([for (final x in (j['order'] as List? ?? const [])) '$x']);
         ver.addAll([for (final x in (j['ver'] as List? ?? const [])) '$x']);
       } catch (_) {}
@@ -138,7 +140,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     HapticFeedback.lightImpact();
     setState(() {
       dir = to >= step ? 1 : -1;
-      step = to.clamp(0, 5);
+      step = to.clamp(0, 6);
+      if (step == 5) _loadTeams();
     });
     _save();
   }
@@ -214,7 +217,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Widget _page(BuildContext context) {
     final tv = Device.tv;
-    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _sport(tv), _recap(tv)];
+    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _competitions(tv), _teams(tv), _recap(tv)];
     final fwd = dir >= 0;
     return AnimatedSwitcher(
       duration: Duration(milliseconds: reduce || Perf.lite ? 160 : 420),
@@ -245,7 +248,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     Widget? extra,
   }) {
     final pos = _seq.indexOf(step);
-    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 5 ? go(_next(step)) : _finish() : null);
+    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 6 ? go(_next(step)) : _finish() : null);
     final titleW = [
       _In(i: 0, child: mat(_t('ÉTAPE ${pos + 1} SUR $_steps', 'STEP ${pos + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
@@ -405,7 +408,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           for (final (i, r) in rows.indexed)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _In(i: 3 + i, child: _Row(icon: r.$2, title: r.$3, sub: r.$4, selected: ver.contains(r.$1), autofocus: tv && i == 0, onTap: () => _toggleVer(r.$1))),
+              child: _In(i: 3 + i, child: _Row(icon: r.$2, title: r.$3, sub: r.$4, selected: ver.contains(r.$1), autofocus: tv && i == (rows.indexWhere((x) => ver.contains(x.$1)) < 0 ? 0 : rows.indexWhere((x) => ver.contains(x.$1))), onTap: () => _toggleVer(r.$1))),
             ),
         ]),
       ),
@@ -422,7 +425,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       tv: tv,
       primary: _t('Continuer', 'Continue'),
       enabled: order.isNotEmpty,
-      onPrimary: () => go(order.contains('sport') ? 4 : 5),
+      onPrimary: () => go(order.contains('sport') ? 4 : 6),
       content: LayoutBuilder(builder: (context, c) {
         final w = (tv ? 148.0 * cols + 24 : c.maxWidth);
         const gap = 12.0;
@@ -443,7 +446,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                     darkText: t.darkText,
                     selected: order.contains(t.id),
                     height: h,
-                    autofocus: tv && i == 0,
+                    autofocus: tv && i == (_tastes.indexWhere((x) => order.contains(x.id)) < 0 ? 0 : _tastes.indexWhere((x) => order.contains(x.id))),
                     onTap: () => _toggleTaste(t.id),
                   ),
                 ),
@@ -454,38 +457,151 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
-  // ---------------------------------------------------------------- 4. sport (écrans existants de Réglages › Sport)
-  Future<void> _leagues() async {
-    final k = await manageLeagues(context);
-    if (k != null) await Store.saveSportKeys(k);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _teams() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final ev = await fetchSport(Store.sportKeys);
-      if (mounted) await manageTeams(context, ev);
-    } catch (_) {}
-    if (mounted) setState(() => _busy = false);
-  }
-
-  Widget _sport(bool tv) {
-    final nl = Store.sportKeys.length, nt = Store.sportTeams.length;
+  // ---------------------------------------------------------------- 4. compétitions (cartes à cocher)
+  Widget _competitions(bool tv) {
+    final sel = {...Store.sportKeys};
+    final bySport = <String, List<League>>{};
+    for (final l in leagues) {
+      (bySport[sportName(l)] ??= []).add(l);
+    }
+    final firstSel = leagues.indexWhere((l) => sel.contains(l.k));
+    final cols = tv ? 3 : 2;
     return _shell(
-      title: _t('Ton sport', 'Your sports'),
-      sub: _t('Choisis tes compétitions et tes équipes : leurs matchs passent en premier.', 'Pick your competitions and teams: their matches come first.'),
+      title: _t('Tes compétitions', 'Your competitions'),
+      sub: _t('Coche celles que tu suis : leurs matchs passent en premier.', 'Tick the ones you follow: their matches come first.'),
       tv: tv,
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(5),
-      content: SizedBox(
-        width: tv ? 470 : double.infinity,
-        child: Column(children: [
-          Padding(padding: const EdgeInsets.only(bottom: 12), child: _In(i: 3, child: _Row(icon: Icons.emoji_events_rounded, title: _t('Mes compétitions', 'My competitions'), sub: _t('$nl suivie(s)', '$nl followed'), selected: nl > 0, autofocus: tv, onTap: _leagues))),
-          _In(i: 4, child: _Row(icon: Icons.groups_rounded, title: _t('Mes équipes', 'My teams'), sub: _busy ? _t('Chargement…', 'Loading…') : _t('$nt suivie(s)', '$nt followed'), selected: nt > 0, onTap: _teams)),
-        ]),
-      ),
+      content: LayoutBuilder(builder: (context, c) {
+        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        const gap = 10.0;
+        final cw = (w - gap * (cols - 1)) / cols;
+        var n = 0;
+        return SizedBox(
+          width: w,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (final e in bySport.entries) ...[
+              Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text(e.key.toUpperCase(), style: T(12, w: 700, color: kMut, ls: 0.08))),
+              Wrap(spacing: gap, runSpacing: gap, children: [
+                for (final l in e.value)
+                  Builder(builder: (_) {
+                    final idx = leagues.indexOf(l);
+                    n++;
+                    return SizedBox(
+                      width: cw,
+                      child: _PickTile(
+                        leading: LgIcon(l.k, size: 30),
+                        label: l.n,
+                        on: sel.contains(l.k),
+                        a: l.color,
+                        b: l.color.withOpacity(0.6),
+                        autofocus: tv && (firstSel >= 0 ? idx == firstSel : idx == 0),
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          final k = {...Store.sportKeys};
+                          k.contains(l.k) ? k.remove(l.k) : k.add(l.k);
+                          await Store.saveSportKeys(k.toList());
+                          _teamsKey = '';
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                    );
+                  }),
+              ]),
+            ],
+          ]),
+        );
+      }),
+    );
+  }
+
+  // ---------------------------------------------------------------- 5. équipes (cartes à cocher)
+  String _teamsKey = '';
+  Map<String, List<Side>> _teamsBy = {};
+  bool _loadingTeams = false;
+
+  Future<void> _loadTeams() async {
+    final key = (Store.sportKeys.toList()..sort()).join(',');
+    if (_loadingTeams || key == _teamsKey) return;
+    _loadingTeams = true;
+    if (mounted) setState(() {});
+    try {
+      final ev = await fetchSport(Store.sportKeys);
+      final by = <String, Map<String, Side>>{};
+      for (final e in ev) {
+        if (e.f1) continue;
+        for (final sd in [e.h, e.a]) {
+          if (sd.name.isEmpty || sd.name == '?') continue;
+          (by[e.lg] ??= {})[sd.name] = sd;
+        }
+      }
+      _teamsBy = {for (final e in by.entries) e.key: (e.value.values.toList()..sort((x, y) => x.name.compareTo(y.name)))};
+      _teamsKey = key;
+    } catch (_) {
+      _teamsBy = {};
+    }
+    _loadingTeams = false;
+    if (mounted) setState(() {});
+  }
+
+  Widget _teams(bool tv) {
+    final mine = {...Store.sportTeams};
+    final cols = tv ? 3 : 2;
+    Widget body() {
+      if (_loadingTeams) {
+        return Padding(padding: const EdgeInsets.all(40), child: Column(children: [const Spinner(), const SizedBox(height: 14), Text(_t('Chargement des équipes…', 'Loading teams…'), style: T(14, color: kMut))]));
+      }
+      if (_teamsBy.isEmpty) {
+        return Padding(padding: const EdgeInsets.all(24), child: Text(_t('Aucune équipe à proposer pour l\'instant : tu pourras les choisir plus tard dans Sport.', 'No teams to suggest right now: you can pick them later in Sport.'), style: T(15, color: kMut, h: 1.4)));
+      }
+      return LayoutBuilder(builder: (context, c) {
+        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        const gap = 10.0;
+        final cw = (w - gap * (cols - 1)) / cols;
+        var first = true;
+        return SizedBox(
+          width: w,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            for (final e in _teamsBy.entries) ...[
+              Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text(lgOf(e.key).n.toUpperCase(), style: T(12, w: 700, color: kMut, ls: 0.08))),
+              Wrap(spacing: gap, runSpacing: gap, children: [
+                for (final sd in e.value)
+                  Builder(builder: (_) {
+                    final af = tv && first;
+                    first = false;
+                    return SizedBox(
+                      width: cw,
+                      child: _PickTile(
+                        leading: sd.logo.isEmpty ? const Icon(Icons.shield_rounded, size: 28, color: kMut) : SizedBox(width: 30, height: 30, child: netImage(sd.logo, '', fit: BoxFit.contain)),
+                        label: sd.name,
+                        on: mine.contains(sd.name),
+                        a: const Color(0xFF34D399),
+                        b: const Color(0xFF0E8A6A),
+                        autofocus: af,
+                        onTap: () async {
+                          HapticFeedback.selectionClick();
+                          final m = {...Store.sportTeams};
+                          m.contains(sd.name) ? m.remove(sd.name) : m.add(sd.name);
+                          await Store.setSportTeams(m.toList());
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                    );
+                  }),
+              ]),
+            ],
+          ]),
+        );
+      });
+    }
+
+    return _shell(
+      title: _t('Tes équipes', 'Your teams'),
+      sub: _t('Coche tes équipes préférées : leurs matchs sont mis en avant.', 'Tick your favourite teams: their matches are highlighted.'),
+      tv: tv,
+      primary: _t('Continuer', 'Continue'),
+      onPrimary: () => go(6),
+      content: body(),
     );
   }
 
@@ -510,10 +626,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ]);
     return _shell(
       title: _t('Tout est prêt', 'You\'re all set'),
-      sub: widget.redo ? _t('Tes onglets et ton accueil seront remplacés. Tes catégories ne changent pas.', 'Your tabs and home will be replaced. Your categories stay as they are.') : _t('Ton MinouFlix est préparé. Tu pourras tout modifier dans Réglages.', 'Your MinouFlix is ready. You can change everything in Settings.'),
+      sub: widget.redo ? _t('Tes onglets et ton accueil seront remplacés. Tes catégories ne changent pas.', 'Your tabs and home will be replaced. Your categories stay as they are.') : _t('Dernière étape : on te propose les catégories qui correspondent à tes choix.', 'Last step: we\'ll suggest the categories that match your choices.'),
       tv: tv,
       skip: false,
-      primary: widget.redo ? _t('Appliquer', 'Apply') : _t('Découvrir MinouFlix', 'Discover MinouFlix'),
+      primary: widget.redo ? _t('Appliquer', 'Apply') : _t('Choisir mes catégories', 'Choose my categories'),
       onPrimary: _finish,
       extra: _LinkButton(label: _t('Personnaliser mon accueil', 'Customize my home'), onTap: _customHome),
       content: SizedBox(
@@ -1021,4 +1137,39 @@ class _FlagPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FlagPainter o) => o.code != code;
+}
+
+/// carte à cocher compacte : pastille (logo), nom, coche ; dégradé quand elle est cochée
+class _PickTile extends StatelessWidget {
+  final Widget leading;
+  final String label;
+  final bool on, autofocus;
+  final Color a, b;
+  final VoidCallback onTap;
+  const _PickTile({required this.leading, required this.label, required this.on, required this.a, required this.b, required this.onTap, this.autofocus = false});
+
+  @override
+  Widget build(BuildContext context) => FocusCard(
+        radius: 18,
+        focusScale: Device.tv ? 1.05 : 1.02,
+        autofocus: autofocus,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          height: 68,
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: kBg2,
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: on ? [a, b] : [a.withOpacity(0.10), b.withOpacity(0.10)]),
+            border: Border.all(color: on ? const Color(0x59FFFFFF) : kEdge, width: on ? 1.5 : 1),
+          ),
+          child: Row(children: [
+            Container(width: 40, height: 40, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(on ? 0.16 : 0.08)), child: leading),
+            const SizedBox(width: 10),
+            Expanded(child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(14, w: 700, h: 1.15))),
+            _Tick(on: on),
+          ]),
+        ),
+      );
 }

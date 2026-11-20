@@ -14,6 +14,7 @@ import 'sync.dart';
 import 'pairing.dart';
 import 'phone_entry.dart';
 import 'xtream.dart';
+import 'intro.dart';
 import 'osk.dart';
 import 'ui.dart';
 
@@ -239,18 +240,5 @@ class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key, this.status = 'Chargement du catalogue…'});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              SvgPicture.asset('assets/logo.svg', height: Device.tv ? 130 : 96),
-              const SizedBox(height: 26),
-              const SizedBox(width: 34, height: 34, child: Spinner(strokeWidth: 3, color: Colors.white70)),
-              const SizedBox(height: 22),
-              Text(status, textAlign: TextAlign.center, style: T(16, w: 600, color: kMut, h: 1.4)),
-            ]),
-          ),
-        ),
-      );
+  Widget build(BuildContext context) => BrandIntro(status: status);
 }

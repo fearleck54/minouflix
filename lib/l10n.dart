@@ -1,6 +1,9 @@
 import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/foundation.dart';
+import 'l10n_de.dart';
 import 'l10n_en.dart';
+import 'l10n_es.dart';
+import 'l10n_pt.dart';
 import 'store.dart';
 
 /// langue de l'appli : français ou anglais (par défaut celle de l'appareil) ; les textes sont écrits en français et traduits à l'affichage
@@ -38,28 +41,36 @@ class L {
   }
 
   static final _cache = <String, String>{};
-  static List<(RegExp, String)>? _tpl;
+  static final _tpl = <String, List<(RegExp, String)>>{};
+
+  /// dictionnaire de la langue (l'anglais sert de repli aux autres)
+  static Map<String, String> get _map => switch (lang) {
+        'es' => kEs,
+        'de' => kDe,
+        'pt' => kPt,
+        _ => kEn,
+      };
 
   static String tr(String s) {
     if (lang == 'fr' || s.isEmpty) return s;
     final c = _cache[s];
     if (c != null) return c;
-    final t = kEn[s] ?? _template(s) ?? s;
+    final t = _map[s] ?? kEn[s] ?? _template(s) ?? s;
     if (_cache.length < 4000) _cache[s] = t;
     return t;
   }
 
   /// textes à valeurs variables : « Bonjour {} » correspond à « Bonjour Romain »
   static String? _template(String s) {
-    _tpl ??= [
+    final tpl = _tpl[lang] ??= [
       for (final e in kEn.entries)
-        if (e.key.contains('{}')) (RegExp('^${e.key.split('{}').map(RegExp.escape).join('(.+?)')}\$', dotAll: true), e.value)
+        if (e.key.contains('{}')) (RegExp('^${e.key.split('{}').map(RegExp.escape).join('(.+?)')}\$', dotAll: true), _map[e.key] ?? e.value)
     ];
-    for (final (re, en) in _tpl!) {
+    for (final (re, tx) in tpl) {
       final m = re.firstMatch(s);
       if (m == null) continue;
       var i = 0;
-      return en.replaceAllMapped('{}', (_) => ++i <= m.groupCount ? (m.group(i) ?? '') : '');
+      return tx.replaceAllMapped('{}', (_) => ++i <= m.groupCount ? (m.group(i) ?? '') : '');
     }
     return null;
   }

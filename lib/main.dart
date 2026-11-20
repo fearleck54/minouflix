@@ -18,6 +18,7 @@ import 'sync.dart';
 import 'tmdb.dart';
 import 'store.dart';
 import 'names.dart';
+import 'intro.dart';
 import 'onboarding.dart';
 import 'xtream.dart';
 
@@ -235,7 +236,7 @@ class _BootState extends State<Boot> {
 
   @override
   Widget build(BuildContext context) {
-    if (!loaded) return const Scaffold(body: Center(child: Spinner()));
+    if (!loaded) return const BrandIntro();
     if (!authed) return AuthScreen(onDone: _afterAuth);
     if (creds == null) return LoginScreen(onDone: (c) => setState(() => creds = c));
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));

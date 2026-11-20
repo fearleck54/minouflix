@@ -202,6 +202,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         picked[k] = cur != null && cur.isNotEmpty ? {for (final c in l) if (cur.contains(c.id)) c.id} : {for (final c in l) if (suggested(k, c.name)) c.id};
         if (mounted) setState(() {});
       }
+      // on commence par le type que l'utilisateur a mis en premier au parcours de configuration
+      const tk = {'live': Kind.live, 'sport': Kind.live, 'films': Kind.vod, 'series': Kind.series};
+      final first = OnbPrefs.tastes.map((x) => tk[x]).whereType<Kind>().firstOrNull;
+      if (first != null) ki = Kind.values.indexOf(first);
       // goûts du parcours de configuration trop restrictifs pour ce fournisseur (rien de coché) : retour à la règle d'origine
       if (OnbPrefs.active && picked.values.fold<int>(0, (a, s) => a + s.length) == 0) {
         OnbPrefs.ignore = true;
@@ -211,7 +215,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         OnbPrefs.ignore = false;
       }
       // première connexion : on ne fait pas choisir, les catégories suggérées sont prises (modifiables ensuite dans Réglages › Catégories)
-      if (mounted && widget.onEditSource != null && picked.values.fold<int>(0, (a, s) => a + s.length) > 0) await save();
+      if (mounted && widget.onEditSource != null && OnbPrefs.tastes.isEmpty && picked.values.fold<int>(0, (a, s) => a + s.length) > 0) await save();
     } catch (e) {
       if (mounted) setState(() => error = e is XtreamError ? e.message : 'Connexion impossible : vérifie ta connexion Internet.');
     }
@@ -347,7 +351,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   if (tv) PillButton(label: total == 0 ? 'Charger' : 'Charger ($total)', icon: 'play', primary: true, height: 48, onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save),
                                 ]),
                                 const SizedBox(height: 4),
-                                Text('Seules les catégories cochées sont téléchargées. Tu pourras les changer dans Réglages.', style: T(14, color: kMut, h: 1.35)),
+                                Text(OnbPrefs.tastes.isNotEmpty ? 'On a coché ce qui correspond à tes choix. Touche une carte pour la cocher ou la décocher.' : 'Seules les catégories cochées sont téléchargées. Tu pourras les changer dans Réglages.', style: T(14, color: kMut, h: 1.35)),
                                 const SizedBox(height: 14),
                                 // type : Direct / Films / Séries (nombre de catégories cochées)
                                 if (tv)
@@ -456,54 +460,92 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  /// liste regroupée : chaque pays / préfixe dans une carte repliable, avec une case pour tout cocher
+  /// grille de cartes à cocher (comme le choix de langue) : les catégories pré-cochées d'abord, puis les autres
   Widget _list(Kind k, List<Cat> shown, EdgeInsets pad, bool searching) {
-    final gs = _groups(shown);
-    return ListView(padding: EdgeInsets.fromLTRB(16 + pad.left, 4, 16 + pad.right, 110 + pad.bottom), children: [
-      for (var gi = 0; gi < gs.length; gi++)
-        Builder(builder: (_) {
-          final g = gs[gi];
-          final key = '${k.name}|${g.tag}';
-          final ids = g.items.map((e) => e.$1.id).toList();
-          final nOn = ids.where(picked[k]!.contains).length;
-          final open = searching || gs.length == 1 || _open.contains(key) || (!_open.contains('~$key') && nOn > 0 && nOn < ids.length && g.items.length <= 12);
-          final allOn = nOn == ids.length, none = nOn == 0;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                decoration: BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(18), border: Border.all(color: kEdge, width: 0.8)),
-                child: Column(children: [
-                  _CatHead(
-                    title: _tagLabel(g.tag),
-                    count: '$nOn/${ids.length}',
-                    open: open,
-                    state: allOn ? 2 : (none ? 0 : 1),
-                    autofocus: gi == 0 && Device.tv,
-                    onOpen: () => setState(() {
-                      if (open) {
-                        _open.remove(key);
-                        _open.add('~$key');
-                      } else {
-                        _open.add(key);
-                        _open.remove('~$key');
-                      }
-                    }),
-                    onAll: () => _toggle(k, ids, !allOn),
-                  ),
-                  if (open)
-                    for (final e in g.items) ...[
-                      const Divider(height: 0.5, thickness: 0.5, indent: 18, color: kEdge),
-                      _CatRow(name: e.$2, on: picked[k]!.contains(e.$1.id), autofocus: false, onTap: () => setState(() => picked[k]!.contains(e.$1.id) ? picked[k]!.remove(e.$1.id) : picked[k]!.add(e.$1.id))),
-                    ],
-                ]),
+    final tint = k == Kind.live ? const [Color(0xFFFF9F43), Color(0xFFE5484D)] : k == Kind.vod ? const [Color(0xFFFF5E62), Color(0xFFB4235A)] : const [Color(0xFF8E6CFF), Color(0xFF4B2FD1)];
+    final on = shown.where((c) => picked[k]!.contains(c.id)).toList();
+    final off = shown.where((c) => !picked[k]!.contains(c.id)).toList();
+    final tv = Device.tv;
+    SliverGrid grid(List<Cat> l, {bool first = false}) => SliverGrid(
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: tv ? 240 : 210, mainAxisExtent: 74, mainAxisSpacing: 10, crossAxisSpacing: 10),
+          delegate: SliverChildBuilderDelegate(
+            (_, i) {
+              final c = l[i];
+              final sp = _split(c.name);
+              return _CatTile(
+                key: ValueKey('${k.name}${c.id}'),
+                label: sp.$2,
+                tag: sp.$1.isEmpty ? '' : _tagLabel(sp.$1),
+                on: picked[k]!.contains(c.id),
+                a: tint[0],
+                b: tint[1],
+                autofocus: tv && first && i == 0,
+                onTap: () => _toggle(k, [c.id], !picked[k]!.contains(c.id)),
+              );
+            },
+            childCount: l.length,
+          ),
+        );
+    Widget head(String t) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(4, 14, 4, 8), child: Text(t, style: T(13, w: 700, color: kMut, ls: 0.06))));
+    return CustomScrollView(
+      cacheExtent: tv ? 600 : null,
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(16 + pad.left, 0, 16 + pad.right, 0),
+          sliver: SliverMainAxisGroup(slivers: [
+            if (on.isNotEmpty) ...[head(searching ? 'COCHÉES · ${on.length}' : 'POUR TOI · ${on.length}'), grid(on, first: true)],
+            if (off.isNotEmpty) ...[head(on.isEmpty && !searching ? 'TOUTES LES CATÉGORIES · ${off.length}' : 'AUTRES · ${off.length}'), grid(off, first: on.isEmpty)],
+          ]),
+        ),
+        SliverToBoxAdapter(child: SizedBox(height: 110 + pad.bottom)),
+      ],
+    );
+  }
+}
+
+/// carte de catégorie : dégradé quand elle est cochée, coche en haut à droite
+class _CatTile extends StatelessWidget {
+  final String label, tag;
+  final bool on, autofocus;
+  final Color a, b;
+  final VoidCallback onTap;
+  const _CatTile({super.key, required this.label, required this.tag, required this.on, required this.a, required this.b, required this.onTap, this.autofocus = false});
+
+  @override
+  Widget build(BuildContext context) => FocusCard(
+        radius: 18,
+        focusScale: Device.tv ? 1.05 : 1.0,
+        autofocus: autofocus,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            color: kBg2,
+            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: on ? [a, b] : [a.withOpacity(0.10), b.withOpacity(0.10)]),
+            border: Border.all(color: on ? const Color(0x59FFFFFF) : kEdge, width: on ? 1.5 : 1),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (tag.isNotEmpty) Text(tag.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis, style: T(10.5, w: 700, ls: 0.08, color: on ? const Color(0xCCFFFFFF) : kMut)),
+                Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(14.5, w: 700, h: 1.15)),
+              ]),
+            ),
+            const SizedBox(width: 6),
+            AnimatedScale(
+              scale: on ? 1 : 0.4,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutBack,
+              child: AnimatedOpacity(
+                opacity: on ? 1 : 0,
+                duration: const Duration(milliseconds: 140),
+                child: Container(width: 22, height: 22, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: const Icon(Icons.check_rounded, size: 16, color: Color(0xFF16203A))),
               ),
             ),
-          );
-        }),
-    ]);
-  }
+          ]),
+        ),
+      );
 }
 
 class _Grp {
