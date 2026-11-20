@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Text;
 import 'epg.dart';
 import 'lfp.dart';
+import 'rights.dart';
 import 'names.dart';
 import 'sport.dart';
 import 'store.dart';
@@ -43,12 +44,14 @@ Future<List<List<Object>>> _progs(Chan c) async {
 /// Où voir ce match ? Pour chaque chaîne candidate (habituelles de la compétition + chaînes de sport), on lit son guide et on cherche les deux équipes
 /// dans le titre du programme à l'heure du match : c'est la preuve la plus sûre. Sans preuve, on propose les chaînes habituelles de la compétition.
 /// choix immédiat, sans réseau : chaînes habituelles de la compétition (ou chaînes de sport)
+List<RegExp> _habitual(Ev e) => Rights.patterns(e.lg) ?? (Rights.country == 'FR' ? [for (final x in lgOf(e.lg).ch) RegExp(x)] : const <RegExp>[]);
+
 List<WatchPick> quickPicks(Ev e, List<Chan> chans) {
   final l = lgOf(e.lg);
   final base = <Chan>[];
-  for (final p in [for (final x in l.ch) RegExp(x)]) {
+  for (final p in _habitual(e)) {
     for (final c in chans) {
-      if (p.hasMatch(norm(c.name)) && !base.contains(c)) base.add(c);
+      if (p.hasMatch(Rights.chanKey(c.name)) && !base.contains(c)) base.add(c);
     }
   }
   final src = base.isNotEmpty ? base : [for (final c in chans) if (c.theme == 'sport') c].take(8).toList();
@@ -79,7 +82,7 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List
   // chaîne officielle (Ligue 1 / Ligue 2) : celle que la LFP annonce pour ce match, retrouvée dans ta playlist
   final official = <WatchPick>[];
   try {
-    final want = {for (final n in await Lfp.channels(e)) Lfp.key(n)};
+    final want = Rights.country == 'FR' ? {for (final n in await Lfp.channels(e)) Lfp.key(n)} : <String>{};
     if (want.isNotEmpty) {
       for (final c in chans) {
         if (want.contains(Lfp.key(c.name))) official.add(WatchPick(c, 'Diffuseur officiel', 9));
@@ -91,11 +94,11 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List
       }
     }
   } catch (_) {}
-  final pats = [for (final p in l.ch) RegExp(p)];
+  final pats = _habitual(e);
   final base = <Chan>[];
   for (final p in pats) {
     for (final c in chans) {
-      if (p.hasMatch(norm(c.name)) && !base.contains(c)) base.add(c);
+      if (p.hasMatch(Rights.chanKey(c.name)) && !base.contains(c)) base.add(c);
     }
   }
   final extra = [for (final c in chans) if (c.theme == 'sport' && !base.contains(c)) c].take(24).toList();

@@ -18,6 +18,7 @@ import 'journal.dart';
 import 'names.dart';
 import 'tmdb.dart';
 import 'sport.dart';
+import 'rights.dart';
 import 'trailer.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
@@ -2407,6 +2408,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }, flags: true, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), flags: true, foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), flags: true, foot: 'Appliqués au lancement de la lecture.')),
+        _row(CupertinoIcons.flag_fill, const Color(0xFF30D158), 'Pays (chaînes de sport)', value: Rights.countries.firstWhere((c) => c.$1 == Rights.country, orElse: () => ('', '—')).$2, chevron: true, onTap: () => _pickPage('Pays', [for (final c in Rights.countries) (c.$1, c.$2)], () => Rights.country, (v) => Store.setStr('country', v), foot: 'Sert à trouver la chaîne qui diffuse un match, selon les droits TV de ton pays.')),
       ]),
       ('Lecture', 'Lecture', CupertinoIcons.play_circle, [
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),

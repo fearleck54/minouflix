@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:app_links/app_links.dart';
 import 'package:media_kit/media_kit.dart';
 import 'pairing.dart';
+import 'rights.dart';
 import 'account_ui.dart';
 import 'auth.dart';
 import 'connect.dart';
@@ -35,6 +36,7 @@ void main() {
     };
     if (!kIsWeb) MediaKit.ensureInitialized();
     await Store.init();
+    unawaited(Rights.load());
     L.init();
     Device.tv = await Connect.isTv() || (kIsWeb && Uri.base.queryParameters['tv'] == '1');     // télé Android : mode léger (sans flou, sans défilement automatique) et mises en page de salon
     if (Perf.lite) {
