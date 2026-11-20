@@ -66,7 +66,17 @@ Future<List<(bool, String)>> _lines(Creds c) async {
     for (final k in Kind.values) {
       final n = (Store.selection(k) ?? []).length;
       if (n == 0) continue;
-      final have = (await Store.cachedCats(k, Store.selection(k)!)).length;
+      final cats = await Store.cachedCats(k, Store.selection(k)!);
+      final have = cats.length;
+      if (k == Kind.live) {
+        // rattrapage (archive) : utile pour revoir un but depuis la chaîne du match
+        final all = [for (final e in cats.values) ...e.$2];
+        final arch = all.where((i) => i.arch > 0).toList();
+        final sp = RegExp(r'sport|bein|eurosport|dazn|ligue|foot|rmc|canal\+', caseSensitive: false);
+        final sa = arch.where((i) => sp.hasMatch(i.name)).toList();
+        final days = arch.isEmpty ? 0 : arch.map((i) => i.arch).reduce((a, b) => a > b ? a : b);
+        out.add((true, 'Rattrapage : ${arch.length}/${all.length} chaînes (jusqu\'à $days j), dont ${sa.length} de sport/foot' + (sa.isEmpty ? '.' : ' : ' + sa.take(6).map((i) => '${i.name} ${i.arch} j').join(', ') + '.')));
+      }
       out.add((have == n, '${k == Kind.live ? 'Direct' : k == Kind.vod ? 'Films' : 'Séries'} : $have/$n catégories chargées${have == n ? '' : ' (le reste se charge en arrière-plan)'}.'));
     }
   } catch (e) {
