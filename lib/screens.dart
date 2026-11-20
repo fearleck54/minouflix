@@ -38,6 +38,8 @@ import 'sources.dart';
 import 'pin_guard.dart';
 import 'osk.dart';
 import 'trakt.dart';
+import 'onb_prefs.dart';
+import 'onboarding.dart';
 import 'trakt_ui.dart';
 import 'person.dart';
 import 'ui.dart';
@@ -199,6 +201,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         final cur = Store.selection(k);
         picked[k] = cur != null && cur.isNotEmpty ? {for (final c in l) if (cur.contains(c.id)) c.id} : {for (final c in l) if (suggested(k, c.name)) c.id};
         if (mounted) setState(() {});
+      }
+      // goûts du parcours de configuration trop restrictifs pour ce fournisseur (rien de coché) : retour à la règle d'origine
+      if (OnbPrefs.active && picked.values.fold<int>(0, (a, s) => a + s.length) == 0) {
+        OnbPrefs.ignore = true;
+        for (final k in Kind.values) {
+          picked[k] = {for (final c in cats[k] ?? const <Cat>[]) if (suggested(k, c.name)) c.id};
+        }
+        OnbPrefs.ignore = false;
       }
       // première connexion : on ne fait pas choisir, les catégories suggérées sont prises (modifiables ensuite dans Réglages › Catégories)
       if (mounted && widget.onEditSource != null && picked.values.fold<int>(0, (a, s) => a + s.length) > 0) await save();
@@ -2382,6 +2392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
+        _row(CupertinoIcons.wand_stars, const Color(0xFF5B8CFF), 'Refaire la configuration', value: '', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => OnboardingFlow(redo: true, onDone: () => Navigator.of(context).maybePop())))),
         _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Compte lié' : 'Non lié', chevron: true, onTap: () => traktSheet(context, () => setState(() {}))),
         _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Onglets', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
         _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {

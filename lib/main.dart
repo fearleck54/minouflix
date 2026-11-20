@@ -18,6 +18,7 @@ import 'sync.dart';
 import 'tmdb.dart';
 import 'store.dart';
 import 'names.dart';
+import 'onboarding.dart';
 import 'xtream.dart';
 
 void main() {
@@ -238,6 +239,10 @@ class _BootState extends State<Boot> {
     if (!authed) return AuthScreen(onDone: _afterAuth);
     if (creds == null) return LoginScreen(onDone: (c) => setState(() => creds = c));
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));
+    // nouveau compte : parcours de configuration (langue, version, goûts) avant le choix des catégories ; reprise si interrompu
+    if (!Store.hasSelection && !pick && !Store.flag('onb_done', false) && (Store.settingsT == 0 || Store.str('onb_state').isNotEmpty)) {
+      return OnboardingFlow(onDone: () => setState(() {}));
+    }
     if (!Store.hasSelection || pick) {
       // la sélection actuelle reste en place tant que la nouvelle n'est pas validée (Retour = annuler)
       return CategoriesScreen(creds: creds!, onDone: () => setState(() => pick = false), onCancel: Store.hasSelection ? () => setState(() => pick = false) : null, onEditSource: Store.hasSelection ? null : () => setState(() => creds = null));

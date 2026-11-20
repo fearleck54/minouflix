@@ -1,9 +1,11 @@
+import 'onb_prefs.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 import 'journal.dart';
+import 'l10n.dart';
 import 'names.dart';
 import 'perf.dart';
 import 'version.dart';
@@ -581,16 +583,36 @@ Map<String, (List<Item>, String)> encodeBulk(Map<String, List<Item>> by) => {for
 final _frRx = RegExp(r'(^|[^a-z])(fr|fra|france|francais|français|french|vf|vff|vostfr|truefrench)([^a-z]|$)', caseSensitive: false);
 bool looksFrench(String name) => _frRx.hasMatch(name);
 
-/// pré-cochage resserré : français, sans les rayons rarement regardés (VOSTFR, caméra, vieilles années, décalé, outre-mer, adultes)
+/// pré-cochage resserré : français (ou anglais si choisi au parcours de configuration), sans les rayons rarement regardés (VOSTFR, caméra, vieilles années, décalé, outre-mer, adultes)
+/// Avec les goûts du parcours de configuration : seuls les types voulus sont cochés ; enfants et documentaires ajoutent leurs catégories.
 bool suggested(Kind k, String name) {
   final n = norm(catLabel(name));
   if (RegExp(r'adult|xxx|\+18|18\+|porn|erotique').hasMatch(n)) return false;
+  final pr = OnbPrefs.active ? OnbPrefs.tastes : const <String>[];
+  final ver = pr.isEmpty ? const <String>[] : OnbPrefs.ver;
+  final okLang = pr.isNotEmpty && L.lang == 'en' ? looksEnglish(name) : looksFrench(name);
   if (k == Kind.live) {
     final th = liveThemeOf(name);
-    if (th == 'sport' && !kStore) return true;     // version store : pas de pré-cochage d'après les noms de chaînes payantes
-    return looksFrench(name) && !const {'delay', 'outremer', 'bouquets', 'autres'}.contains(th);
+    if (pr.isNotEmpty) {
+      if (th == 'sport') return pr.contains('sport') && !kStore;
+      if (!pr.contains('live')) return false;
+    } else if (th == 'sport' && !kStore) {
+      return true;     // version store : pas de pré-cochage d'après les noms de chaînes payantes
+    }
+    return okLang && !const {'delay', 'outremer', 'bouquets', 'autres'}.contains(th);
   }
-  if (!looksFrench(name) || RegExp(r'vostfr|vost|\bcam\b|\bts\b').hasMatch(n)) return false;
+  if (pr.isNotEmpty) {
+    if (k == Kind.vod && !pr.contains('films') && !pr.contains('kids') && !pr.contains('docs')) return false;
+    if (k == Kind.series && !pr.contains('series') && !pr.contains('kids') && !pr.contains('docs')) return false;
+    final kids = pr.contains('kids') && RegExp(r'kid|enfant|jeunesse|anim|disney|pixar|famil').hasMatch(n);
+    final docs = pr.contains('docs') && RegExp(r'docu|\bdoc\b|nature|histoire|decouverte').hasMatch(n);
+    if ((kids || docs) && okLang) return true;
+    if (k == Kind.vod && !pr.contains('films')) return false;
+    if (k == Kind.series && !pr.contains('series')) return false;
+  }
+  if (!okLang) return false;
+  final vo = ver.contains('vostfr') || ver.contains('vo');
+  if (RegExp(r'\bcam\b|\bts\b').hasMatch(n) || (!vo && RegExp(r'vostfr|vost').hasMatch(n))) return false;
   final y = yearOfCat(n);
   return y == 0 || y >= DateTime.now().year - 3;
 }
