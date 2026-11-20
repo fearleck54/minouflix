@@ -3612,6 +3612,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  double _aDelay = 0;
+
+  /// mode nuit : compresse la dynamique (explosions moins fortes, dialogues plus audibles)
+  Future<void> _applyNight() async {
+    try {
+      final dynamic n = player.platform;
+      await n.setProperty('af', Store.flag('snd_night', false) ? 'lavfi=[acompressor=threshold=0.05:ratio=6:attack=15:release=300:makeup=4]' : '');
+    } catch (_) {}
+  }
+
+  Future<void> _setDelay(double v) async {
+    _aDelay = double.parse(v.clamp(-5.0, 5.0).toStringAsFixed(2));
+    try {
+      final dynamic n = player.platform;
+      await n.setProperty('audio-delay', '$_aDelay');
+    } catch (_) {}
+  }
+
   void _tracks() {
     final t = player.state.tracks;
     final a = t.audio.where((x) => x.id != 'auto' && x.id != 'no').toList();
@@ -3634,6 +3652,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 Navigator.pop(context);
               },
             ),
+          const SizedBox(height: 10),
+          Text('Son', style: T(18, w: 750)),
+          StatefulBuilder(
+            builder: (_, set) => Column(children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Synchro audio : ${_aDelay > 0 ? '+' : ''}${(_aDelay * 1000).round()} ms', style: T(15.5, w: 600)),
+                subtitle: Text('Son en retard : −  ·  son en avance : +', style: T(12.5, color: kMut)),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  IconButton(icon: const Icon(CupertinoIcons.minus_circle_fill), onPressed: () async { await _setDelay(_aDelay - 0.1); set(() {}); }),
+                  IconButton(icon: const Icon(CupertinoIcons.plus_circle_fill), onPressed: () async { await _setDelay(_aDelay + 0.1); set(() {}); }),
+                ]),
+                onLongPress: () async { await _setDelay(0); set(() {}); },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Mode nuit (sons forts atténués)', style: T(15.5, w: 600)),
+                subtitle: Text('Explosions et combats moins forts, dialogues plus clairs', style: T(12.5, color: kMut)),
+                value: Store.flag('snd_night', false),
+                onChanged: (v) async { await Store.setFlag('snd_night', v); await _applyNight(); set(() {}); },
+              ),
+            ]),
+          ),
           const SizedBox(height: 10),
           Text('Sous-titres', style: T(18, w: 750)),
           ListTile(
@@ -3676,6 +3717,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) setState(() => _showTitle = false);
     });
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
+    _applyNight();
     _tr = player.stream.tracks.listen(_applyPrefs);
     _playSub = player.stream.playing.listen((_) {
       if (mounted && _tvUi) setState(() {});
