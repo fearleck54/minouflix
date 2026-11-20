@@ -2832,7 +2832,7 @@ class _DetailScreenState extends State<DetailScreen> {
       launchUrl(Uri.parse('https://www.youtube.com/watch?v=$id'), mode: LaunchMode.externalApplication);
       return;
     }
-    Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, title: '${widget.item.title} · Bande-annonce')));
+    Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, userAgent: r.$3, title: '${widget.item.title} · Bande-annonce')));
   }
 
   String _mmss(int ms) {
@@ -3150,8 +3150,8 @@ class PlayerScreen extends StatefulWidget {
   final int zapAt;
   final Xtream? x;                            // pour le rattrapage (adresse des programmes passés)
   final Future<Fiche?>? tmdb;                 // identifiant TMDB : sert à retrouver intro / récap / générique
-  final String? audioUrl;                     // bande-annonce : son à part de l'image
-  const PlayerScreen({super.key, this.audioUrl, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
+  final String? audioUrl, userAgent;          // bande-annonce : son à part de l'image, agent HTTP exigé par YouTube
+  const PlayerScreen({super.key, this.audioUrl, this.userAgent, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
@@ -3412,7 +3412,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!mounted || _fail != null) return;
       if (player.state.position == Duration.zero && player.state.duration == Duration.zero) _failed('Le flux ne démarre pas.');
     });
-    player.open(Media(url)).then((_) async {
+    final ua = widget.userAgent;
+    (ua == null ? Future<void>.value() : Future(() async => (player.platform as dynamic).setProperty('user-agent', ua))).catchError((_) {}).then((_) => player.open(Media(url))).then((_) async {
       final a = widget.audioUrl;
       if (a == null) return;
       try {
