@@ -175,9 +175,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }) {
     final head = _OnbHead(step: step, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(step - 1) : null, onSkip: skip ? () => step < _steps - 1 ? go(step + 1) : _finish() : null);
     final titleW = [
-      _In(i: 0, child: mat(_t('ÉTAPE ${step + 1} SUR $_steps', 'STEP ${step + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 1.4))),
+      _In(i: 0, child: mat(_t('ÉTAPE ${step + 1} SUR $_steps', 'STEP ${step + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
-      _In(i: 1, child: Text(title, style: T(tv ? 40 : 32, w: 800, ls: -1, h: 1.05))),
+      _In(i: 1, child: Text(title, style: T(tv ? 40 : 32, w: 800, ls: -0.03, h: 1.05))),
       const SizedBox(height: 10),
       _In(i: 2, child: Text(sub, style: T(tv ? 20 : 16, w: 450, color: kMut, h: 1.35))),
     ];
@@ -248,7 +248,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 ]),
               ),
               const SizedBox(height: 28),
-              _In(i: 1, child: Text(_t('Bienvenue sur MinouFlix', 'Welcome to MinouFlix'), textAlign: TextAlign.center, style: T(tv ? 44 : 36, w: 800, ls: -1.1, h: 1.05))),
+              _In(i: 1, child: Text(_t('Bienvenue sur MinouFlix', 'Welcome to MinouFlix'), textAlign: TextAlign.center, style: T(tv ? 44 : 36, w: 800, ls: -0.03, h: 1.05))),
               const SizedBox(height: 12),
               _In(i: 2, child: Text(_t('Quelques choix et c\'est parti.', 'A few choices and you\'re set.'), textAlign: TextAlign.center, style: T(tv ? 22 : 17, w: 450, color: kMut))),
               const Spacer(flex: 4),
@@ -294,7 +294,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(2),
       content: tv
-          ? Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 250, child: _In(i: 3, child: cards[0])), const SizedBox(width: 18), SizedBox(width: 250, child: _In(i: 4, child: cards[1]))])
+          ? Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 225, child: _In(i: 3, child: cards[0])), const SizedBox(width: 16), SizedBox(width: 225, child: _In(i: 4, child: cards[1]))])
           : Column(children: [_In(i: 3, child: cards[0]), const SizedBox(height: 14), _In(i: 4, child: cards[1])]),
     );
   }
@@ -315,7 +315,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       enabled: ver.isNotEmpty,
       onPrimary: () => go(3),
       content: SizedBox(
-        width: tv ? 520 : double.infinity,
+        width: tv ? 470 : double.infinity,
         child: Column(children: [
           for (final (i, r) in rows.indexed)
             Padding(
@@ -339,7 +339,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       enabled: order.isNotEmpty,
       onPrimary: () => go(4),
       content: LayoutBuilder(builder: (context, c) {
-        final w = (tv ? 160.0 * cols + 24 : c.maxWidth);
+        final w = (tv ? 148.0 * cols + 24 : c.maxWidth);
         const gap = 12.0;
         final cw = (w - gap * (cols - 1)) / cols;
         return SizedBox(
@@ -395,7 +395,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: widget.redo ? _t('Appliquer', 'Apply') : _t('Découvrir MinouFlix', 'Discover MinouFlix'),
       onPrimary: _finish,
       content: SizedBox(
-        width: tv ? 520 : double.infinity,
+        width: tv ? 470 : double.infinity,
         child: Column(children: [
           _In(i: 3, child: Padding(padding: const EdgeInsets.only(bottom: 18), child: _CheckMark(size: tv ? 80 : 96, confetti: !Perf.lite && !reduce))),
           line(1, _t('Langue', 'Language'), Text(lang, style: T(15, w: 600)), 1),
@@ -419,7 +419,7 @@ class _OnbHead extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
         height: 48,
         child: Row(children: [
-          SizedBox(width: 56, child: onBack == null ? null : Align(alignment: Alignment.centerLeft, child: RoundButton(size: 40, label: _t('Retour', 'Back'), onTap: onBack!, child: const Icon(Icons.chevron_left_rounded, size: 24, color: kText)))),
+          SizedBox(width: 64, child: onBack == null ? null : Align(alignment: Alignment.centerLeft, child: RoundButton(size: 40, label: _t('Retour', 'Back'), onTap: onBack!, child: const Icon(Icons.chevron_left_rounded, size: 24, color: kText)))),
           Expanded(
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               for (var i = 0; i < total; i++)
@@ -433,7 +433,7 @@ class _OnbHead extends StatelessWidget {
                 ),
             ]),
           ),
-          SizedBox(width: 56, child: onSkip == null ? null : Align(alignment: Alignment.centerRight, child: _LinkButton(label: _t('Passer', 'Skip'), onTap: onSkip!))),
+          SizedBox(width: 92, child: onSkip == null ? null : Align(alignment: Alignment.centerRight, child: _LinkButton(label: _t('Passer', 'Skip'), onTap: onSkip!))),
         ]),
       );
 }
@@ -558,7 +558,7 @@ class _CardState extends State<_Card> {
               bottom: 14,
               right: 44,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(widget.label, maxLines: 2, style: T(17, w: 700, ls: -0.2, color: fg)),
+                Text(widget.label, maxLines: 2, style: T(17, w: 700, ls: -0.01, color: fg)),
                 if (widget.sub != null) Text(widget.sub!, maxLines: 1, style: T(13, w: 450, color: on ? fg.withOpacity(0.85) : kMut)),
               ]),
             ),
@@ -620,7 +620,7 @@ class _Row extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: T(17, w: 700, ls: -0.2)),
+                Text(title, style: T(17, w: 700, ls: -0.01)),
                 const SizedBox(height: 2),
                 Text(sub, maxLines: 2, style: T(13.5, w: 450, color: selected ? const Color(0xE6FFFFFF) : kMut)),
               ]),
