@@ -1,6 +1,6 @@
 # MinouFlix : politique de confidentialité
 
-Dernière mise à jour : 13 novembre 2026. Même texte que l'écran « Confidentialité » de l'appli (Réglages > À propos).
+Dernière mise à jour : 20 novembre 2026. Même texte que l'écran « Confidentialité » de l'appli (Réglages > À propos).
 
 ## En bref
 
@@ -27,6 +27,7 @@ MinouFlix est un lecteur : il ne fournit aucun contenu. Aucune publicité, aucun
 | Calendrier sportif | Matchs des championnats choisis | Championnats demandés |
 | YouTube | Bandes-annonces | Identifiant de la vidéo |
 | Supabase | Compte et synchronisation (si compte) | E-mail, données synchronisées choisies |
+| Reconnaissance vocale du système (Apple ou Google) | Dicter une recherche, seulement si l'utilisateur appuie sur le micro | La voix, traitée par le service du système ; MinouFlix n'enregistre rien |
 
 ## Durée de conservation et suppression
 

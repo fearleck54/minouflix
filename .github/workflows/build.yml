@@ -119,6 +119,12 @@ jobs:
       - run: flutter build apk --release --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
       - uses: actions/upload-artifact@v4
         with: { name: minouflix-apk, path: build/app/outputs/flutter-apk/app-release.apk }
+      - name: Bundle Play Store (.aab), seulement si le message de commit contient [aab]
+        if: contains(github.event.head_commit.message, '[aab]')
+        run: flutter build appbundle --release --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: contains(github.event.head_commit.message, '[aab]')
+        with: { name: minouflix-aab, path: build/app/outputs/bundle/release/app-release.aab }
 
   ios:
     # machines Mac comptées 10 fois plus cher : seulement à la demande (message de commit contenant [ios] ou lancement manuel)
