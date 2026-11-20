@@ -25,8 +25,8 @@ class _Relay {
           return;
         }
         try {
-          // YouTube refuse les demandes sans borne (« bytes=0- ») : on lit par tranches de 6 Mo et on les enchaîne vers le lecteur
-          const chunk = 6 * 1024 * 1024;
+          // YouTube refuse les demandes sans borne (« bytes=0- ») : on lit par tranches de 1 Mo et on les enchaîne vers le lecteur
+          const chunk = 1024 * 1024;
           final m = RegExp(r'bytes=(\d*)-(\d*)').firstMatch(req.headers.value('range') ?? '');
           final start = int.tryParse(m?.group(1) ?? '') ?? 0;
           final wantEnd = int.tryParse(m?.group(2) ?? '');
