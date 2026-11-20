@@ -2779,6 +2779,7 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    _loadFiche();
     _load();
   }
 
@@ -2797,14 +2798,20 @@ class _DetailScreenState extends State<DetailScreen> {
       d = const Detail();
     }
     if (mounted) setState(() {});
+  }
+
+  /// TMDB (titre, logo, image, résumé dans ta langue) part en même temps que le fournisseur ; rien n'est affiché avant, pour ne rien voir changer ensuite
+  void _loadFiche() {
     Timer(const Duration(milliseconds: 2500), () {
       if (mounted && !_fReady) setState(() => _fReady = true);
     });
     Tmdb.fiche(widget.item).then((v) {
-      if (mounted) setState(() {
-        f = v;
-        _fReady = true;
-      });
+      if (mounted) {
+        setState(() {
+          f = v;
+          _fReady = true;
+        });
+      }
     }).catchError((_) {
       if (mounted) setState(() => _fReady = true);
     });
@@ -2927,7 +2934,7 @@ class _DetailScreenState extends State<DetailScreen> {
           },
         ),
     ]);
-    final plotText = fi != null && fi.plot.isNotEmpty ? fi.plot : (det?.plot ?? '');
+    final plotText = !_fReady ? '' : (fi != null && fi.plot.isNotEmpty ? fi.plot : (det?.plot ?? ''));
     return Scaffold(
       body: Stack(children: [
         ListView(padding: EdgeInsets.zero, cacheExtent: 8000, children: [
@@ -2945,7 +2952,10 @@ class _DetailScreenState extends State<DetailScreen> {
                     alignment: Alignment.bottomLeft,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 820),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      child: AnimatedOpacity(
+                        opacity: _fReady ? 1 : 0,
+                        duration: const Duration(milliseconds: 260),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                         TitleLogo(ready: _fReady, url: fi != null && fi.logo.isNotEmpty ? tmImg(fi.logo, 'w500') : '', title: fi != null && fi.title.isNotEmpty ? fi.title : it.title, big: true, wide: true),
                         const SizedBox(height: 12),
                         Text([...meta, if (fi != null && fi.cert.isNotEmpty) fi.cert == 'U' ? 'Tout public' : '-${fi.cert}'].join('  ·  '), style: T(16, w: 600, color: const Color(0xFFC4CBD9))),
@@ -2953,6 +2963,7 @@ class _DetailScreenState extends State<DetailScreen> {
                         const SizedBox(height: 22),
                         wideActions,
                       ]),
+                      ),
                     ),
                   ),
                 )
@@ -2978,7 +2989,7 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             ]),
           ),
-          if (det == null) const SkeletonBlock(lines: 5) else ...[
+          if (det == null || !_fReady) const SkeletonBlock(lines: 5) else ...[
             if (!wide) ...[
               // téléphone / tablette : une ligne principale (Lecture, Ma liste, Plus) puis de petites actions avec icône
               Padding(
