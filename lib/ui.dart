@@ -173,7 +173,13 @@ class _FocusCardState extends State<FocusCard> {
         if (horiz && top >= 40 && top + len <= vpLen - 40) return true;
         double target = cont < vpLen * (horiz ? 0.45 : 0.8) ? pos.minScrollExtent : (horiz ? cont - vpLen * 0.2 : cont + len / 2 - vpLen * 0.42);
         target = target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
-        if ((target - pos.pixels).abs() > 1) pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
+        if ((target - pos.pixels).abs() > 1) {
+          if (Perf.lite) {
+            pos.jumpTo(target);
+          } else {
+            pos.animateTo(target, duration: const Duration(milliseconds: 130), curve: Curves.easeOut);
+          }
+        }
       }
       return true;
     });
@@ -1842,6 +1848,7 @@ class _LargeTitleState extends State<LargeTitle> {
       });
     }
     _c.addListener(() {
+      if (Perf.lite) return;
       final v = (_c.offset / 44).clamp(0.0, 1.0);
       if ((v - _t).abs() > .03) setState(() => _t = v);
     });

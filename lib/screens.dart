@@ -3299,12 +3299,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final dynamic n = player.platform;   // dynamic : la version web (contrôle visuel) n'a pas NativePlayer
       await n.setProperty('cache', 'yes');
       // télé : tampon borné en mémoire (un énorme tampon sature les boîtiers et fait saccader), reconnexion automatique du flux
-      await n.setProperty('demuxer-max-bytes', Device.tv ? '96MiB' : (Perf.lite ? '48MiB' : '200MiB'));
-      await n.setProperty('demuxer-max-back-bytes', Device.tv ? '48MiB' : (Perf.lite ? '40MiB' : '200MiB'));
+      await n.setProperty('demuxer-max-bytes', Device.tv ? '32MiB' : (Perf.lite ? '48MiB' : '200MiB'));
+      await n.setProperty('demuxer-max-back-bytes', Device.tv ? '16MiB' : (Perf.lite ? '40MiB' : '200MiB'));
       await _bufferSecs(n);
       await n.setProperty('network-timeout', '15');
       await n.setProperty('stream-lavf-o', 'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_delay_max=4');
-      final dec = Store.str('dec_live').isEmpty && Device.tv ? 'sw' : Store.str('dec_live');      // télé : décodage logiciel par défaut (image TNT propre)
+      final dec = Store.str('dec_live');      // décodage matériel par défaut (le logiciel sature les 4 petits cœurs) ; « sw » reste en option
       await n.setProperty('deinterlace', dec.contains('di') ? 'yes' : 'no');
       if (dec.contains('sw')) await n.setProperty('hwdec', 'no');
     } catch (_) {}
@@ -3684,7 +3684,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _endSub = player.stream.completed.listen((c) {
       if (c && _live) _failed('Le direct s\'est interrompu.');     // un direct ne « finit » pas : c'est une coupure
     });
-    _posSub = player.stream.position.listen(_onPos);
+    _posSub = player.stream.position.distinct((a, b) => a.inSeconds == b.inSeconds).listen(_onPos);
     Connect.inPlayer = true;
     Connect.player.addListener(_remoteCtl);
     unawaited(_loadSegs());
@@ -3922,7 +3922,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     const SizedBox(height: 14),
                     if (!_live)
                       StreamBuilder<Duration>(
-                        stream: player.stream.position,
+                        stream: player.stream.position.distinct((a, b) => a.inSeconds == b.inSeconds),
                         initialData: player.state.position,
                         builder: (_, sn) {
                           final d = player.state.duration;
@@ -4074,7 +4074,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ),
           ),
-          if (Device.tv) _tvOverlay(),
+          if (Device.tv && _tvUi) _tvOverlay(),
           if (!Device.tv) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
