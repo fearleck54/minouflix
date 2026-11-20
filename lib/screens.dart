@@ -3637,17 +3637,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   double _aDelay = 0;
+  StreamSubscription? _ap;
+  int _lastCh = 2;
 
   /// mode nuit : compresse la dynamique (explosions moins fortes, dialogues plus audibles)
-  Future<void> _applyNight() async {
+  /// vrai si le lecteur a bien pris le filtre (ou s'il n'y en a pas)
+  Future<bool> _applyNight() async {
     try {
       final dynamic n = player.platform;
+      final ch = player.state.audioParams.channelCount ?? 2;
+      _lastCh = ch;
       final f = [
-        if (Store.flag('snd_voice', false)) 'equalizer=f=250:t=q:w=0.7:g=-3,equalizer=f=2500:t=q:w=0.8:g=5',
-        if (Store.flag('snd_night', false)) 'acompressor=threshold=0.05:ratio=6:attack=15:release=300:makeup=4',
+        // dialogues : source 5.1 → voix du canal central poussée dans le mélange stéréo ; sinon égaliseur centré sur la voix
+        if (Store.flag('snd_voice', false))
+          ch >= 6 ? 'pan=stereo|c0=2.0*c2+0.45*c0+0.35*c4+0.2*c3|c1=2.0*c2+0.45*c1+0.35*c5+0.2*c3' : 'highpass=f=140,equalizer=f=1800:t=q:w=0.7:g=5,equalizer=f=3200:t=q:w=0.8:g=6',
+        // mode nuit : forte compression (les pics, explosions et combats, retombent près des dialogues) + limiteur
+        if (Store.flag('snd_night', false)) 'acompressor=threshold=0.02:ratio=12:attack=5:release=250:makeup=8,alimiter=limit=0.8',
       ];
       await n.setProperty('af', f.isEmpty ? '' : 'lavfi=[${f.join(',')}]');
-    } catch (_) {}
+      return f.isEmpty || '${await n.getProperty('af')}'.contains('lavfi');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _soundToggle(String k, bool v, void Function(void Function()) set) async {
+    await Store.setFlag(k, v);
+    final ok = await _applyNight();
+    set(() {});
+    if (!ok && v && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Filtre audio non pris en charge par le lecteur sur cet appareil.')));
   }
 
   bool _syncMode = false;
@@ -3715,36 +3733,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
               },
             ),
           const SizedBox(height: 10),
-          Text('Son', style: T(18, w: 750)),
-          StatefulBuilder(
-            builder: (_, set) => Column(children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(CupertinoIcons.timer),
-                title: Text('Synchro audio : $_syncTxt', style: T(15.5, w: 600)),
-                subtitle: Text('Caler les dialogues avec ← →', style: T(12.5, color: kMut)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _syncOpen();
-                },
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Dialogues renforcés', style: T(15.5, w: 600)),
-                subtitle: Text('Voix plus présentes, musique et bruitages en retrait', style: T(12.5, color: kMut)),
-                value: Store.flag('snd_voice', false),
-                onChanged: (v) async { await Store.setFlag('snd_voice', v); await _applyNight(); set(() {}); },
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Mode nuit (sons forts atténués)', style: T(15.5, w: 600)),
-                subtitle: Text('Explosions et combats moins forts, dialogues plus clairs', style: T(12.5, color: kMut)),
-                value: Store.flag('snd_night', false),
-                onChanged: (v) async { await Store.setFlag('snd_night', v); await _applyNight(); set(() {}); },
-              ),
-            ]),
-          ),
-          const SizedBox(height: 10),
           Text('Sous-titres', style: T(18, w: 750)),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -3775,6 +3763,36 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _onlineSubs();
               },
             ),
+          const SizedBox(height: 10),
+          Text('Son', style: T(18, w: 750)),
+          StatefulBuilder(
+            builder: (_, set) => Column(children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(CupertinoIcons.timer),
+                title: Text('Synchro audio : $_syncTxt', style: T(15.5, w: 600)),
+                subtitle: Text('Caler les dialogues avec ← →', style: T(12.5, color: kMut)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _syncOpen();
+                },
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Dialogues renforcés', style: T(15.5, w: 600)),
+                subtitle: Text('Voix plus présentes, musique et bruitages en retrait', style: T(12.5, color: kMut)),
+                value: Store.flag('snd_voice', false),
+                onChanged: (v) => _soundToggle('snd_voice', v, set),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Mode nuit (sons forts atténués)', style: T(15.5, w: 600)),
+                subtitle: Text('Explosions et combats moins forts, dialogues plus clairs', style: T(12.5, color: kMut)),
+                value: Store.flag('snd_night', false),
+                onChanged: (v) => _soundToggle('snd_night', v, set),
+              ),
+            ]),
+          ),
         ]),
       ));
   }
@@ -3787,6 +3805,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
     _applyNight();
+    _ap = player.stream.audioParams.listen((a) {
+      if ((a.channelCount ?? 2) != _lastCh) _applyNight();
+    });
     _tr = player.stream.tracks.listen(_applyPrefs);
     _playSub = player.stream.playing.listen((_) {
       if (mounted && _tvUi) setState(() {});
@@ -3854,6 +3875,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.player.removeListener(_remoteCtl);
     _nextT?.cancel();
     _syncT?.cancel();
+    _ap?.cancel();
     _nextNode.dispose();
     _skipNode.dispose();
     if (!kIsWeb && Platform.isAndroid && Device.tv && _fpsFor != 0) _fpsCh.invokeMethod('set', 0.0).catchError((_) {});

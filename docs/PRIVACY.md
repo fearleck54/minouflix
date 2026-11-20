@@ -46,4 +46,4 @@ Ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB.
 
 ## Contact
 
-À compléter avant publication (adresse e-mail de contact du développeur).
+contact@fearleck.org

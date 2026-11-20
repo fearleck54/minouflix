@@ -350,8 +350,8 @@ class SportCard extends StatelessWidget {
                       ),
                     ),
                     Container(
-                      width: 62 * z,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      width: 78 * z,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       color: const Color(0x14000000),
                       child: Center(child: right),
                     ),
@@ -427,8 +427,8 @@ class _Stadium extends CustomPainter {
       c.drawRect(Rect.fromLTWH(0, top, s.width, s.height - top), Paint()..shader = ui.Gradient.linear(Offset(0, top), Offset(0, s.height), [const Color(0x00000000), const Color(0xFF1B1D24)]));
       final k = s.height * 0.035;
       for (var i = 0; i * k * 2 < s.width; i++) {
-        c.drawRect(Rect.fromLTWH(i * k * 2, s.height - k * 2, k, k), Paint()..color = const Color(0xFFE5484D).withOpacity(0.8));
-        c.drawRect(Rect.fromLTWH(i * k * 2 + k, s.height - k * 2, k, k), Paint()..color = Colors.white.withOpacity(0.8));
+        c.drawRect(Rect.fromLTWH(i * k * 2, s.height - k, k, k), Paint()..color = const Color(0xFFE5484D).withOpacity(0.8));
+        c.drawRect(Rect.fromLTWH(i * k * 2 + k, s.height - k, k, k), Paint()..color = Colors.white.withOpacity(0.8));
       }
     } else {
       final g = sport == 'basketball' ? const Color(0xFFB8742E) : const Color(0xFF1E8A4C);
@@ -550,6 +550,7 @@ class _SportHeroState extends State<SportHero> {
               EvScoreboard(e: e, crest: 88, scoreSize: 56),
               const SizedBox(height: 14),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 18), const SizedBox(width: 7), Text(l.n, style: T(14, w: 700, color: Color.lerp(l.color, Colors.white, 0.75)!))]),
+              if (l.espn.startsWith('racing')) const SizedBox(height: 18),
             ]),
           ]),
         ),

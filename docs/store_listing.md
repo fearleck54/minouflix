@@ -46,8 +46,8 @@ This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ## Notes pour le relecteur (Apple « Notes de relecture » / Google « Accès à l'appli »)
 MinouFlix is an IPTV player. It contains NO channels, films or playlists; the user supplies their own provider details. To review, add a source with the demo details below (a legal, free-to-air test playlist) in the first screen.
-- Demo source: À FOURNIR (liste M3U de flux libres de droits, ex. chaînes publiques officielles)
-- Demo account (optional, for sync): À CRÉER (e-mail + mot de passe)
+- Demo source (M3U playlist, add it as a source in the first screen): https://ha.fearleck.org/local/appli/demo.m3u (public news channels from official broadcasters and two Creative Commons films by the Blender Foundation).
+- Demo account (optional, for sync): À CRÉER (e-mail de démo sur fearleck.org + mot de passe)
 - HTTP: IPTV servers chosen by users are often plain http, hence NSAllowsArbitraryLoads / usesCleartextTraffic. The app never contacts any server other than the user's provider, TMDB, a public sports calendar, YouTube (trailers) and the account service.
 - Microphone / speech recognition: only when the user taps the mic in Search, to dictate a query (system recognizer; nothing recorded by the app).
 - Account deletion: Réglages > « Supprimer mon compte » (visible une fois connecté).
@@ -66,8 +66,8 @@ MinouFlix is an IPTV player. It contains NO channels, films or playlists; the us
 - Bannière Play 1024×500.
 
 ## Reste à faire côté humain
-1. E-mail de contact public + hébergement de /confidentialite et /suppression-compte.
+1. Créer contact@fearleck.org (Cloudflare Email Routing), puis héberger /confidentialite et /suppression-compte.
 2. Comptes développeur Apple (99 $/an) et Google Play (25 $, test fermé 12 testeurs / 14 jours).
-3. Source de démonstration légale et compte de démo.
+3. Compte de démo (la source de démonstration est prête : www/appli/demo.m3u).
 4. Clé de téléversement Play (keystore de publication distinct de la clé de test) puis `[aab]` dans le commit pour produire le .aab.
 5. Apple : certificat de distribution et profil, remplace SideStore (secrets CI).
