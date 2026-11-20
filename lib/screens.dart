@@ -17,6 +17,7 @@ import 'extras.dart';
 import 'journal.dart';
 import 'names.dart';
 import 'tmdb.dart';
+import 'package:path_provider/path_provider.dart';
 import 'sport.dart';
 import 'trailer.dart';
 import 'version.dart';
@@ -3419,7 +3420,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ];
     }
     final ua = widget.userAgent;
-    (ua == null ? Future<void>.value() : Future(() async => (player.platform as dynamic).setProperty('user-agent', ua))).catchError((_) {}).then((_) => player.open(Media(url))).then((_) async {
+    (ua == null ? Future<void>.value() : Future(() async {
+      final dynamic n = player.platform;
+      await n.setProperty('user-agent', ua);
+      // le lecteur Android n'a pas de liste de certificats : on lui donne celle de Mozilla (embarquée) pour ouvrir YouTube en https, vérification gardée
+      final dir = await getTemporaryDirectory();
+      final ca = File('${dir.path}/cacert.pem');
+      if (!ca.existsSync()) await ca.writeAsBytes((await rootBundle.load('assets/cacert.pem')).buffer.asUint8List());
+      await n.setProperty('tls-ca-file', ca.path);
+    })).catchError((e) {
+      Journal.add('Bande-annonce : réglage du lecteur', e);
+    }).then((_) => player.open(Media(url))).then((_) async {
       final a = widget.audioUrl;
       if (a == null) return;
       try {
