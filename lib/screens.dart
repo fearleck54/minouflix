@@ -1041,14 +1041,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (tab != 4) setState(() => tab = 4);
       return;
     }
-    // 1) la chaîne retenue la dernière fois pour cette compétition : lecture immédiate (sauf si le guide montre autre chose)
-    final fav = chans.where((c) => c.key == Store.str('lgch_${e.lg}')).firstOrNull;
-    if (fav != null && await quickCheck(e, fav)) {
-      if (mounted) playChan(fav);
-      return;
-    }
     if (!mounted) return;
-    // 1 bis) match en cours ou imminent : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement
+    // match en cours ou imminent : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement
     if (e.ts <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 900) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recherche de la chaîne du match…'), duration: Duration(seconds: 6)));
       List<WatchPick> found = const [];
@@ -1057,8 +1051,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       } catch (_) {}
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      if (found.isNotEmpty && found.first.score >= 5) {
-        await Store.setStr('lgch_${e.lg}', found.first.c.key);
+      if (found.isNotEmpty && found.first.score >= 6) {
         playChan(found.first.c);
         return;
       }

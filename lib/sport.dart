@@ -456,7 +456,10 @@ class EvScoreboard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(x.short, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(15, w: 750)),
         ]);
-    final mid = e.live || e.post
+    final hide = Store.flag('sport_nospoil', false) && e.post && !SportCard.revealed.contains(e.id);
+    final mid = hide
+        ? Text('Score masqué', style: T(16, w: 650, color: kMut))
+        : e.live || e.post
         ? Column(mainAxisSize: MainAxisSize.min, children: [
             Text('${e.h.score ?? 0}  –  ${e.a.score ?? 0}', style: T(scoreSize, w: 900, ls: -0.02)),
             if (e.live && e.det.isNotEmpty) Text(e.det, style: T(15, w: 700, color: const Color(0xFFFF8A8F))),
@@ -471,18 +474,24 @@ class EvScoreboard extends StatelessWidget {
 }
 
 /// grande carte du prochain match / du match en cours
-class SportHero extends StatelessWidget {
+class SportHero extends StatefulWidget {
   final Ev e;
   final VoidCallback onTap;
   const SportHero({super.key, required this.e, required this.onTap});
+  @override
+  State<SportHero> createState() => _SportHeroState();
+}
 
+class _SportHeroState extends State<SportHero> {
   @override
   Widget build(BuildContext context) {
+    final e = widget.e;
     final l = lgOf(e.lg);
+    final hidden = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !SportCard.revealed.contains(e.id);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: FocusCard(
-        onTap: onTap,
+        onTap: hidden ? () => setState(() => SportCard.revealed.add(e.id)) : widget.onTap,
         radius: 26,
         child: Container(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),

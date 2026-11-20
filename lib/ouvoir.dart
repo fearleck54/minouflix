@@ -85,7 +85,7 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List
   final extra = [for (final c in chans) if (c.theme == 'sport' && !base.contains(c)) c].take(24).toList();
   final th = _tokens(e.h), ta = _tokens(e.a);
   final lgw = norm(l.n).split(RegExp(r'[^a-z0-9]+')).where((w) => w.length >= 3 && !const {'ligue', 'cup', 'coupe', 'des', 'de'}.contains(w)).toSet();
-  final fav = Store.str('lgch_${e.lg}');
+  const fav = '';      // jamais de « dernière chaîne utilisée » : le guide décide
   final out = <WatchPick>[];
   final deadline = DateTime.now().add(const Duration(seconds: 8));      // jamais plus de 8 s d'attente
   // lots : d'abord la chaîne choisie la dernière fois, puis les chaînes habituelles de la compétition, puis le reste du sport
@@ -164,7 +164,6 @@ Future<Chan?> showWatchSheet(BuildContext context, Ev e, ValueNotifier<List<Watc
               ]),
               subtitle: Text(picks[i].why, maxLines: 2, overflow: TextOverflow.ellipsis),
               onTap: () {
-                Store.setStr('lgch_${e.lg}', picks[i].c.key);
                 Navigator.pop(ctx, picks[i].c);
               },
             ),
