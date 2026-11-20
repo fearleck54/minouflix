@@ -305,6 +305,7 @@ class SportCard extends StatelessWidget {
                 child: IntrinsicHeight(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Container(width: 4, color: l.color),
+                    Container(width: 56 * z, alignment: Alignment.center, color: const Color(0x1F000000), child: LgIcon(e.lg, size: 34 * z)),      // logo de la compétition, à gauche et en grand
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(11, 8, 8, 8),
@@ -321,7 +322,7 @@ class SportCard extends StatelessWidget {
                       width: 62 * z,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       color: const Color(0x14000000),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 15 * z), const SizedBox(height: 4), Flexible(child: right)]),
+                      child: Center(child: right),
                     ),
                   ]),
                 ),
