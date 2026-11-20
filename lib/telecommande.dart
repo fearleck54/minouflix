@@ -43,7 +43,7 @@ class _TelecommandeState extends State<TelecommandeScreen> {
       );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -80,5 +80,5 @@ class _TelecommandeState extends State<TelecommandeScreen> {
             ),
           ),
         ),
-      );
+      ));
 }

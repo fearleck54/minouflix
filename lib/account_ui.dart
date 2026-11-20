@@ -193,7 +193,7 @@ class _SyncChoiceState extends State<SyncChoiceScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
         appBar: widget.first ? null : AppBar(title: const Text('Compte et synchronisation'), backgroundColor: Colors.transparent),
         body: SafeArea(
           child: Center(
@@ -234,7 +234,7 @@ class _SyncChoiceState extends State<SyncChoiceScreen> {
             ),
           ),
         ),
-      );
+      ));
 }
 
 /// ---------- page de chargement : logo, message et barre d'avancement ----------

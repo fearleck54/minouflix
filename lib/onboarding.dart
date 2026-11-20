@@ -993,7 +993,8 @@ class _SummaryLine extends StatelessWidget {
 class Aurora extends StatefulWidget {
   final Color? tint;
   final int page;
-  const Aurora({this.tint, required this.page});
+  final bool still;      // fond fixe (pages ordinaires) : rien ne bouge, rien à repeindre
+  const Aurora({super.key, this.tint, required this.page, this.still = false});
   @override
   State<Aurora> createState() => AuroraState();
 }
@@ -1004,7 +1005,7 @@ class AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final still = Perf.lite || MediaQuery.of(context).disableAnimations;
+    final still = widget.still || Perf.lite || MediaQuery.of(context).disableAnimations;
     if (still) {
       _c.stop();
     } else if (!_c.isAnimating) {

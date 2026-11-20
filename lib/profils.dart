@@ -82,7 +82,7 @@ class _ProfilsState extends State<ProfilsScreen> {
   @override
   Widget build(BuildContext context) {
     final list = Store.profiles();
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -144,6 +144,6 @@ class _ProfilsState extends State<ProfilsScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

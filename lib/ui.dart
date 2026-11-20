@@ -1481,6 +1481,14 @@ class _SkeletonBlockState extends State<SkeletonBlock> with SingleTickerProvider
 
 /// écrans de démarrage (compte, source) : sur grand écran (télé), deux colonnes qui occupent toute la largeur — formulaire à gauche,
 /// connexion par le téléphone (code, QR) à droite ; sur téléphone, une seule colonne comme avant
+/// fond dégradé de la configuration, fixe, derrière une page ordinaire
+class DsBg extends StatelessWidget {
+  final Widget child;
+  const DsBg({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => Stack(children: [const Positioned.fill(child: Aurora(page: 0, still: true)), child]);
+}
+
 class AuthLayout extends StatelessWidget {
   final int step;
   final String text;
@@ -1854,6 +1862,7 @@ class _LargeTitleState extends State<LargeTitle> {
       ]),
     );
     return Stack(children: [
+      const Positioned.fill(child: Aurora(page: 0, still: true)),
       Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxWidth),

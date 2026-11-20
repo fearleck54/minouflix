@@ -555,6 +555,7 @@ class _SportTabState extends State<SportTab> {
     return FutureBuilder<List<Ev>>(
       future: widget.future,
       builder: (_, snap) {
+        if (snap.hasError) return const EmptyState(icon: Icons.cloud_off_rounded, title: 'Matchs indisponibles', sub: 'Vérifie ta connexion, puis reviens sur cet onglet.');
         if (!snap.hasData) return const SkeletonPage(rows: true);
         final all = snap.data!;
         final keys = [for (final k in knownLeagues(Store.sportKeys)) lgOf(k)];

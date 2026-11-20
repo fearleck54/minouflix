@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // premier lancement : sur télé, formulaire à gauche et connexion par le téléphone (QR) à droite
       return AuthLayout(step: 1, text: intro, side: [if (phone.url != null) phone.card(qr: AuthLayout.wide(context) ? 170 : 110)], form: form);
     }
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -1193,7 +1193,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Timer(const Duration(seconds: 2), () => _quit = false);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Appuie encore sur Retour pour quitter')));
       },
-      child: Scaffold(
+      child: DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: Stack(children: [
         Positioned.fill(top: wide ? 78 + pad.top : 0, child: Device.tv ? KeyedSubtree(key: ValueKey(tab), child: pages[tab]) : _swipePages(pages, order)),
         // en-tête : titre à gauche, réglages à droite (navigation au centre sur grand écran)
@@ -1258,7 +1258,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         if (!wide) Positioned(left: 12 + pad.left, right: 12 + pad.right, bottom: pad.bottom + 6, child: nav),
       ]),
-    ));
+    )));
   }
 }
 
@@ -1747,8 +1747,8 @@ class _GridScreenState extends State<GridScreen> {
     final l = sortItems(widget.items, sort);
     final wide = isWide(context);
     final w = wide ? 170.0 : 118.0;
-    return Scaffold(
-      appBar: AppBar(backgroundColor: kBg, title: Text(widget.title, style: T(22, w: 750, ls: -0.03))),
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(widget.title, style: T(22, w: 750, ls: -0.03))),
       body: CustomScrollView(slivers: [
         SliverToBoxAdapter(child: Chips(labels: const ['Récents', 'Mieux notés', 'A–Z'], selected: const ['new', 'note', 'az'].indexOf(sort), onSelect: (v) => setState(() => sort = const ['new', 'note', 'az'][v]))),
         SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 2, 20, 6), child: Text('${_n(l.length)} ${l.length > 1 ? 'titres' : 'titre'}', style: T(12.5, color: kMut)))),
@@ -1761,7 +1761,7 @@ class _GridScreenState extends State<GridScreen> {
           ),
         ),
       ]),
-    );
+    ));
   }
 }
 
@@ -1787,8 +1787,8 @@ class _BrowseScreenState extends State<BrowseScreen> {
     final l = sortItems(uniqueTitles(c == 0 ? lb.inCats(cats.map((e) => e.id)) : lb.inCats([cats[c - 1].id])), sort);
     final wide = isWide(context);
     final w = wide ? 170.0 : 118.0;
-    return Scaffold(
-      appBar: AppBar(backgroundColor: kBg, title: Text(lb.kind == Kind.vod ? 'Films' : 'Séries', style: T(22, w: 750, ls: -0.03))),
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
+      appBar: AppBar(backgroundColor: Colors.transparent, title: Text(lb.kind == Kind.vod ? 'Films' : 'Séries', style: T(22, w: 750, ls: -0.03))),
       body: CustomScrollView(slivers: [
         SliverToBoxAdapter(child: Chips(labels: const ['Genres', 'Studios', 'Sélections', 'Autres'], selected: seg, onSelect: (v) => setState(() {
               seg = v;
@@ -1805,7 +1805,7 @@ class _BrowseScreenState extends State<BrowseScreen> {
           ),
         ),
       ]),
-    );
+    ));
   }
 }
 
@@ -1903,7 +1903,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final wide = isWide(context);
     final w = wide ? 170.0 : 118.0;
     final top = MediaQuery.paddingOf(context).top;
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: Column(children: [
         Padding(
           padding: EdgeInsets.fromLTRB(16, top + 8, 16, 10),
@@ -2022,7 +2022,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ]),
         ),
       ]),
-    );
+    ));
   }
 }
 
@@ -2458,7 +2458,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget content(int i) => _box(groups[i].$4);
     if (Device.tv) {
       final cur = _sec.clamp(0, groups.length - 1);
-      return Scaffold(
+      return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
         body: FocusTraversalGroup(
           policy: ReadingOrderTraversalPolicy(),
           child: Padding(
@@ -2505,9 +2505,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
         ),
-      );
+      ));
     }
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
@@ -2557,7 +2557,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
       ),
-    );
+    ));
   }
 
   List<(String, String, IconData, List<Widget>)> _groups = const [];

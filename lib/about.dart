@@ -56,7 +56,7 @@ class _TextPageState extends State<TextPage> {
   @override
   Widget build(BuildContext context) {
     final pad = MediaQuery.paddingOf(context);
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
@@ -88,6 +88,6 @@ class _TextPageState extends State<TextPage> {
           ]),
         ),
       ),
-    );
+    ));
   }
 }
