@@ -10,7 +10,7 @@ import 'l10n.dart';
 import 'onb_prefs.dart';
 import 'perf.dart';
 import 'perso.dart' show HomeSettings;
-import 'sport.dart' show Side, League, LgIcon, fetchSport, leagues, lgOf, sportName;
+import 'sport.dart' show Side, League, LgIcon, fetchSport, leagues, lgHasLogo, lgOf, sportName;
 import 'store.dart';
 import 'tmdb.dart' show Tmdb;
 import 'ui.dart';
@@ -64,6 +64,8 @@ const _tr = <String, Map<String, String>>{
   'Tout est prêt': {'es': 'Todo listo', 'de': 'Alles bereit', 'pt': 'Tudo pronto'},
   'Ton MinouFlix est préparé. Tu pourras tout modifier dans Réglages.': {'es': 'Tu MinouFlix está listo. Podrás cambiarlo todo en Ajustes.', 'de': 'Dein MinouFlix ist vorbereitet. Alles lässt sich später in den Einstellungen ändern.', 'pt': 'O teu MinouFlix está pronto. Podes mudar tudo nas Definições.'},
   'Choisir mes catégories': {'es': 'Elegir mis categorías', 'de': 'Kategorien wählen', 'pt': 'Escolher as categorias'},
+  'Quels sports ?': {'es': '¿Qué deportes?', 'de': 'Welche Sportarten?', 'pt': 'Que desportos?'},
+  'Choisis les sports que tu suis. À l\'étape suivante, tu pourras choisir les compétitions.': {'es': 'Elige los deportes que sigues. En el siguiente paso elegirás las competiciones.', 'de': 'Wähle die Sportarten, die du verfolgst. Im nächsten Schritt wählst du die Wettbewerbe.', 'pt': 'Escolhe os desportos que segues. No passo seguinte escolhes as competições.'},
   'Tes compétitions': {'es': 'Tus competiciones', 'de': 'Deine Wettbewerbe', 'pt': 'As tuas competições'},
   'Tes équipes': {'es': 'Tus equipos', 'de': 'Deine Teams', 'pt': 'As tuas equipas'},
   'Personnaliser mon accueil': {'es': 'Personalizar mi inicio', 'de': 'Startseite anpassen', 'pt': 'Personalizar o meu início'},
@@ -109,7 +111,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int step = 0, dir = 1;
   final order = <String>[];      // goûts dans l'ordre où ils sont cochés
   final ver = <String>{};
-  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) ...[4, 5], 6];
+  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) ...[4, 5, 6], 7];
+  final sports = <String>{};      // sports choisis (étape 4)
   int get _steps => _seq.length;
   int _next(int s) => _seq[(_seq.indexOf(s) + 1).clamp(0, _seq.length - 1)];
   int _prev(int s) => _seq[(_seq.indexOf(s) - 1).clamp(0, _seq.length - 1)];
@@ -127,21 +130,22 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     } else {
       try {
         final j = jsonDecode(Store.str('onb_state')) as Map;
-        step = (j['step'] as num?)?.toInt().clamp(0, 6) ?? 0;
+        step = (j['step'] as num?)?.toInt().clamp(0, 7) ?? 0;
+        sports.addAll([for (final x in (j['sports'] as List? ?? const [])) '$x']);
         order.addAll([for (final x in (j['order'] as List? ?? const [])) '$x']);
         ver.addAll([for (final x in (j['ver'] as List? ?? const [])) '$x']);
       } catch (_) {}
     }
   }
 
-  Future<void> _save() => widget.redo ? Future.value() : Store.setStr('onb_state', jsonEncode({'step': step, 'order': order, 'ver': ver.toList()}));
+  Future<void> _save() => widget.redo ? Future.value() : Store.setStr('onb_state', jsonEncode({'step': step, 'order': order, 'ver': ver.toList(), 'sports': sports.toList()}));
 
   void go(int to) {
     HapticFeedback.lightImpact();
     setState(() {
       dir = to >= step ? 1 : -1;
-      step = to.clamp(0, 6);
-      if (step == 5) _loadTeams();
+      step = to.clamp(0, 7);
+      if (step == 6) _loadTeams();
     });
     _save();
   }
@@ -217,7 +221,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Widget _page(BuildContext context) {
     final tv = Device.tv;
-    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _competitions(tv), _teams(tv), _recap(tv)];
+    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _sportsPage(tv), _leaguesPage(tv), _teams(tv), _recap(tv)];
     final fwd = dir >= 0;
     return AnimatedSwitcher(
       duration: Duration(milliseconds: reduce || Perf.lite ? 160 : 420),
@@ -248,7 +252,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     Widget? extra,
   }) {
     final pos = _seq.indexOf(step);
-    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 6 ? go(_next(step)) : _finish() : null);
+    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 7 ? go(_next(step)) : _finish() : null);
     final titleW = [
       _In(i: 0, child: mat(_t('ÉTAPE ${pos + 1} SUR $_steps', 'STEP ${pos + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
@@ -273,7 +277,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             ]),
           ),
           const SizedBox(width: 40),
-          Expanded(child: Center(child: SingleChildScrollView(child: content))),
+          Expanded(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(12), child: content))),
         ]),
       );
     }
@@ -425,7 +429,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       tv: tv,
       primary: _t('Continuer', 'Continue'),
       enabled: order.isNotEmpty,
-      onPrimary: () => go(order.contains('sport') ? 4 : 6),
+      onPrimary: () {
+        if (order.contains('sport') && sports.isEmpty) sports.addAll({for (final k in Store.sportKeys) sportName(lgOf(k))});
+        go(order.contains('sport') ? 4 : 7);
+      },
       content: LayoutBuilder(builder: (context, c) {
         final w = (tv ? 148.0 * cols + 24 : c.maxWidth);
         const gap = 12.0;
@@ -457,59 +464,136 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
-  // ---------------------------------------------------------------- 4. compétitions (cartes à cocher)
-  Widget _competitions(bool tv) {
+  // ---------------------------------------------------------------- 4. sports (large) puis 5. compétitions de ces sports
+  static const _sportIcons = {
+    'Football': Icons.sports_soccer_rounded,
+    'Rugby': Icons.sports_rugby_rounded,
+    'Formule 1': Icons.sports_motorsports_rounded,
+    'Basketball': Icons.sports_basketball_rounded,
+    'Football américain': Icons.sports_football_rounded,
+    'Hockey sur glace': Icons.sports_hockey_rounded,
+  };
+
+  /// compétitions des sports choisis ; les sports décochés en retirent leurs compétitions, un sport sans compétition reçoit ses compétitions habituelles
+  Future<void> _applySports() async {
+    final keep = {for (final k in Store.sportKeys) if (sports.contains(sportName(lgOf(k)))) k};
+    for (final sp in sports) {
+      final of = [for (final l in leagues) if (sportName(l) == sp) l];
+      if (!of.any((l) => keep.contains(l.k))) keep.addAll([for (final l in of) if (l.def) l.k]);
+      if (!of.any((l) => keep.contains(l.k)) && of.isNotEmpty) keep.add(of.first.k);
+    }
+    await Store.saveSportKeys(keep.toList());
+    _teamsKey = '';
+  }
+
+  Widget _sportsPage(bool tv) {
+    final names = <String>[];
+    for (final l in leagues) {
+      final n = sportName(l);
+      if (!names.contains(n)) names.add(n);
+    }
+    final cols = tv ? 3 : 2;
+    final firstSel = names.indexWhere(sports.contains);
+    return _shell(
+      title: _t('Quels sports ?', 'Which sports?'),
+      sub: _t('Choisis les sports que tu suis. À l\'étape suivante, tu pourras choisir les compétitions.', 'Pick the sports you follow. Next, you can choose the competitions.'),
+      tv: tv,
+      primary: _t('Continuer', 'Continue'),
+      enabled: sports.isNotEmpty,
+      onPrimary: () async {
+        await _applySports();
+        go(5);
+      },
+      content: LayoutBuilder(builder: (context, c) {
+        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        const gap = 12.0;
+        final cw = (w - gap * (cols - 1)) / cols;
+        return SizedBox(
+          width: w,
+          child: Wrap(spacing: gap, runSpacing: gap, children: [
+            for (final (i, n) in names.indexed)
+              SizedBox(
+                width: cw,
+                child: _In(
+                  i: 3 + i,
+                  child: _Card(
+                    label: n,
+                    icon: _sportIcons[n] ?? Icons.emoji_events_rounded,
+                    a: const Color(0xFF34D399),
+                    b: const Color(0xFF0E8A6A),
+                    selected: sports.contains(n),
+                    height: tv ? 112 : 112,
+                    autofocus: tv && i == (firstSel < 0 ? 0 : firstSel),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => sports.contains(n) ? sports.remove(n) : sports.add(n));
+                      _save();
+                    },
+                  ),
+                ),
+              ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  Widget _leaguesPage(bool tv) {
     final sel = {...Store.sportKeys};
     final bySport = <String, List<League>>{};
     for (final l in leagues) {
-      (bySport[sportName(l)] ??= []).add(l);
+      final sp = sportName(l);
+      if (sports.isEmpty || sports.contains(sp)) (bySport[sp] ??= []).add(l);
     }
-    final firstSel = leagues.indexWhere((l) => sel.contains(l.k));
-    final cols = tv ? 3 : 2;
+    final firstSel = [for (final l in bySport.values.expand((x) => x)) l].indexWhere((l) => sel.contains(l.k));
+    final cols = tv ? 2 : 1;      // noms entiers : cartes larges
     return _shell(
       title: _t('Tes compétitions', 'Your competitions'),
       sub: _t('Coche celles que tu suis : leurs matchs passent en premier.', 'Tick the ones you follow: their matches come first.'),
       tv: tv,
       primary: _t('Continuer', 'Continue'),
-      onPrimary: () => go(5),
+      onPrimary: () => go(6),
       content: LayoutBuilder(builder: (context, c) {
-        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        final w = tv ? 470.0 : c.maxWidth;
         const gap = 10.0;
         final cw = (w - gap * (cols - 1)) / cols;
-        var n = 0;
+        var n = -1;
         return SizedBox(
           width: w,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            for (final e in bySport.entries) ...[
-              Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text(e.key.toUpperCase(), style: T(12, w: 700, color: kMut, ls: 0.08))),
-              Wrap(spacing: gap, runSpacing: gap, children: [
-                for (final l in e.value)
-                  Builder(builder: (_) {
-                    final idx = leagues.indexOf(l);
-                    n++;
-                    return SizedBox(
-                      width: cw,
-                      child: _PickTile(
-                        leading: LgIcon(l.k, size: 30),
-                        label: l.n,
-                        on: sel.contains(l.k),
-                        a: l.color,
-                        b: l.color.withOpacity(0.6),
-                        autofocus: tv && (firstSel >= 0 ? idx == firstSel : idx == 0),
-                        onTap: () async {
-                          HapticFeedback.selectionClick();
-                          final k = {...Store.sportKeys};
-                          k.contains(l.k) ? k.remove(l.k) : k.add(l.k);
-                          await Store.saveSportKeys(k.toList());
-                          _teamsKey = '';
-                          if (mounted) setState(() {});
-                        },
-                      ),
-                    );
-                  }),
-              ]),
-            ],
-          ]),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final e in bySport.entries) ...[
+                Padding(padding: const EdgeInsets.fromLTRB(4, 8, 4, 8), child: Text(e.key.toUpperCase(), style: T(12, w: 700, color: kMut, ls: 0.08))),
+                Wrap(spacing: gap, runSpacing: gap, children: [
+                  for (final l in e.value)
+                    Builder(builder: (_) {
+                      n++;
+                      final idx = n;
+                      return SizedBox(
+                        width: cw - (tv ? 8 : 0) / cols,
+                        child: _PickTile(
+                          leading: lgHasLogo(l.k) ? LgIcon(l.k, size: 28) : const Icon(Icons.emoji_events_rounded, size: 24, color: Colors.white70),
+                          label: l.n,
+                          on: sel.contains(l.k),
+                          a: l.color,
+                          b: l.color.withOpacity(0.6),
+                          autofocus: tv && idx == (firstSel < 0 ? 0 : firstSel),
+                          onTap: () async {
+                            HapticFeedback.selectionClick();
+                            final k = {...Store.sportKeys};
+                            k.contains(l.k) ? k.remove(l.k) : k.add(l.k);
+                            await Store.saveSportKeys(k.toList());
+                            _teamsKey = '';
+                            if (mounted) setState(() {});
+                          },
+                        ),
+                      );
+                    }),
+                ]),
+              ],
+            ]),
+          ),
         );
       }),
     );
@@ -600,7 +684,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       sub: _t('Coche tes équipes préférées : leurs matchs sont mis en avant.', 'Tick your favourite teams: their matches are highlighted.'),
       tv: tv,
       primary: _t('Continuer', 'Continue'),
-      onPrimary: () => go(6),
+      onPrimary: () => go(7),
       content: body(),
     );
   }
@@ -1156,7 +1240,7 @@ class _PickTile extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          height: 68,
+          constraints: const BoxConstraints(minHeight: 68),
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
@@ -1167,7 +1251,7 @@ class _PickTile extends StatelessWidget {
           child: Row(children: [
             Container(width: 40, height: 40, alignment: Alignment.center, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(on ? 0.16 : 0.08)), child: leading),
             const SizedBox(width: 10),
-            Expanded(child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(14, w: 700, h: 1.15))),
+            Expanded(child: Text(label, maxLines: 3, style: T(14, w: 700, h: 1.15))),
             _Tick(on: on),
           ]),
         ),

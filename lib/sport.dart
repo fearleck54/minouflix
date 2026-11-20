@@ -96,6 +96,8 @@ class LgIcon extends StatelessWidget {
   }
 }
 
+bool lgHasLogo(String k) => _lgLogo.containsKey(k);
+
 League lgOf(String k) => leagues.firstWhere((l) => l.k == k);
 
 /// compétitions connues seulement (une clé inconnue, venue d'une autre version par la synchro, ferait tout échouer)

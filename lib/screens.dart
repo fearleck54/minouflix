@@ -39,6 +39,7 @@ import 'pin_guard.dart';
 import 'osk.dart';
 import 'trakt.dart';
 import 'onb_prefs.dart';
+import 'choice.dart';
 import 'onboarding.dart';
 import 'trakt_ui.dart';
 import 'person.dart';
@@ -2670,10 +2671,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// choix dans une liste à coche (qualité, langues)
   void _pickPage(String title, List<(String, String)> opts, String Function() cur, Future<void> Function(String) pick, {String foot = ''}) => _page(title, () => [
-        _box([for (final o in opts) _row(null, kAccent, o.$2, check: o.$1 == cur(), onTap: () async {
-              await pick(o.$1);
-              if (mounted) setState(() {});
-            })]),
+        ChoiceGrid(
+          options: opts,
+          selected: cur(),
+          onPick: (v) async {
+            await pick(v);
+            if (mounted) setState(() {});
+          },
+        ),
         if (foot.isNotEmpty) _foot(foot),
       ]);
 
