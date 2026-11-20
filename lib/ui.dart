@@ -235,6 +235,7 @@ class _FocusCardState extends State<FocusCard> {
           best = others.first;
         }
       }
+      if (best == null && mine == null) return true;      // bout de la barre du haut (réglages, recherche…) : on ne descend pas à la ligne du dessous
       if (best == null && sc != null && (sc.axisDirection == AxisDirection.left || sc.axisDirection == AxisDirection.right)) return true;      // bout de rangée : on ne bouge pas
       if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
     } else {
