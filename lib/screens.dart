@@ -1547,9 +1547,9 @@ class HomeTab extends StatelessWidget {
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
     return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
-      // télé : pas de grande affiche ; le Top 10 passe tout en haut
-      if (Device.tv) const SizedBox(height: 8) else if (!hid.contains('hero')) secs['hero']! else SizedBox(height: pad.top + 70),
-      for (final id in Device.tv ? ['top10', ...Store.homeOrder().where((x) => x != 'top10')] : Store.homeOrder())
+      // plus de grande affiche nulle part (télé, Android, iPhone) : le Top 10 passe tout en haut
+      if (Device.tv || wide) const SizedBox(height: 8) else SizedBox(height: pad.top + 70),
+      for (final id in ['top10', ...Store.homeOrder().where((x) => x != 'top10')])
         if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
     ]);
   }

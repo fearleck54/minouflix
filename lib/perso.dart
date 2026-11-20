@@ -285,8 +285,7 @@ class _HomeState extends State<HomeSettings> {
               child: Container(
                 decoration: BoxDecoration(color: kGlass, borderRadius: BorderRadius.circular(16), border: Border.all(color: kEdge, width: 0.8)),
                 child: Column(children: [
-                  row('hero', movable: false),
-                  for (final id in mv) ...[const Divider(height: 0.5, thickness: 0.5, indent: 18, color: kEdge), row(id)],
+                  for (final (i, id) in mv.indexed) ...[if (i > 0) const Divider(height: 0.5, thickness: 0.5, indent: 18, color: kEdge), row(id)],
                 ]),
               ),
             ),
