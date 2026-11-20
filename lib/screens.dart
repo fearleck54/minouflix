@@ -1048,6 +1048,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
     if (!mounted) return;
+    // 1 bis) match en cours ou imminent : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement
+    if (e.ts <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 900) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recherche de la chaîne du match…'), duration: Duration(seconds: 6)));
+      List<WatchPick> found = const [];
+      try {
+        found = await whereToWatch(e, chans).timeout(const Duration(seconds: 6));
+      } catch (_) {}
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (found.isNotEmpty && found.first.score >= 5) {
+        await Store.setStr('lgch_${e.lg}', found.first.c.key);
+        playChan(found.first.c);
+        return;
+      }
+    }
     // 2) sinon : la liste s'affiche tout de suite (chaînes habituelles), le guide la précise au fur et à mesure
     final live = ValueNotifier<List<WatchPick>>(quickPicks(e, chans));
     final busy = ValueNotifier<bool>(true);
