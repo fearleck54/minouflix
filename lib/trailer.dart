@@ -25,22 +25,49 @@ class _Relay {
           return;
         }
         try {
-          final r = http.Request(req.method == 'HEAD' ? 'GET' : req.method, Uri.parse(t.$1))..headers['User-Agent'] = t.$2;
-          final range = req.headers.value('range');
-          if (range != null) r.headers['Range'] = range;
-          final up = await _client.send(r).timeout(const Duration(seconds: 20));
-          Journal.add('Bande-annonce : relais ${req.method} ${req.uri.path}', 'plage ${range ?? '-'} -> HTTP ${up.statusCode} ${up.headers['content-type']} ${up.headers['content-length']}');
-          req.response.statusCode = up.statusCode;
-          for (final h in ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
-            final v = up.headers[h];
-            if (v != null) req.response.headers.set(h, v);
+          // YouTube refuse les demandes sans borne (« bytes=0- ») : on lit par tranches de 6 Mo et on les enchaîne vers le lecteur
+          const chunk = 6 * 1024 * 1024;
+          final m = RegExp(r'bytes=(\d*)-(\d*)').firstMatch(req.headers.value('range') ?? '');
+          final start = int.tryParse(m?.group(1) ?? '') ?? 0;
+          final wantEnd = int.tryParse(m?.group(2) ?? '');
+          Future<http.StreamedResponse> tranche(int from) {
+            final r = http.Request('GET', Uri.parse(t.$1))
+              ..headers['User-Agent'] = t.$2
+              ..headers['Range'] = 'bytes=$from-${from + chunk - 1}';
+            return _client.send(r).timeout(const Duration(seconds: 20));
           }
-          if (req.method == 'HEAD') {
-            await req.response.close();
+
+          var up = await tranche(start);
+          final total = int.tryParse(RegExp(r'/(\d+)$').firstMatch(up.headers['content-range'] ?? '')?.group(1) ?? '') ?? (start + (up.contentLength ?? 0));
+          final end = wantEnd == null || wantEnd >= total ? total - 1 : wantEnd;
+          final res = req.response;
+          res.statusCode = m == null ? 200 : 206;
+          res.headers.set('content-type', up.headers['content-type'] ?? 'application/octet-stream');
+          res.headers.set('accept-ranges', 'bytes');
+          res.headers.set('content-length', '${end - start + 1}');
+          if (m != null) res.headers.set('content-range', 'bytes $start-$end/$total');
+          Journal.add('Bande-annonce : relais ${req.method} ${req.uri.path}', 'octets $start-$end/$total, amont HTTP ${up.statusCode}');
+          if (req.method == 'HEAD' || up.statusCode >= 400) {
+            if (up.statusCode >= 400) res.statusCode = up.statusCode;
+            await res.close();
             return;
           }
-          await req.response.addStream(up.stream);
-          await req.response.close();
+          var pos = start;
+          while (true) {
+            await for (final b in up.stream) {
+              if (pos + b.length > end + 1) {
+                res.add(b.sublist(0, end + 1 - pos));
+                pos = end + 1;
+                break;
+              }
+              res.add(b);
+              pos += b.length;
+            }
+            if (pos > end) break;
+            up = await tranche(pos);
+            if (up.statusCode >= 400) break;
+          }
+          await res.close();
         } catch (e) {
           Journal.add('Bande-annonce : relais', e);
           try {
