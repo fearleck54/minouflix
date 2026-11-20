@@ -46,8 +46,6 @@ class Journal {
       if (st != null) body += '\n${st.toString().split('\n').take(8).join('\n')}';
       if (body.length > 2000) body = body.substring(0, 2000);
       final line = '$head  ${scrub(body)}\n';
-      // ignore: avoid_print
-      if (what.startsWith('Bande-annonce')) print('JOURNAL|${scrub(body)}');      // relu par adb pendant les essais
       final f = _f;
       if (f == null) {
         if (_mem.length < 200) _mem.add(line);

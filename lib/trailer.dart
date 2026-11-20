@@ -17,7 +17,6 @@ class _Relay {
     _targets[key] = (url, ua);
     _srv ??= await HttpServer.bind(InternetAddress.loopbackIPv4, 0)
       ..listen((req) async {
-        Journal.add('Bande-annonce : relais reçoit', '${req.method} ${req.uri.path}');
         final t = _targets[req.uri.path.substring(1)];
         if (t == null) {
           req.response.statusCode = 404;
@@ -46,7 +45,6 @@ class _Relay {
           res.headers.set('accept-ranges', 'bytes');
           res.headers.set('content-length', '${end - start + 1}');
           if (m != null) res.headers.set('content-range', 'bytes $start-$end/$total');
-          Journal.add('Bande-annonce : relais ${req.method} ${req.uri.path}', 'octets $start-$end/$total, amont HTTP ${up.statusCode}');
           if (req.method == 'HEAD' || up.statusCode >= 400) {
             if (up.statusCode >= 400) res.statusCode = up.statusCode;
             await res.close();
@@ -97,7 +95,6 @@ class Trailer {
       Future<bool> ok(String url) async {
         try {
           final r = await http.get(Uri.parse(url), headers: {'User-Agent': ua, 'Range': 'bytes=0-1048575'}).timeout(const Duration(seconds: 12));
-          Journal.add('Bande-annonce : essai d\'un flux', 'HTTP ${r.statusCode}');
           return r.statusCode == 200 || r.statusCode == 206;
         } catch (e) {
           Journal.add('Bande-annonce : essai d\'un flux', e);

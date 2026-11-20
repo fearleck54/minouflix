@@ -3416,7 +3416,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (widget.debug && _dbg == null) {
       _dbg = [
         player.stream.error.listen((e) => Journal.add('Bande-annonce : erreur du lecteur', e)),
-        player.stream.log.listen((l) => Journal.add('Bande-annonce : lecteur', '${l.prefix} ${l.level} ${l.text}')),
       ];
     }
     Future<void>.value().then((_) => player.open(Media(url))).then((_) async {
