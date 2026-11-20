@@ -1,5 +1,7 @@
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
+import 'package:http/http.dart' as http;
+
 import 'journal.dart';
 
 /// bande-annonce lue dans le lecteur de l'appli : adresse du flux YouTube (image, et son à part si besoin)
@@ -15,6 +17,14 @@ class Trailer {
       final v = m.videoOnly.where((s) => s.container == StreamContainer.mp4 && s.videoResolution.height <= 1080).toList()
         ..sort((a, b) => a.videoResolution.height.compareTo(b.videoResolution.height));
       final a = m.audioOnly.where((s) => s.container == StreamContainer.mp4).toList();
+      if (v.isNotEmpty) {
+        try {
+          final r = await http.get(Uri.parse(v.last.url.toString()), headers: {'User-Agent': ua, 'Range': 'bytes=0-1'}).timeout(const Duration(seconds: 10));
+          Journal.add('Bande-annonce : essai du flux image ${v.last.videoResolution.height}p', 'HTTP ${r.statusCode}');
+        } catch (e) {
+          Journal.add('Bande-annonce : essai du flux image', e);
+        }
+      }
       if (v.isNotEmpty && a.isNotEmpty) return (v.last.url.toString(), a.withHighestBitrate().url.toString(), ua);
       if (m.muxed.isNotEmpty) return (m.muxed.withHighestBitrate().url.toString(), null, ua);
     } catch (e) {

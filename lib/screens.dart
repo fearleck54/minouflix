@@ -3412,6 +3412,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!mounted || _fail != null) return;
       if (player.state.position == Duration.zero && player.state.duration == Duration.zero) _failed('Le flux ne démarre pas.');
     });
+    if (widget.userAgent != null && _dbg == null) {
+      _dbg = [
+        player.stream.error.listen((e) => Journal.add('Bande-annonce : erreur du lecteur', e)),
+        player.stream.log.listen((l) => Journal.add('Bande-annonce : lecteur', '${l.prefix} ${l.level} ${l.text}')),
+      ];
+    }
     final ua = widget.userAgent;
     (ua == null ? Future<void>.value() : Future(() async => (player.platform as dynamic).setProperty('user-agent', ua))).catchError((_) {}).then((_) => player.open(Media(url))).then((_) async {
       final a = widget.audioUrl;
@@ -3421,6 +3427,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       } catch (_) {}
     });
   }
+
+  List<StreamSubscription>? _dbg;
 
   void _failed(String why) {
     if (!mounted || _fail != null) return;
@@ -3739,6 +3747,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _banner?.cancel();
     _first.dispose();
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', false).catchError((_) {});
+    for (final d in _dbg ?? <StreamSubscription>[]) {
+      d.cancel();
+    }
     player.dispose();
     super.dispose();
   }
