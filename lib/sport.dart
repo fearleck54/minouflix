@@ -1,5 +1,6 @@
 import 'store.dart';
 import 'onboarding.dart';
+import 'dart:ui' as ui;
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -379,6 +380,96 @@ String dayTitle(Ev e) {
   return '${_jfull[t.weekday - 1]} ${t.day} ${_mois[t.month - 1]}';
 }
 
+/// décor de la grande carte : projecteurs en haut, terrain (ou piste) en bas ; dessin simple, sans image ni flou (léger pour les boîtiers)
+class _Stadium extends CustomPainter {
+  final League l;
+  final bool live;
+  const _Stadium(this.l, this.live);
+  @override
+  void paint(Canvas c, Size s) {
+    final sport = l.espn.split('/').first;
+    final tint = Color.lerp(l.color, Colors.white, 0.35)!;
+    for (final x in [0.12, 0.88]) {
+      c.drawCircle(Offset(s.width * x, 0), s.height * 0.7, Paint()..shader = ui.Gradient.radial(Offset(s.width * x, 0), s.height * 0.7, [tint.withOpacity(0.30), tint.withOpacity(0)]));
+    }
+    final top = s.height * 0.70;
+    if (sport == 'racing') {
+      c.drawRect(Rect.fromLTWH(0, top, s.width, s.height - top), Paint()..shader = ui.Gradient.linear(Offset(0, top), Offset(0, s.height), [const Color(0x00000000), const Color(0xFF1B1D24)]));
+      final k = s.height * 0.035;
+      for (var i = 0; i * k * 2 < s.width; i++) {
+        c.drawRect(Rect.fromLTWH(i * k * 2, s.height - k * 2, k, k), Paint()..color = const Color(0xFFE5484D).withOpacity(0.8));
+        c.drawRect(Rect.fromLTWH(i * k * 2 + k, s.height - k * 2, k, k), Paint()..color = Colors.white.withOpacity(0.8));
+      }
+    } else {
+      final g = sport == 'basketball' ? const Color(0xFFB8742E) : const Color(0xFF1E8A4C);
+      c.drawRect(Rect.fromLTWH(0, top, s.width, s.height - top), Paint()..shader = ui.Gradient.linear(Offset(0, top), Offset(0, s.height), [g.withOpacity(0), g.withOpacity(0.55)]));
+      final line = Paint()
+        ..color = Colors.white.withOpacity(0.16)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      c.drawLine(Offset(0, top + (s.height - top) * 0.45), Offset(s.width, top + (s.height - top) * 0.45), line);
+      c.drawOval(Rect.fromCenter(center: Offset(s.width / 2, top + (s.height - top) * 0.45), width: s.height * 0.5, height: s.height * 0.14), line);
+    }
+    if (live) {
+      final dot = Paint()..color = Colors.white.withOpacity(0.18);
+      for (var i = 0; i < 26; i++) {
+        c.drawCircle(Offset(s.width * (i / 25), s.height * (0.58 + (i % 3) * 0.018)), 1.3, dot);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _Stadium o) => o.l.k != l.k || o.live != live;
+}
+
+/// pastille « EN DIRECT » (rouge, point blanc) + minute / état
+Widget livePill(Ev e) => Container(
+      padding: const EdgeInsets.fromLTRB(11, 5, 13, 5),
+      decoration: BoxDecoration(color: const Color(0xFFE5484D), borderRadius: BorderRadius.circular(99)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+        const SizedBox(width: 7),
+        Text('EN DIRECT', style: T(12, w: 850, ls: 0.06)),
+        if (e.det.isNotEmpty && !e.f1) ...[const SizedBox(width: 8), Text(e.det, style: T(12, w: 650))],
+      ]),
+    );
+
+/// tableau de score : écussons, score, minute (grande carte et feuille « Où le voir »)
+class EvScoreboard extends StatelessWidget {
+  final Ev e;
+  final double crest, scoreSize;
+  const EvScoreboard({super.key, required this.e, this.crest = 84, this.scoreSize = 52});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = lgOf(e.lg);
+    if (e.f1) {
+      return Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(e.h.short.toUpperCase(), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(scoreSize * 0.62, w: 850, ls: -0.02)),
+        const SizedBox(height: 4),
+        Text(e.a.short, textAlign: TextAlign.center, style: T(scoreSize * 0.36, w: 650, color: Color.lerp(l.color, Colors.white, 0.75)!)),
+        if (e.lieu.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 2), child: Text(e.lieu, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(13, color: kMut))),
+      ]);
+    }
+    Widget side(Side x) => Column(mainAxisSize: MainAxisSize.min, children: [
+          _logo(x.logo, s: crest),
+          const SizedBox(height: 8),
+          Text(x.short, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(15, w: 750)),
+        ]);
+    final mid = e.live || e.post
+        ? Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('${e.h.score ?? 0}  –  ${e.a.score ?? 0}', style: T(scoreSize, w: 900, ls: -0.02)),
+            if (e.live && e.det.isNotEmpty) Text(e.det, style: T(15, w: 700, color: const Color(0xFFFF8A8F))),
+          ])
+        : Text('VS', style: T(scoreSize * 0.45, w: 800, color: kMut));
+    return Row(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: side(e.h)),
+      Padding(padding: EdgeInsets.only(top: crest * 0.18), child: mid),
+      Expanded(child: side(e.a)),
+    ]);
+  }
+}
+
 /// grande carte du prochain match / du match en cours
 class SportHero extends StatelessWidget {
   final Ev e;
@@ -388,45 +479,37 @@ class SportHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = lgOf(e.lg);
-    Widget side(Side s) => Column(mainAxisSize: MainAxisSize.min, children: [_logo(s.logo, s: 56), const SizedBox(height: 8), Text(s.short, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(15, w: 750))]);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: FocusCard(
         onTap: onTap,
-        radius: 22,
+        radius: 26,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: e.live ? const Color(0xFFE5484D) : l.color.withOpacity(0.55), width: 1),
-            gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color.alphaBlend(l.color.withOpacity(0.46), const Color(0xFF0F1218)), const Color(0xFF0F1218)]),
-            boxShadow: Perf.lite ? null : [BoxShadow(color: l.color.withOpacity(0.28), blurRadius: 28, spreadRadius: -10, offset: const Offset(0, 14))],
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: e.live ? const Color(0xFFE5484D) : l.color.withOpacity(0.55), width: e.live ? 1.4 : 1),
+            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color.alphaBlend(l.color.withOpacity(0.30), const Color(0xFF0B0E16)), const Color(0xFF080A10)]),
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(children: [
-            Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _Motif(l)))),
-            if (!Perf.lite) Positioned(right: -18, bottom: -22, child: IgnorePointer(child: Opacity(opacity: 0.12, child: LgIcon(e.lg, size: 150)))),
-            Column(children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: e.live ? const Color(0xFFE5484D) : const Color(0x33000000), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0x26FFFFFF), width: 0.6)),
-                child: Text(e.live ? 'En direct${e.det.isNotEmpty ? ' · ${e.det}' : ''}' : whenLabel(e).toLowerCase(), style: T(13, w: 650)),
+            Positioned.fill(child: IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: _Stadium(l, e.live))))),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: e.live
+                    ? livePill(e)
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: const Color(0x33000000), borderRadius: BorderRadius.circular(99), border: Border.all(color: const Color(0x26FFFFFF), width: 0.6)),
+                        child: Text(whenLabel(e).toLowerCase(), style: T(13, w: 650)),
+                      ),
               ),
-            ),
-            const SizedBox(height: 10),
-            if (e.f1)
-              Column(children: [Text(e.h.short.toUpperCase(), textAlign: TextAlign.center, style: T(30, w: 850, ls: -0.02)), const SizedBox(height: 6), Text(e.a.short, style: T(16, w: 600)), if (e.lieu.isNotEmpty) Text(e.lieu, style: T(13, color: kMut))])
-            else
-              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(child: side(e.h)),
-                Padding(padding: const EdgeInsets.only(top: 18), child: e.live ? Text('${e.h.score ?? 0} - ${e.a.score ?? 0}', style: T(30, w: 850)) : Text('VS', style: T(18, w: 700, color: kMut))),
-                Expanded(child: side(e.a)),
-              ]),
-            const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 16), const SizedBox(width: 6), Text(l.n, style: T(13, w: 650, color: Color.lerp(l.color, Colors.white, 0.7)!))]),
-          ]),
+              const SizedBox(height: 12),
+              EvScoreboard(e: e, crest: 88, scoreSize: 56),
+              const SizedBox(height: 14),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 18), const SizedBox(width: 7), Text(l.n, style: T(14, w: 700, color: Color.lerp(l.color, Colors.white, 0.75)!))]),
+            ]),
           ]),
         ),
       ),

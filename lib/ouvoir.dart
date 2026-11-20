@@ -142,11 +142,14 @@ Future<Chan?> showWatchSheet(BuildContext context, Ev e, ValueNotifier<List<Watc
         child: ValueListenableBuilder<List<WatchPick>>(
         valueListenable: live,
         builder: (_, picks, __) => ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(8, 12, 8, 12), children: [
-          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 2), child: Text('Où le voir ?', style: T(19, w: 750))),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 10), child: Column(children: [
+            if (e.live) Padding(padding: const EdgeInsets.only(bottom: 10), child: livePill(e)),
+            EvScoreboard(e: e, crest: 64, scoreSize: 44),
+          ])),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(children: [
-              Expanded(child: Text('${e.h.short} – ${e.a.short}', style: T(14, color: kMut))),
+              Expanded(child: Text('Chaînes correspondantes', style: T(13, w: 750, color: kMut, ls: 0.04))),
               ValueListenableBuilder<bool>(valueListenable: busy, builder: (_, b, __) => b ? Text('Vérification du guide…', style: T(13, color: kMut)) : const SizedBox.shrink()),
             ]),
           ),
