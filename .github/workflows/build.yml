@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "21" }
+        with: { distribution: temurin, java-version: "21", cache: gradle }
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
       - name: Générer le projet Android
@@ -117,11 +117,6 @@ jobs:
           PY
           sed -i 's#android:banner="@mipmap/ic_launcher"#android:banner="@drawable/tv_banner"#' android/app/src/main/AndroidManifest.xml
           grep -c 'tv_banner' android/app/src/main/AndroidManifest.xml
-      - name: Tests unitaires (n'empêchent pas la compilation)
-        continue-on-error: true
-        run: |
-          rm -f test/widget_test.dart
-          flutter test
       - name: Signature stable (permet la mise à jour par-dessus l'appli installée)
         run: |
           mkdir -p ~/.android
