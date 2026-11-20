@@ -361,7 +361,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(2),
       content: LayoutBuilder(builder: (context, c) {
-        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        final w = math.min(c.maxWidth, 148.0 * cols + 24);
         const gap = 12.0;
         final cw = (w - gap * (cols - 1)) / cols;
         return SizedBox(
@@ -440,7 +440,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         go(order.contains('sport') ? 4 : 7);
       },
       content: LayoutBuilder(builder: (context, c) {
-        final w = (tv ? 148.0 * cols + 24 : c.maxWidth);
+        final w = math.min(c.maxWidth, 148.0 * cols + 24);
         const gap = 12.0;
         final cw = (w - gap * (cols - 1)) / cols;
         return SizedBox(
@@ -511,7 +511,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         go(5);
       },
       content: LayoutBuilder(builder: (context, c) {
-        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        final w = math.min(c.maxWidth, 148.0 * cols + 24);
         const gap = 12.0;
         final cw = (w - gap * (cols - 1)) / cols;
         return SizedBox(
@@ -560,7 +560,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(6),
       content: LayoutBuilder(builder: (context, c) {
-        final w = tv ? 148.0 * cols + 24 : c.maxWidth - 16;
+        final w = math.min(c.maxWidth - 16, 148.0 * cols + 24);
         const gap = 10.0;
         final cw = (w - gap * (cols - 1)) / cols;
         var n = -1;
@@ -645,7 +645,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         return Padding(padding: const EdgeInsets.all(24), child: Text(_t('Aucune équipe à proposer pour l\'instant : tu pourras les choisir plus tard dans Sport.', 'No teams to suggest right now: you can pick them later in Sport.'), style: T(15, color: kMut, h: 1.4)));
       }
       return LayoutBuilder(builder: (context, c) {
-        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        final w = math.min(c.maxWidth, 148.0 * cols + 24);
         const gap = 10.0;
         final cw = (w - gap * (cols - 1)) / cols;
         var first = true;
