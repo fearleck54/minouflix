@@ -134,8 +134,8 @@ jobs:
         run: |
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :FlutterDeepLinkingEnabled bool false" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Dicter une recherche" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string Dicter une recherche" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string MinouFlix utilise le micro uniquement quand vous appuyez sur le bouton micro de la recherche, pour dicter le titre d un film ou d une série." ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string MinouFlix utilise la reconnaissance vocale d Apple pour transformer votre voix en texte dans la recherche. Rien n est enregistré par l application." ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/Runner/Info.plist
