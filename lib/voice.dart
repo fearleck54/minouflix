@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:flutter/material.dart' as mat show Text;
 import 'package:speech_to_text/speech_to_text.dart';
 import 'l10n.dart';
 import 'ui.dart';
@@ -42,7 +43,7 @@ class _VoiceButtonState extends State<VoiceButton> {
     } catch (_) {
       if (mounted) {
         setState(() => _on = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(L.tr('Recherche vocale indisponible sur cet appareil.'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: mat.Text(L.tr('Recherche vocale indisponible sur cet appareil.'))));
       }
     }
   }
