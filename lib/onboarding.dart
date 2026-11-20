@@ -1165,7 +1165,7 @@ class FlagOrb extends StatelessWidget {
           border: Border.all(color: Colors.white.withOpacity(on ? 0.9 : 0.35), width: 2),
           boxShadow: Perf.lite ? null : [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        child: ClipOval(child: CustomPaint(painter: _FlagPainter(code), foregroundPainter: _SheenPainter())),
+        child: ClipOval(child: CustomPaint(painter: _FlagPainter(code), foregroundPainter: Perf.lite ? null : _SheenPainter())),
       );
 }
 

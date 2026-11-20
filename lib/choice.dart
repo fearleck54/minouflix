@@ -57,7 +57,7 @@ class ChoiceCard extends StatelessWidget {
         autofocus: autofocus,
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: Perf.lite ? Duration.zero : const Duration(milliseconds: 200),
           constraints: const BoxConstraints(minHeight: 64),
           padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
           decoration: BoxDecoration(
@@ -67,10 +67,10 @@ class ChoiceCard extends StatelessWidget {
             border: Border.all(color: selected ? const Color(0x59FFFFFF) : kEdge, width: selected ? 1.5 : 1),
           ),
           child: Row(children: [
-            if (flag != null) ...[FlagOrb(code: flag!, size: 30, on: selected), const SizedBox(width: 10)],
+            if (flag != null) ...[RepaintBoundary(child: FlagOrb(code: flag!, size: 30, on: selected)), const SizedBox(width: 10)],
             Expanded(child: Text(label, maxLines: 3, style: T(15, w: 650, h: 1.15))),
             const SizedBox(width: 8),
-            AnimatedScale(
+            if (Perf.lite) (selected ? Container(width: 22, height: 22, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: const Icon(Icons.check_rounded, size: 16, color: Color(0xFF16203A))) : const SizedBox(width: 22)) else AnimatedScale(
               scale: selected ? 1 : 0.4,
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutBack,

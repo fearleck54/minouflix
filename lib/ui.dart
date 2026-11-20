@@ -1324,12 +1324,9 @@ class StudioTile extends StatelessWidget {
 /// transition douce entre écrans (fondu + léger glissement)
 Route<T> softRoute<T>(WidgetBuilder builder) => !Device.tv ? CupertinoPageRoute<T>(builder: builder) : PageRouteBuilder<T>(
       pageBuilder: (c, _, __) => builder(c),
-      transitionDuration: const Duration(milliseconds: 260),
-      reverseTransitionDuration: const Duration(milliseconds: 200),
-      transitionsBuilder: (_, a, __, child) => FadeTransition(
-        opacity: CurvedAnimation(parent: a, curve: Curves.easeOut),
-        child: SlideTransition(position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)), child: child),
-      ),
+      transitionDuration: const Duration(milliseconds: 120),
+      reverseTransitionDuration: const Duration(milliseconds: 100),
+      transitionsBuilder: (_, a, __, child) => FadeTransition(opacity: a, child: child),
     );
 
 /// écran de chargement : cases grises qui respirent à la place des affiches
