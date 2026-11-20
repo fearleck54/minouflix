@@ -490,11 +490,12 @@ class _In extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.of(context).disableAnimations) return child;
-    final d = 420 + 45 * math.min(i, 8);
+    final k = i < 8 ? i : 8;
+    final int d = 420 + 45 * k;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: d),
-      curve: Interval(45 * math.min(i, 8) / d, 1, curve: _kEase),
+      curve: Interval(45 * k / d, 1, curve: _kEase),
       builder: (_, v, c) => Opacity(opacity: v.clamp(0.0, 1.0), child: Transform.translate(offset: Offset(0, 18 * (1 - v)), child: c)),
       child: child,
     );
