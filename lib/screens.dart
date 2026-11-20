@@ -19,6 +19,7 @@ import 'names.dart';
 import 'tmdb.dart';
 import 'sport.dart';
 import 'rights.dart';
+import 'sport_detail.dart';
 import 'trailer.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
@@ -1037,6 +1038,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// match : on cherche la chaîne qui le diffuse (guide du fournisseur, sinon chaînes habituelles de la compétition) ; si une seule chaîne est sûre, elle démarre
   Future<void> openEv(Ev e) async {
+    if (e.post) {
+      // terminé : statistiques, classement ou résultats plutôt que « où le voir »
+      Navigator.push(context, softRoute((_) => EvDetailScreen(e: e)));
+      return;
+    }
     if (kStore) {
       // version store : le sport reste un calendrier (aucune chaîne lancée depuis un match)
       if (tab != 4) setState(() => tab = 4);

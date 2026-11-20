@@ -145,6 +145,10 @@ String _clubLogo(String name, String logo) {
   return logo.contains('/countries/') ? '' : logo;
 }
 
+/// accès partagé (écran de détail d'un événement terminé)
+Future<dynamic> espnJson(String url) => _json(url);
+Widget evLogo(String u, {double s = 26}) => _logo(u, s: s);
+
 String _d(DateTime t) => '${t.year}${t.month.toString().padLeft(2, '0')}${t.day.toString().padLeft(2, '0')}';
 
 Future<dynamic> _json(String url) async {
