@@ -160,8 +160,56 @@ class _TvKeyboardState extends State<TvKeyboard> {
         if (pad > 0) Spacer(flex: pad),
       ]);
 
+  /// pavé numérique comme sur un téléphone : 1-2-3 / 4-5-6 / 7-8-9 / effacer-0-OK
+  Widget _pad() {
+    Widget k(String label, VoidCallback onTap, {bool focus = false, Color? fill, IconData? icon}) => Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: FocusCard(
+              radius: 18,
+              autofocus: focus,
+              onTap: onTap,
+              child: Container(height: 62, alignment: Alignment.center, color: fill ?? const Color(0x1FFFFFFF), child: icon != null ? Icon(icon, size: 26, color: Colors.white) : mat.Text(label, style: T(28, w: 600))),
+            ),
+          ),
+        );
+    Widget row(List<String> ds) => Row(children: [for (final d in ds) k(d, () => _add(d), focus: d == '1')]);
+    return Dialog(
+      backgroundColor: kBg2,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            if (widget.title.isNotEmpty) Text(widget.title, textAlign: TextAlign.center, style: T(15, w: 600, color: kMut)),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(14)),
+              child: mat.Text(widget.obscure ? '•' * t.length : t, textAlign: TextAlign.center, maxLines: 1, style: T(26, w: 600, ls: 0.2)),
+            ),
+            const SizedBox(height: 8),
+            row(['1', '2', '3']),
+            row(['4', '5', '6']),
+            row(['7', '8', '9']),
+            Row(children: [
+              k('', _del, icon: Icons.backspace_outlined),
+              k('0', () => _add('0')),
+              k('OK', () => Navigator.pop(context, t), fill: const Color(0xFF3B6FE0)),
+            ]),
+            TextButton(onPressed: () => Navigator.pop(context), child: mat.Text(L.en ? 'Cancel' : 'Annuler', style: T(15, w: 600, color: kMut))),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.numeric) return _pad();
     final rows = L.azerty ? _azerty : _qwerty;
     final shown = widget.obscure ? '•' * t.length : t;
     return Dialog(
@@ -182,16 +230,16 @@ class _TvKeyboardState extends State<TvKeyboard> {
               child: mat.Text('$shown▏', maxLines: 1, overflow: TextOverflow.ellipsis, style: T(21, w: 500)),
             ),
             const SizedBox(height: 8),
-            _row(_digits, first: widget.numeric),
-            if (!widget.numeric) ...[
+            _row(_digits),
+            ...[
               _row(rows[0], first: true),
               _row(rows[1], pad: 10 - rows[1].length),
               _row(rows[2], pad: 10 - rows[2].length),
               _row(_sym, pad: 0),
             ],
             Row(children: [
-              if (!widget.numeric) _key('', () => setState(() => shift = !shift), flex: 3, icon: shift ? CupertinoIconsFallback.shiftOn : CupertinoIconsFallback.shiftOff, fill: shift ? const Color(0x59FFFFFF) : null),
-              if (!widget.numeric) _key(L.en ? 'space' : 'espace', () => _add(' '), flex: 8),
+              _key('', () => setState(() => shift = !shift), flex: 3, icon: shift ? CupertinoIconsFallback.shiftOn : CupertinoIconsFallback.shiftOff, fill: shift ? const Color(0x59FFFFFF) : null),
+              _key(L.en ? 'space' : 'espace', () => _add(' '), flex: 8),
               _key('', _del, flex: 3, icon: Icons.backspace_outlined),
               _key(L.en ? 'Cancel' : 'Annuler', () => Navigator.pop(context), flex: 4),
               _key('OK', () => Navigator.pop(context, t), flex: 4, fill: const Color(0xFF3B6FE0)),
