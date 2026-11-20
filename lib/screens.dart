@@ -2390,7 +2390,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
-        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Compte lié' : 'Non lié', chevron: true, onTap: () => traktSheet(context, () => setState(() {}))),
       ]),
       ('Langues', 'Langues', CupertinoIcons.globe, [
         _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {

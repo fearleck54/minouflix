@@ -1049,8 +1049,8 @@ class _AuroraPainter extends CustomPainter {
       canvas.drawCircle(c, r, Paint()..shader = ui.Gradient.radial(c, r, [col.withOpacity(op), col.withOpacity(0)]));
     }
 
-    blob(Offset(w * 0.15 - shift + 0.08 * w * math.sin(a), h * 0.10 + 0.08 * h * math.cos(a)), const Color(0xFF5B8CFF), 0.22);
-    blob(Offset(w * 0.90 - shift + 0.08 * w * math.sin(a + 2.1), h * 0.55 + 0.08 * h * math.cos(a + 2.1)), const Color(0xFFE5484D), 0.14);
+    blob(Offset(w * 0.15 - shift + 0.08 * w * math.sin(a), h * 0.10 + 0.08 * h * math.cos(a)), const Color(0xFF5B8CFF), 0.20);
+    blob(Offset(w * 0.90 - shift + 0.08 * w * math.sin(a + 2.1), h * 0.55 + 0.08 * h * math.cos(a + 2.1)), const Color(0xFFFF2D45), 0.26);     // rouge du logo
     blob(Offset(w * 0.30 - shift + 0.08 * w * math.sin(a + 4.2), h * 0.95 + 0.08 * h * math.cos(a + 4.2)), third, 0.18);
     // voile du bas : le texte et le bouton restent lisibles
     canvas.drawRect(
