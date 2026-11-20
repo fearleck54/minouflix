@@ -27,6 +27,7 @@ const leagues = [
   League('pl', 'Premier League', 'soccer/eng.1', false, Color(0xFF7C3AED), [r'^canal\+ premier league$', r'^canal\+ foot$', r'^canal\+ live \d+$']),
   League('liga', 'Liga', 'soccer/esp.1', false, Color(0xFFD92D3A), [r'^bein sports [123]$', r'^bein sports max']),
   League('l2', 'Ligue 2', 'soccer/fra.2', false, Color(0xFF0F8A7A), [r'^bein sports [12]$', r'^bein sports max']),
+  League('ufc', 'UFC (MMA)', 'mma/ufc', false, Color(0xFFD20A0A), [r'^rmc sport', r'^canal\+ sport$', r'^canal\+ live \d+$', r'^bein sports']),
   League('f1', 'Formule 1', 'racing/f1', true, Color(0xFFE10600), [r'^canal\+ (formula|formule) ?1$', r'^canal\+ sport 360$', r'^canal\+ sport$', r'^canal\+$']),
   League('cc', 'Champions Cup (rugby)', 'rugby/271937', false, Color(0xFF0E8A55), [r'^bein sports [123]$', r'^france 2$']),
   // football
@@ -65,9 +66,10 @@ String sportName(League l) => switch (l.espn.split('/').first) {
       'football' => 'Football américain',
       'hockey' => 'Hockey sur glace',
       'racing' => 'Formule 1',
+      'mma' => 'MMA',
       _ => 'Autres',
     };
-const sportOrder = ['Football', 'Rugby', 'Basketball', 'Football américain', 'Hockey sur glace', 'Formule 1'];
+const sportOrder = ['Football', 'Rugby', 'Basketball', 'Football américain', 'Hockey sur glace', 'Formule 1', 'MMA'];
 IconData sportIcon(String sp) => switch (sp) {
       'Football' => Icons.sports_soccer,
       'Rugby' => Icons.sports_rugby,
@@ -75,10 +77,11 @@ IconData sportIcon(String sp) => switch (sp) {
       'Football américain' => Icons.sports_football,
       'Hockey sur glace' => Icons.sports_hockey,
       'Formule 1' => Icons.sports_motorsports,
+      'MMA' => Icons.sports_mma,
       _ => Icons.sports,
     };
 
-const _lgLogo = {'top14': 'asset:assets/clubs/lg-top14.webp', 'l1': 'asset:assets/clubs/lg-l1.png', 'ucl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2.png', 'el': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2310.png', 'pl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/23.png', 'liga': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/15.png', 'l2': 'asset:assets/clubs/lg-l2.png', 'f1': 'https://a.espncdn.com/i/teamlogos/leagues/500/f1.png', 'seriea': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/12.png', 'bund': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/10.png', 'cdf': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/182.png', 'ecl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/20296.png', 'nl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2395.png', 'euro': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/74.png', 'wc': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/4.png', 'cwc': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/1932.png', 'por': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/14.png', 'ned': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/11.png', 'nba': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nba.png', 'nfl': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png', 'nhl': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png'};
+const _lgLogo = {'top14': 'asset:assets/clubs/lg-top14.webp', 'l1': 'asset:assets/clubs/lg-l1.png', 'ucl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2.png', 'el': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2310.png', 'pl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/23.png', 'liga': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/15.png', 'l2': 'asset:assets/clubs/lg-l2.png', 'f1': 'https://a.espncdn.com/i/teamlogos/leagues/500/f1.png', 'ufc': 'https://a.espncdn.com/i/teamlogos/leagues/500/ufc.png', 'seriea': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/12.png', 'bund': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/10.png', 'cdf': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/182.png', 'ecl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/20296.png', 'nl': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/2395.png', 'euro': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/74.png', 'wc': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/4.png', 'cwc': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/1932.png', 'por': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/14.png', 'ned': 'https://a.espncdn.com/i/leaguelogos/soccer/500-dark/11.png', 'nba': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nba.png', 'nfl': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nfl.png', 'nhl': 'https://a.espncdn.com/i/teamlogos/leagues/500-dark/nhl.png'};
 
 String lgInit(String k) => k == 'top14' ? 'TOP 14' : k == 'cc' ? 'CC' : lgOf(k).n.split(RegExp(r'[ (]')).where((x) => x.length > 1).map((x) => x[0]).join().toUpperCase();
 
@@ -169,6 +172,29 @@ Future<List<Ev>> fetchLeague(League l) async {
                   Side('${e['name'] ?? gp}', gp, '', null), Side(lab, lab, '', st['state'] == 'post' && win.isNotEmpty ? '${win.first['athlete']?['shortName'] ?? ''}' : null),
                   '${e['circuit']?['fullName'] ?? ''}', true));
             }
+          }
+        } catch (_) {}
+      }
+    } else if (l.k == 'ufc') {
+      // une carte = un événement : on affiche le combat principal (dernier de la liste), un seul appel pour toute l'année
+      for (final y in {now.year, if (now.month >= 11) now.year + 1}) {
+        try {
+          final d = await _json('https://site.api.espn.com/apis/site/v2/sports/${l.espn}/scoreboard?dates=$y');
+          for (final e in (d['events'] as List? ?? [])) {
+            try {
+              final comps = (e['competitions'] as List).cast<Map>();
+              final main = comps.last;
+              final fs = (main['competitors'] as List).cast<Map>();
+              if (fs.length < 2) continue;
+              Side side(Map x) {
+                final a = (x['athlete'] ?? {}) as Map;
+                final nm = '${a['displayName'] ?? a['fullName'] ?? '?'}';
+                return Side(nm, '${a['shortName'] ?? nm}', '${(a['flag'] ?? {})['href'] ?? ''}', null);
+              }
+              final st = ((e['status'] ?? main['status'])?['type'] ?? {}) as Map;
+              out.add(Ev('ufc:${e['id']}', 'ufc', DateTime.parse('${main['date'] ?? e['date']}').millisecondsSinceEpoch ~/ 1000, '${st['state'] ?? 'pre'}', '${e['name'] ?? ''}',
+                  side(fs[0]), side(fs[1]), '${main['venue']?['fullName'] ?? ''}', false));
+            } catch (_) {}
           }
         } catch (_) {}
       }
@@ -430,7 +456,7 @@ Widget livePill(Ev e) => Container(
         Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
         const SizedBox(width: 7),
         Text('EN DIRECT', style: T(12, w: 850, ls: 0.06)),
-        if (e.det.isNotEmpty && !e.f1) ...[const SizedBox(width: 8), Text(e.det, style: T(12, w: 650))],
+        if (e.det.isNotEmpty && !e.f1 && e.det.length <= 10) ...[const SizedBox(width: 8), Text(e.det, style: T(12, w: 650))],
       ]),
     );
 
@@ -465,11 +491,13 @@ class EvScoreboard extends StatelessWidget {
             if (e.live && e.det.isNotEmpty) Text(e.det, style: T(15, w: 700, color: const Color(0xFFFF8A8F))),
           ])
         : Text('VS', style: T(scoreSize * 0.45, w: 800, color: kMut));
-    return Row(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+    final nameLine = e.lg == 'ufc' && e.det.isNotEmpty ? Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(e.det, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: 700, color: Color.lerp(l.color, Colors.white, 0.7)!))) : null;
+    final row = Row(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Expanded(child: side(e.h)),
       Padding(padding: EdgeInsets.only(top: crest * 0.18), child: mid),
       Expanded(child: side(e.a)),
     ]);
+    return nameLine == null ? row : Column(mainAxisSize: MainAxisSize.min, children: [nameLine, row]);
   }
 }
 
@@ -536,6 +564,7 @@ const _lgSub = {
   'pl': 'Football · Angleterre',
   'liga': 'Football · Espagne',
   'f1': 'Course · Monde',
+  'ufc': 'MMA · Monde',
   'seriea': 'Football · Italie',
   'bund': 'Football · Allemagne',
   'cdf': 'Football · France',

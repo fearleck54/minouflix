@@ -111,25 +111,43 @@ Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List
     for (var i = 0; i < base.length; i += 8) [for (final c in base.skip(i).take(8)) if (!favC.contains(c)) c],
     for (var i = 0; i < extra.length; i += 8) extra.skip(i).take(8).toList(),
   ].where((x) => x.isNotEmpty).toList();
+  (int, String) evalP(List<List<Object>> progs) {
+    var best = 0;
+    var why = '';
+    for (final p in progs) {
+      final st = p[0] as int, en = p[1] as int, title = '${p[2]}';
+      if (en < e.ts - 600 || st > e.ts + 7200) continue;      // pas à l'heure du match
+      final n = norm(title);
+      final hh = th.any(n.contains), aa = ta.any(n.contains);
+      var sc = hh && aa ? 5 : (hh || aa ? 3 : 0);
+      if (sc == 0 && lgw.any(n.contains)) sc = 1;
+      if (sc > 0 && st <= e.ts + 900 && en > e.ts) sc += 1;
+      if (sc > best) {
+        best = sc;
+        final t = DateTime.fromMillisecondsSinceEpoch(st * 1000);
+        why = '$title · ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+      }
+    }
+    return (best, why);
+  }
+
+  // toutes les chaînes dont le guide est déjà en mémoire (aucun réseau) : un programme qui cite les équipes à l'heure du match prouve la chaîne, quel que soit le sport
+  final seen = <Chan>{};
+  for (final c in chans) {
+    if (c.epgId.isEmpty) continue;
+    final (sc, why) = evalP(Epg.programs(c.epgId));
+    if (sc >= 3) {
+      out.add(WatchPick(c, why, sc));
+      seen.add(c);
+    }
+  }
+  if (out.isNotEmpty) progress?.call(_sorted(out, base, fav));
+  if (out.any((p) => p.score >= 5)) return _sorted(out, base, fav);
   for (final chunk in lots) {
     final res = await Future.wait([for (final c in chunk) _progs(c)]);
     for (var j = 0; j < chunk.length; j++) {
-      var best = 0;
-      var why = '';
-      for (final p in res[j]) {
-        final st = p[0] as int, en = p[1] as int, title = '${p[2]}';
-        if (en < e.ts - 600 || st > e.ts + 7200) continue;      // pas à l'heure du match
-        final n = norm(title);
-        final hh = th.any(n.contains), aa = ta.any(n.contains);
-        var sc = hh && aa ? 5 : (hh || aa ? 3 : 0);
-        if (sc == 0 && lgw.any(n.contains)) sc = 1;
-        if (sc > 0 && st <= e.ts + 900 && en > e.ts) sc += 1;
-        if (sc > best) {
-          best = sc;
-          final t = DateTime.fromMillisecondsSinceEpoch(st * 1000);
-          why = '$title · ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-        }
-      }
+      if (seen.contains(chunk[j])) continue;
+      final (best, why) = evalP(res[j]);
       final habit = base.contains(chunk[j]);
       if (best > 0 || habit) out.add(WatchPick(chunk[j], best > 0 ? why : 'Chaîne habituelle de ${l.n}', best));
     }
