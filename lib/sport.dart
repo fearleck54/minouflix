@@ -856,17 +856,16 @@ Future<List<String>?> manageLeagues(BuildContext ctx) async {
                     ),
                     if (open.contains(sp))
                       for (final l in leagues.where((l) => sportName(l) == sp))
-                        CheckboxListTile(
+                        _fx(CheckboxListTile(
                           value: sel.contains(l.k),
                           activeColor: kAccent,
                           checkColor: Colors.white,
-                          focusColor: kAccent.withOpacity(0.38),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: const EdgeInsets.only(left: 40, right: 16),
                           title: Row(children: [LgIcon(l.k, size: 22), const SizedBox(width: 10), Expanded(child: Text(l.n, style: T(15.5, w: 600)))]),
                           onChanged: (v) => set(() => v == true ? sel.add(l.k) : sel.remove(l.k)),
-                        ),
+                        )),
                   ],
               ]),
             ),
@@ -884,6 +883,9 @@ Future<List<String>?> manageLeagues(BuildContext ctx) async {
   if (keys.isEmpty || keys.join() == Store.sportKeys.join()) return null;
   return keys;
 }
+
+/// surbrillance bleue de la télécommande (la teinte par défaut, blanche, disparaît sur les fonds clairs)
+Widget _fx(Widget w) => Builder(builder: (c) => Theme(data: Theme.of(c).copyWith(focusColor: kAccent.withOpacity(0.38)), child: w));
 
 /// équipes suivies : on coche celles qu'on veut parmi les équipes des matchs chargés (recherche possible)
 Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
@@ -934,11 +936,10 @@ Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
                           if (g.$2.isNotEmpty) ...[
                             Padding(padding: const EdgeInsets.fromLTRB(22, 14, 22, 4), child: Row(children: [LgIcon(g.$1.k, size: 18), const SizedBox(width: 8), Text(g.$1.n, style: T(13, w: 700, color: kMut))])),
                             for (final t in g.$2)
-                              CheckboxListTile(
+                              _fx(CheckboxListTile(
                                 value: mine.contains(t.name),
                                 activeColor: const Color(0xFFFFC857),
                                 checkColor: Colors.black,
-                                focusColor: kAccent.withOpacity(0.38),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 controlAffinity: ListTileControlAffinity.trailing,
                                 secondary: _logo(t.logo, s: 26),
@@ -947,7 +948,7 @@ Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
                                   set(() => v == true ? mine.add(t.name) : mine.remove(t.name));
                                   Store.setSportTeams(mine.toList());
                                 },
-                              ),
+                              )),
                           ],
                       ]),
               ),
