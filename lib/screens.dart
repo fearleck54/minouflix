@@ -18,6 +18,7 @@ import 'journal.dart';
 import 'names.dart';
 import 'tmdb.dart';
 import 'sport.dart';
+import 'trailer.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
 import 'subs.dart';
@@ -2821,6 +2822,19 @@ class _DetailScreenState extends State<DetailScreen> {
         if (mounted) setState(() {});
       });
 
+  /// bande-annonce dans le lecteur de l'appli ; si YouTube ne donne pas le flux, la page web s'ouvre
+  Future<void> _trailer(String id) async {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Chargement de la bande-annonce…')));
+    final r = await Trailer.resolve(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    if (r == null) {
+      launchUrl(Uri.parse('https://www.youtube.com/watch?v=$id'), mode: LaunchMode.externalApplication);
+      return;
+    }
+    Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, title: '${widget.item.title} · Bande-annonce')));
+  }
+
   String _mmss(int ms) {
     final s = ms ~/ 1000, h = s ~/ 3600, m = (s % 3600) ~/ 60, c = s % 60;
     return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${c.toString().padLeft(2, '0')}' : '$m:${c.toString().padLeft(2, '0')}';
@@ -2916,7 +2930,7 @@ class _DetailScreenState extends State<DetailScreen> {
       playBtn(),
       if (it.kind == Kind.vod && old != null) PillButton(label: 'Depuis le début', height: 54, onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
       PillButton(label: '+ Ajouter à…', height: 54, onTap: () => collectionSheet(context, fav)),
-      if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => launchUrl(Uri.parse('https://www.youtube.com/watch?v=${fi.trailer}'), mode: LaunchMode.externalApplication)),
+      if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => _trailer(fi.trailer)),
       if (it.kind == Kind.vod && !Device.tv)      // pas de téléchargement sur la télé
         ValueListenableBuilder<Map<String, double>>(
           valueListenable: Downloads.progress,
@@ -2941,7 +2955,7 @@ class _DetailScreenState extends State<DetailScreen> {
           SizedBox(
             height: wide ? (MediaQuery.sizeOf(context).height * 0.78).clamp(420.0, 760.0) : 300 + top,
             child: Stack(fit: StackFit.expand, children: [
-              fadeBackdrop(bd, it.icon),
+              fadeBackdrop(bd, _fReady ? it.icon : ''),
               const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, stops: [0, .3, .72, 1], colors: [Color(0x8006080D), Color(0x0006080D), Color(0xB306080D), kBg]))),
               if (wide)
                 Positioned(
@@ -3007,7 +3021,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 padding: const EdgeInsets.fromLTRB(8, 16, 8, 2),
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                   if (it.kind == Kind.vod && old != null) _ActIcon(icon: CupertinoIcons.gobackward, label: 'Depuis le début', onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
-                  if (fi != null && fi.trailer.isNotEmpty) _ActIcon(icon: CupertinoIcons.film, label: 'Bande-annonce', onTap: () => launchUrl(Uri.parse('https://www.youtube.com/watch?v=${fi.trailer}'), mode: LaunchMode.externalApplication)),
+                  if (fi != null && fi.trailer.isNotEmpty) _ActIcon(icon: CupertinoIcons.film, label: 'Bande-annonce', onTap: () => _trailer(fi.trailer)),
                   if (it.kind == Kind.vod)
                     ValueListenableBuilder<Map<String, double>>(
                       valueListenable: Downloads.progress,
@@ -3136,7 +3150,8 @@ class PlayerScreen extends StatefulWidget {
   final int zapAt;
   final Xtream? x;                            // pour le rattrapage (adresse des programmes passés)
   final Future<Fiche?>? tmdb;                 // identifiant TMDB : sert à retrouver intro / récap / générique
-  const PlayerScreen({super.key, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
+  final String? audioUrl;                     // bande-annonce : son à part de l'image
+  const PlayerScreen({super.key, this.audioUrl, required this.url, required this.title, this.prog, this.alts = const [], this.next = const [], this.zap = const [], this.zapAt = 0, this.x, this.tmdb});
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
@@ -3397,7 +3412,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!mounted || _fail != null) return;
       if (player.state.position == Duration.zero && player.state.duration == Duration.zero) _failed('Le flux ne démarre pas.');
     });
-    player.open(Media(url));
+    player.open(Media(url)).then((_) async {
+      final a = widget.audioUrl;
+      if (a == null) return;
+      try {
+        await (player.platform as dynamic).command(['audio-add', a, 'select']);
+      } catch (_) {}
+    });
   }
 
   void _failed(String why) {

@@ -107,14 +107,7 @@ jobs:
         run: |
           pip install pillow
           mkdir -p android/app/src/main/res/drawable-xhdpi
-          python3 - <<'PY'
-          from PIL import Image
-          ic = Image.open("assets/icon.png").convert("RGBA")
-          ic.thumbnail((250, 250))
-          bg = Image.new("RGBA", (640, 360), (6, 8, 13, 255))
-          bg.alpha_composite(ic, ((640 - ic.width) // 2, (360 - ic.height) // 2))
-          bg.convert("RGB").save("android/app/src/main/res/drawable-xhdpi/tv_banner.png")
-          PY
+          python3 tools/tv_banner.py android/app/src/main/res/drawable-xhdpi/tv_banner.png
           sed -i 's#android:banner="@mipmap/ic_launcher"#android:banner="@drawable/tv_banner"#' android/app/src/main/AndroidManifest.xml
           grep -c 'tv_banner' android/app/src/main/AndroidManifest.xml
       - name: Signature stable (permet la mise à jour par-dessus l'appli installée)

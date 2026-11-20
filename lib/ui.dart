@@ -343,14 +343,14 @@ class _FocusCardState extends State<FocusCard> {
           onTapUp: (_) => setState(() => pressed = false),
           onTapCancel: () => setState(() => pressed = false),
           child: AnimatedScale(
-            scale: pressed ? 0.955 : (focused ? widget.focusScale : 1),
-            duration: Duration(milliseconds: Perf.lite ? 90 : 160),
+            scale: pressed ? 0.955 : (focused && !Perf.lite ? widget.focusScale : 1),      // télé : pas d'agrandissement (retracer l'affiche à chaque image fait saccader), l'anneau suffit
+            duration: Duration(milliseconds: Perf.lite ? 60 : 160),
             curve: Curves.easeOut,
             child: AnimatedContainer(
               duration: Duration(milliseconds: Perf.lite ? 0 : 150),
               foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: Colors.white, width: 3)) : null,
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius)),
-              child: ClipRRect(borderRadius: BorderRadius.circular(widget.radius), child: widget.child),
+              child: ClipRRect(borderRadius: BorderRadius.circular(widget.radius), clipBehavior: Perf.lite ? Clip.hardEdge : Clip.antiAlias, child: RepaintBoundary(child: widget.child)),
             ),
           ),
         ),
@@ -691,7 +691,7 @@ class Rail extends StatelessWidget {
           SizedBox(
             height: height,
             child: ListView.separated(
-              cacheExtent: Device.tv ? 1200 : null,
+              cacheExtent: Device.tv ? 700 : null,
               scrollDirection: Axis.horizontal,
               clipBehavior: Clip.none,
               padding: const EdgeInsets.symmetric(horizontal: 20),
