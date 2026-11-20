@@ -651,9 +651,9 @@ class _SportTabState extends State<SportTab> {
       builder: (_) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 6),
-          ListTile(leading: const Icon(Icons.emoji_events_outlined), title: const Text('Championnats et sports'), subtitle: const Text('Foot, rugby, basket… rangés par sport'), onTap: () => Navigator.pop(ctx, 'lg')),
-          ListTile(leading: const Icon(Icons.star_outline_rounded), title: const Text('Mes équipes'), subtitle: const Text('Leurs matchs passent en tête'), onTap: () => Navigator.pop(ctx, 'teams')),
-          ListTile(leading: const Icon(Icons.tune_rounded), title: const Text('Réglages du Sport'), subtitle: const Text('Scores masqués, rangée de l\'accueil'), onTap: () => Navigator.pop(ctx, 'set')),
+          ListTile(focusColor: kAccent.withOpacity(0.38), leading: const Icon(Icons.emoji_events_outlined), title: const Text('Championnats et sports'), subtitle: const Text('Foot, rugby, basket… rangés par sport'), onTap: () => Navigator.pop(ctx, 'lg')),
+          ListTile(focusColor: kAccent.withOpacity(0.38), leading: const Icon(Icons.star_outline_rounded), title: const Text('Mes équipes'), subtitle: const Text('Leurs matchs passent en tête'), onTap: () => Navigator.pop(ctx, 'teams')),
+          ListTile(focusColor: kAccent.withOpacity(0.38), leading: const Icon(Icons.tune_rounded), title: const Text('Réglages du Sport'), subtitle: const Text('Scores masqués, rangée de l\'accueil'), onTap: () => Navigator.pop(ctx, 'set')),
           const SizedBox(height: 8),
         ]),
       ),
@@ -846,6 +846,8 @@ Future<List<String>?> manageLeagues(BuildContext ctx) async {
                 for (final sp in [...sportOrder, 'Autres'])
                   if (leagues.any((l) => sportName(l) == sp)) ...[
                     ListTile(
+                      focusColor: kAccent.withOpacity(0.38),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       leading: Icon(sportIcon(sp), color: kAccent),
                       title: Text(sp, style: T(16.5, w: 700)),
                       subtitle: Text('${leagues.where((l) => sportName(l) == sp && sel.contains(l.k)).length} sur ${leagues.where((l) => sportName(l) == sp).length} choisies'),
@@ -856,8 +858,10 @@ Future<List<String>?> manageLeagues(BuildContext ctx) async {
                       for (final l in leagues.where((l) => sportName(l) == sp))
                         CheckboxListTile(
                           value: sel.contains(l.k),
-                          activeColor: Colors.white,
-                          checkColor: Colors.black,
+                          activeColor: kAccent,
+                          checkColor: Colors.white,
+                          focusColor: kAccent.withOpacity(0.38),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           controlAffinity: ListTileControlAffinity.leading,
                           contentPadding: const EdgeInsets.only(left: 40, right: 16),
                           title: Row(children: [LgIcon(l.k, size: 22), const SizedBox(width: 10), Expanded(child: Text(l.n, style: T(15.5, w: 600)))]),
@@ -934,6 +938,8 @@ Future<void> manageTeams(BuildContext ctx, List<Ev> events) async {
                                 value: mine.contains(t.name),
                                 activeColor: const Color(0xFFFFC857),
                                 checkColor: Colors.black,
+                                focusColor: kAccent.withOpacity(0.38),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 controlAffinity: ListTileControlAffinity.trailing,
                                 secondary: _logo(t.logo, s: 26),
                                 title: Text(t.name, style: T(15.5, w: 600)),
