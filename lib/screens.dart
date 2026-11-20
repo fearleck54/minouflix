@@ -2402,8 +2402,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       ('Lecture', 'Lecture', CupertinoIcons.play_circle, [
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
-        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
+        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Matériel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
         _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
+        if (Device.tv) sw('Lecture directe (plus fluide)', CupertinoIcons.bolt_fill, const Color(0xFFFFD60A), 'vo_embed', true),
         if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
@@ -3167,7 +3168,7 @@ class Zap {
 class _PlayerScreenState extends State<PlayerScreen> {
   static const _pip = MethodChannel('minou/pip');
   late final Player player = Player(configuration: PlayerConfiguration(bufferSize: Perf.lite ? 16 * 1024 * 1024 : 32 * 1024 * 1024));
-  late final VideoController controller = VideoController(player);
+  late final VideoController controller = Device.tv && Store.flag('vo_embed', true) ? VideoController(player, configuration: const VideoControllerConfiguration(vo: 'mediacodec_embed', hwdec: 'mediacodec')) : VideoController(player);
   Timer? _t;
   int _alt = 0;
   int _hint = 0;
