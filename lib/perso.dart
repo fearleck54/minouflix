@@ -25,9 +25,27 @@ class _TabsState extends State<TabsSettings> {
   void _move(int i, int d) {
     final j = i + d;
     if (j < 0 || j >= order.length) return;
+    final id = order[i];
     order.insert(j, order.removeAt(i));
+    _stay(id, d, j + d >= 0 && j + d < order.length);
     _save();
   }
+
+  final _nodes = <String, FocusNode>{};
+  FocusNode _nd(Object id, int d) => _nodes.putIfAbsent('$id/$d', () => FocusNode());
+  /// après un déplacement, le sélecteur reste sur la ligne déplacée (flèche choisie, ou l'autre en bout de liste)
+  void _stay(Object id, int d, bool canMore) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _nd(id, canMore ? d : -d).requestFocus());
+  }
+
+  @override
+  void dispose() {
+    for (final n in _nodes.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
 
   void _toggle(int t) {
     if (hid.contains(t)) {
@@ -43,7 +61,8 @@ class _TabsState extends State<TabsSettings> {
     _save();
   }
 
-  Widget _arrow(IconData ic, bool on, VoidCallback f) => FocusCard(
+  Widget _arrow(IconData ic, bool on, VoidCallback f, FocusNode node) => FocusCard(
+        focusNode: node,
         onTap: on ? f : () {},
         radius: 12,
         focusScale: 1,
@@ -107,8 +126,8 @@ class _TabsState extends State<TabsSettings> {
                     ),
                   ),
                 ),
-                _arrow(CupertinoIcons.chevron_up, i > 0, () => _move(i, -1)),
-                _arrow(CupertinoIcons.chevron_down, i < order.length - 1, () => _move(i, 1)),
+                _arrow(CupertinoIcons.chevron_up, i > 0, () => _move(i, -1), _nd(order[i], -1)),
+                _arrow(CupertinoIcons.chevron_down, i < order.length - 1, () => _move(i, 1), _nd(order[i], 1)),
                 const SizedBox(width: 8),
               ]),
           ]),
@@ -166,12 +185,28 @@ class _HomeState extends State<HomeSettings> {
     'trakt': ('Ma liste Trakt', 'Tes titres à voir sur Trakt, présents dans ton catalogue'),
   };
 
+  final _nodes = <String, FocusNode>{};
+  FocusNode _nd(Object id, int d) => _nodes.putIfAbsent('$id/$d', () => FocusNode());
+  /// après un déplacement, le sélecteur reste sur la ligne déplacée (flèche choisie, ou l'autre en bout de liste)
+  void _stay(Object id, int d, bool canMore) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _nd(id, canMore ? d : -d).requestFocus());
+  }
+
+  @override
+  void dispose() {
+    for (final n in _nodes.values) {
+      n.dispose();
+    }
+    super.dispose();
+  }
+
   Future<void> _save() async {
     await Store.setHome(order, hid);
     if (mounted) setState(() {});
   }
 
-  Widget _arrow(IconData ic, bool on, VoidCallback f) => FocusCard(
+  Widget _arrow(IconData ic, bool on, VoidCallback f, FocusNode node) => FocusCard(
+        focusNode: node,
         onTap: on ? f : () {},
         radius: 12,
         focusScale: 1,
@@ -211,14 +246,16 @@ class _HomeState extends State<HomeSettings> {
             final j = order.indexOf(mv[i - 1]), k = order.indexOf(id);
             order[k] = mv[i - 1];
             order[j] = id;
+            _stay(id, -1, i - 1 > 0);
             _save();
-          }),
+          }, _nd(id, -1)),
           _arrow(CupertinoIcons.chevron_down, i < mv.length - 1, () {
             final j = order.indexOf(mv[i + 1]), k = order.indexOf(id);
             order[k] = mv[i + 1];
             order[j] = id;
+            _stay(id, 1, i + 1 < mv.length - 1);
             _save();
-          }),
+          }, _nd(id, 1)),
           const SizedBox(width: 8),
         ] else
           const SizedBox(width: 90),

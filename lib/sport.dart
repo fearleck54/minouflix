@@ -1,4 +1,5 @@
 import 'store.dart';
+import 'onboarding.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -532,14 +533,14 @@ class _SportTabState extends State<SportTab> {
     );
     if (!ctx.mounted) return;
     if (r == 'lg') {
-      final keys = await manageLeagues(ctx);
+      final keys = await editSports(ctx);
       if (keys == null) return;
       final spn = {for (final k in keys) sportName(lgOf(k))};
       if (sp.isNotEmpty && !spn.contains(sp)) sp = '';
       if (lg.isNotEmpty && !keys.contains(lg)) lg = '';
       widget.onKeys(keys);
     } else if (r == 'teams') {
-      await manageTeams(ctx, lastEvents);
+      await editSports(ctx);
       if (mounted) setState(() {});
     } else if (r == 'set') {
       await Navigator.push(ctx, softRoute((_) => SportSettings(onKeys: widget.onKeys)));
@@ -875,7 +876,7 @@ class _SportSettingsState extends State<SportSettings> {
           _head('Contenu'),
           _card([
             _row('Championnats et sports', '${Store.sportKeys.length} suivis, rangés par sport', trailing: const Icon(Icons.chevron_right_rounded, color: kMut), onTap: () async {
-              final keys = await manageLeagues(context);
+              final keys = await editSports(context);
               if (keys != null) {
                 widget.onKeys != null ? widget.onKeys!(keys) : await Store.saveSportKeys(keys);
                 Store.persoTick.value++;
@@ -883,7 +884,7 @@ class _SportSettingsState extends State<SportSettings> {
               if (mounted) setState(() {});
             }),
             _row('Mes équipes', Store.sportTeams.isEmpty ? 'Aucune équipe suivie' : '${Store.sportTeams.length} suivie${Store.sportTeams.length > 1 ? 's' : ''}', trailing: const Icon(Icons.chevron_right_rounded, color: kMut), onTap: () async {
-              await manageTeams(context, lastEvents);
+              await editSports(context);
               if (mounted) setState(() {});
             }),
           ]),

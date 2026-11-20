@@ -21,7 +21,8 @@ import 'ui.dart';
 class OnboardingFlow extends StatefulWidget {
   final VoidCallback onDone;
   final bool redo;
-  const OnboardingFlow({super.key, required this.onDone, this.redo = false});
+  final bool sportOnly;      // Réglages › Sport : seulement sports, compétitions, équipes
+  const OnboardingFlow({super.key, required this.onDone, this.redo = false, this.sportOnly = false});
   @override
   State<OnboardingFlow> createState() => _OnboardingFlowState();
 }
@@ -111,19 +112,24 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int step = 0, dir = 1;
   final order = <String>[];      // goûts dans l'ordre où ils sont cochés
   final ver = <String>{};
-  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) ...[4, 5, 6], 7];
+  List<int> get _seq => widget.sportOnly ? const [4, 5, 6] : [0, 1, 2, 3, if (order.contains('sport')) ...[4, 5, 6], 7];
   final sports = <String>{};      // sports choisis (étape 4)
   int get _steps => _seq.length;
   int _next(int s) => _seq[(_seq.indexOf(s) + 1).clamp(0, _seq.length - 1)];
   int _prev(int s) => _seq[(_seq.indexOf(s) - 1).clamp(0, _seq.length - 1)];
   bool _busy = false;
+  int get _first => widget.sportOnly ? 4 : (widget.redo ? 1 : 0);
+  bool get _editing => widget.redo || widget.sportOnly;
 
   bool get reduce => MediaQuery.of(context).disableAnimations;
 
   @override
   void initState() {
     super.initState();
-    if (widget.redo) {
+    if (widget.sportOnly) {
+      sports.addAll([for (final k in Store.sportKeys) sportName(lgOf(k))]);
+      step = 4;
+    } else if (widget.redo) {
       order.addAll(OnbPrefs.tastes);
       ver.addAll(OnbPrefs.ver);
       step = 1;
@@ -138,7 +144,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     }
   }
 
-  Future<void> _save() => widget.redo ? Future.value() : Store.setStr('onb_state', jsonEncode({'step': step, 'order': order, 'ver': ver.toList(), 'sports': sports.toList()}));
+  Future<void> _save() => _editing ? Future.value() : Store.setStr('onb_state', jsonEncode({'step': step, 'order': order, 'ver': ver.toList(), 'sports': sports.toList()}));
 
   void go(int to) {
     HapticFeedback.lightImpact();
@@ -202,9 +208,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) return;
-          if (step > (widget.redo ? 1 : 0)) {
+          if (step > _first) {
             go(_prev(step));
-          } else if (widget.redo) {
+          } else if (_editing) {
             widget.onDone();
           }
         },
@@ -252,7 +258,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     Widget? extra,
   }) {
     final pos = _seq.indexOf(step);
-    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 7 ? go(_next(step)) : _finish() : null);
+    final head = _OnbHead(step: pos, total: _steps, onBack: step > _first ? () => go(_prev(step)) : null, onSkip: skip ? () => step != _seq.last ? go(_next(step)) : widget.sportOnly ? widget.onDone() : _finish() : null);
     final titleW = [
       _In(i: 0, child: mat(_t('ÉTAPE ${pos + 1} SUR $_steps', 'STEP ${pos + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
@@ -683,8 +689,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       title: _t('Tes équipes', 'Your teams'),
       sub: _t('Coche tes équipes préférées : leurs matchs sont mis en avant.', 'Tick your favourite teams: their matches are highlighted.'),
       tv: tv,
-      primary: _t('Continuer', 'Continue'),
-      onPrimary: () => go(7),
+      primary: widget.sportOnly ? _t('Terminer', 'Done') : _t('Continuer', 'Continue'),
+      onPrimary: () => widget.sportOnly ? widget.onDone() : go(7),
       content: body(),
     );
   }
@@ -1256,4 +1262,10 @@ class _PickTile extends StatelessWidget {
           ]),
         ),
       );
+}
+
+/// Réglages › Sport : mêmes cartes que la configuration (sports, compétitions, équipes) ; rend les compétitions suivies
+Future<List<String>?> editSports(BuildContext context) async {
+  await Navigator.push(context, MaterialPageRoute(builder: (ctx) => OnboardingFlow(sportOnly: true, onDone: () => Navigator.of(ctx).pop())));
+  return Store.sportKeys;
 }

@@ -349,7 +349,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   if (widget.onCancel != null) ...[RoundButton(size: 44, label: 'Retour', onTap: widget.onCancel, child: const Ic('back', size: 20)), const SizedBox(width: 12)],
                                   Expanded(child: Text('Catégories', style: T(34, w: 800, ls: -0.04))),
                                   // télé : « Charger » tout en haut, sans avoir à descendre toute la liste à la télécommande
-                                  if (tv) PillButton(label: total == 0 ? 'Charger' : 'Charger ($total)', icon: 'play', primary: true, height: 48, onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save),
+                                  PillButton(label: total == 0 ? 'Charger' : 'Charger ($total)', icon: 'play', primary: true, height: 48, onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save),
                                 ]),
                                 const SizedBox(height: 4),
                                 Text(OnbPrefs.tastes.isNotEmpty ? 'On a coché ce qui correspond à tes choix. Touche une carte pour la cocher ou la décocher.' : 'Seules les catégories cochées sont téléchargées. Tu pourras les changer dans Réglages.', style: T(14, color: kMut, h: 1.35)),
@@ -419,43 +419,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         ),
                       ),
                     ),
-                    // barre du bas en verre : résumé et bouton
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 760),
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(16 + pad.left, 0, 16 + pad.right, 12 + pad.bottom),
-                            child: NavPill.glass(
-                              radius: 28,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 10, 10, 10),
-                                child: Row(children: [
-                                  Expanded(
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                                      Text(total == 0 ? 'Aucune catégorie' : '$total catégorie${total > 1 ? 's' : ''} cochée${total > 1 ? 's' : ''}', style: T(15.5, w: 700)),
-                                      const SizedBox(height: 2),
-                                      Text(total == 0 ? 'Coche au moins une catégorie' : 'Premier chargement : ${etaLabel(total * 2)}', maxLines: 2, overflow: TextOverflow.ellipsis, style: T(12.5, color: total > 60 ? const Color(0xFFFFB86B) : kMut)),
-                                    ]),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  PillButton(
-                                    label: 'Charger',
-                                    icon: 'play',
-                                    primary: true,
-                                    height: 48,
-                                    onTap: total == 0 ? () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coche au moins une catégorie.'))) : save,
-                                  ),
-                                ]),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                   ]),
       ),
     );
@@ -498,7 +461,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             if (off.isNotEmpty) ...[head(on.isEmpty && !searching ? 'TOUTES LES CATÉGORIES · ${off.length}' : 'AUTRES · ${off.length}'), grid(off, first: on.isEmpty)],
           ]),
         ),
-        SliverToBoxAdapter(child: SizedBox(height: 110 + pad.bottom)),
+        SliverToBoxAdapter(child: SizedBox(height: 30 + pad.bottom)),
       ],
     );
   }
@@ -693,6 +656,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final busy = <Kind>{for (final k in Kind.values) if ((Store.selection(k) ?? []).isNotEmpty) k};     // jusqu'à la lecture du cache
   final _details = <String, Future<Detail?>>{};
   late Future<List<Ev>> sport = fetchSport(Store.sportKeys);
+  DateTime _sportAt = DateTime.now();
   int tab = Store.initialTab(kid: Store.kid);
   int _lastSaved = -1;
   bool _quit = false;     // Retour : un second appui rapide quitte l'appli
@@ -1189,7 +1153,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _lastSaved = tab;
       Store.setLastTab(tab);      // « ouvrir sur le dernier onglet »
     }
-    final nav = NavPill(index: tab, onSelect: (v) => setState(() => tab = v), onSearch: search, order: order, pages: Device.tv ? null : _pc);
+    final nav = NavPill(index: tab, onSelect: (v) => setState(() {
+          tab = v;
+          // l'onglet Sport se met à jour dès qu'on y arrive (scores, matchs en direct), sans clic
+          if (v == 4 && DateTime.now().difference(_sportAt).inMinutes >= 3) {
+            _sportAt = DateTime.now();
+            sport = fetchSport(Store.sportKeys);
+          }
+        }), onSearch: search, order: order, pages: Device.tv ? null : _pc);
     final pages = [
       HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) {
         if (Device.tv) NavPill.jump(v);
@@ -2234,7 +2205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _sport() async {
-    final k = await manageLeagues(context);
+    final k = await editSports(context);
     if (k == null) return;
     await widget.onSport(k);
     if (mounted) setState(() {});
