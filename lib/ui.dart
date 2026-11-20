@@ -67,6 +67,9 @@ class Ic extends StatelessWidget {
 }
 
 /// élément sélectionnable à la télécommande : zoom léger + cadre blanc au focus, OK / Entrée = action
+/// banc d'essai télé (scripts/outils/tv_parcours.sh) : compiler avec --dart-define=TVTRACE=true
+const kTvTrace = bool.fromEnvironment('TVTRACE');
+
 class FocusCard extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
@@ -186,19 +189,24 @@ class _FocusCardState extends State<FocusCard> {
     if (!horiz && !vert) return false;
     final sc = Scrollable.maybeOf(context);
     if (sc != null && sc.position is PageMetrics) return false;
-    final me = _node.rect;
+    // une pression de touche ne doit rien recalculer deux fois : position et liste de chaque candidat gardées le temps du calcul
+    final rects = <FocusNode, Rect>{};
+    Rect rc(FocusNode n) => rects[n] ??= n.rect;
+    final vsm = <FocusNode, ScrollableState?>{};
+    ScrollableState? vs(FocusNode n) => vsm.containsKey(n) ? vsm[n] : (vsm[n] = _vScroll(n.context!));
+    final me = rc(_node);
     final scope = _node.nearestScope;
     if (scope == null) return false;
     final cand = <FocusNode>[
       for (final n in scope.traversalDescendants)
-        if (n != _node && n.context != null && n.canRequestFocus && !n.skipTraversal && n.rect.width > 0) n
+        if (n != _node && n.context != null && n.canRequestFocus && !n.skipTraversal && rc(n).width > 0) n
     ];
     FocusNode? best;
     if (horiz) {
       final right = k == LogicalKeyboardKey.arrowRight;
       var bd = double.infinity;
       for (final n in cand) {
-        final r = n.rect;
+        final r = rc(n);
         if ((r.center.dy - me.center.dy).abs() > me.height * 0.6) continue;      // même rangée seulement
         final d = right ? r.center.dx - me.center.dx : me.center.dx - r.center.dx;
         if (d > 4 && d < bd) {
@@ -208,16 +216,16 @@ class _FocusCardState extends State<FocusCard> {
       }
       // on change de zone (grille → colonne de filtres, et inversement) : on arrive sur l'élément actif de la zone, sinon le plus proche en hauteur
       final mine = _vScroll(context);
-      if (best == null || _vScroll(best.context!) != mine) {
+      if (best == null || vs(best) != mine) {
         final others = [
           for (final n in cand)
-            if (_vScroll(n.context!) != null && _vScroll(n.context!) != mine && (right ? n.rect.center.dx > me.center.dx : n.rect.center.dx < me.center.dx)) n
+            if (vs(n) != null && vs(n) != mine && (right ? rc(n).center.dx > me.center.dx : rc(n).center.dx < me.center.dx)) n
         ];
         final pref = others.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
         if (pref.isNotEmpty) {
           best = pref.first;
         } else if (best == null && others.isNotEmpty) {
-          others.sort((x, y) => (x.rect.center.dy - me.center.dy).abs().compareTo((y.rect.center.dy - me.center.dy).abs()));
+          others.sort((x, y) => (rc(x).center.dy - me.center.dy).abs().compareTo((rc(y).center.dy - me.center.dy).abs()));
           best = others.first;
         }
       }
@@ -225,17 +233,17 @@ class _FocusCardState extends State<FocusCard> {
       if (best == null) return false;      // pas de rangée défilante : navigation habituelle (colonne de gauche → grille…)
     } else {
       final down = k == LogicalKeyboardKey.arrowDown;
-      double dist(FocusNode n) => down ? n.rect.center.dy - me.center.dy : me.center.dy - n.rect.center.dy;
+      double dist(FocusNode n) => down ? rc(n).center.dy - me.center.dy : me.center.dy - rc(n).center.dy;
       final mine = _vScroll(context);
       // 1) la même liste d'abord (rangées au-dessus / au-dessous), 2) sinon ce qui est hors de la liste (barre d'onglets…)
-      var group = [for (final n in cand) if (_vScroll(n.context!) == mine && dist(n) > me.height * 0.5) n];
-      if (group.isEmpty) group = [for (final n in cand) if (_vScroll(n.context!) != mine && dist(n) > me.height * 0.5) n];
+      var group = [for (final n in cand) if (vs(n) == mine && dist(n) > me.height * 0.5) n];
+      if (group.isEmpty) group = [for (final n in cand) if (vs(n) != mine && dist(n) > me.height * 0.5) n];
       if (group.isEmpty) return false;
       List<FocusNode> row;
       if (mine == null && down) {
         // on entre dans la liste depuis la barre : toujours sa toute première rangée (même si la liste est défilée)
-        double content(FocusNode n) => n.rect.center.dy + (_vScroll(n.context!)?.position.pixels ?? 0);
-        final inList = group.where((n) => _vScroll(n.context!) != null).toList();
+        double content(FocusNode n) => rc(n).center.dy + (vs(n)?.position.pixels ?? 0);
+        final inList = group.where((n) => vs(n) != null).toList();
         if (inList.isNotEmpty) group = inList;
         final top = group.map(content).reduce((a, b) => a < b ? a : b);
         row = [for (final n in group) if ((content(n) - top).abs() <= 40) n];
@@ -259,7 +267,7 @@ class _FocusCardState extends State<FocusCard> {
       }
       var bd = double.infinity;
       for (final n in row) {
-        final dx = (n.rect.center.dx - me.center.dx).abs();
+        final dx = (rc(n).center.dx - me.center.dx).abs();
         if (dx < bd) {
           bd = dx;
           best = n;
@@ -280,7 +288,7 @@ class _FocusCardState extends State<FocusCard> {
           setState(() => focused = f);
           if (f) {
             if (Device.tv) {
-              _trace();
+              if (kTvTrace) _trace();
               final h = _hScroll(context);
               if (h != null) _mem[h] = _node;
             }

@@ -1546,7 +1546,7 @@ class HomeTab extends StatelessWidget {
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
-    return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+    return ListView(cacheExtent: Device.tv ? 1100 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
       // plus de grande affiche nulle part (télé, Android, iPhone) : le Top 10 passe tout en haut
       if (Device.tv || wide) const SizedBox(height: 8) else SizedBox(height: pad.top + 70),
       for (final id in ['top10', ...Store.homeOrder().where((x) => x != 'top10')])
@@ -1687,7 +1687,7 @@ class LibTab extends StatelessWidget {
     final themes = tg.entries.toList()..sort((a, b) => (order.contains(a.key) ? order.indexOf(a.key) : 99) - (order.contains(b.key) ? order.indexOf(b.key) : 99));
     final hero = lb.recent.where((i) => i.rating >= 6).take(7).toList();
     final pad = MediaQuery.paddingOf(context);
-    return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+    return ListView(cacheExtent: Device.tv ? 1100 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
       if (hero.length >= 3 && !Device.tv) HeroBanner(items: hero, detailFor: detailFor, onPlay: onPlay, onInfo: onOpen) else SizedBox(height: Device.tv ? 8 : pad.top + 70),
       if (Device.tv) rail(kind == Kind.vod ? 'Derniers films ajoutés' : 'Dernières séries ajoutées', lb.recent),      // télé : pas de grande affiche, les derniers ajouts en premier
       if (plats.isNotEmpty)
