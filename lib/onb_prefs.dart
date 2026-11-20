@@ -71,7 +71,7 @@ class OnbPrefs {
 
   /// langue audio / sous-titres d'après les versions cochées (les réglages existants ne gèrent qu'un choix par rubrique)
   static (String, String) audioSub(List<String> v, String lang) {
-    final a = lang == 'en' ? 'en' : 'fr';
+    final a = L.supported.contains(lang) ? lang : 'fr';
     if (v.isEmpty) return ('', '');
     final vf = v.contains('vf'), st = v.contains('vostfr');
     if (vf) return (a, st ? '' : 'no');
@@ -97,3 +97,21 @@ class OnbPrefs {
 
 final _enRx = RegExp(r'(^|[^a-z])(en|eng|english|uk|gb|us|usa|ca)([^a-z]|$)', caseSensitive: false);
 bool looksEnglish(String name) => _enRx.hasMatch(name);
+
+final _langRx = {
+  'es': RegExp(r'(^|[^a-z])(es|esp|spa|spain|espagne|espanol|castellano|latino|lat)([^a-z]|$)', caseSensitive: false),
+  'de': RegExp(r'(^|[^a-z])(de|ger|germany|deutsch|allemand|allemagne|at|ch)([^a-z]|$)', caseSensitive: false),
+  'pt': RegExp(r'(^|[^a-z])(pt|por|portugal|portuguese|portugais|br|brasil|brazil)([^a-z]|$)', caseSensitive: false),
+};
+
+/// la catégorie du fournisseur est-elle dans la langue voulue ? (d'après son nom : préfixes « FR| », « ES| »…)
+bool looksLang(String lang, String name, bool Function(String) fr) {
+  switch (lang) {
+    case 'en':
+      return looksEnglish(name);
+    case 'fr':
+      return fr(name);
+    default:
+      return _langRx[lang]?.hasMatch(name) ?? looksEnglish(name);
+  }
+}

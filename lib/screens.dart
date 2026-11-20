@@ -2365,8 +2365,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final acctVal = Account.expired ? 'Expiré' : (Account.signedIn ? Account.email : 'Non connecté');
     String q(String k, List<(String, String)> o) => o.firstWhere((e) => e.$1 == Store.str(k), orElse: () => o.first).$2;
     const qOpts = [('4k', '4K si possible'), ('hd', 'HD · moins de données')];
-    const aOpts = [('', 'Automatique'), ('fr', 'Français'), ('en', 'Anglais')];
-    const sOpts = [('', 'Automatique'), ('no', 'Aucun'), ('fr', 'Français'), ('en', 'Anglais')];
+    const aOpts = [('', 'Automatique'), ('fr', 'Français'), ('en', 'Anglais'), ('es', 'Espagnol'), ('de', 'Allemand'), ('pt', 'Portugais')];
+    const sOpts = [('', 'Automatique'), ('no', 'Aucun'), ('fr', 'Français'), ('en', 'Anglais'), ('es', 'Espagnol'), ('de', 'Allemand'), ('pt', 'Portugais')];
     Widget sw(String t, IconData i, Color c, String k, bool def) => _row(i, c, t, on: Store.flag(k, def), onTap: () async {
           await Store.setFlag(k, !Store.flag(k, def));
           if (mounted) setState(() {});
@@ -2376,7 +2376,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
-        _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue', value: L.en ? 'English' : 'Français', chevron: true, onTap: () => _pickPage('Langue', const [('fr', 'Français'), ('en', 'English')], () => L.lang, (v) async {
+        _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
           await L.set(v);
           Tmdb.reset();
         }, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
@@ -3467,13 +3467,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _trSet = true;
     final pa = Store.str('pref_aud'), ps = Store.str('pref_sub');
     if (pa.isNotEmpty) {
-      final m = a.where((x) => (x.language ?? '').toLowerCase().startsWith(pa)).firstOrNull;
+      final m = a.where((x) => L.trackIs(x.language, pa)).firstOrNull;
       if (m != null) player.setAudioTrack(m);
     }
     if (ps == 'no') {
       player.setSubtitleTrack(SubtitleTrack.no());
     } else if (ps.isNotEmpty) {
-      final m = s.where((x) => (x.language ?? '').toLowerCase().startsWith(ps)).firstOrNull;
+      final m = s.where((x) => L.trackIs(x.language, ps)).firstOrNull;
       if (m != null) player.setSubtitleTrack(m);
     }
   }
@@ -3501,7 +3501,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       hits = await Subs.search(
         title: f?.title.isNotEmpty == true ? f!.title : widget.title,
         tmdbId: f?.tmdbId ?? 0,
-        lang: L.en ? 'EN' : 'FR',
+        lang: L.lang.toUpperCase(),
         tv: tv,
         season: nums == null ? 0 : int.parse(nums.group(1)!),
         episode: nums == null ? 0 : int.parse(nums.group(2)!),

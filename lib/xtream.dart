@@ -590,7 +590,7 @@ bool suggested(Kind k, String name) {
   if (RegExp(r'adult|xxx|\+18|18\+|porn|erotique').hasMatch(n)) return false;
   final pr = OnbPrefs.active ? OnbPrefs.tastes : const <String>[];
   final ver = pr.isEmpty ? const <String>[] : OnbPrefs.ver;
-  final okLang = pr.isNotEmpty && L.lang == 'en' ? looksEnglish(name) : looksFrench(name);
+  final okLang = pr.isEmpty ? looksFrench(name) : looksLang(L.lang, name, looksFrench);
   if (k == Kind.live) {
     final th = liveThemeOf(name);
     if (pr.isNotEmpty) {

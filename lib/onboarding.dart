@@ -12,6 +12,7 @@ import 'perf.dart';
 import 'perso.dart' show HomeSettings;
 import 'sport.dart' show fetchSport, manageLeagues, manageTeams;
 import 'store.dart';
+import 'tmdb.dart' show Tmdb;
 import 'ui.dart';
 
 /// Parcours de configuration d'un nouveau compte (après la saisie des identifiants IPTV) :
@@ -25,7 +26,51 @@ class OnboardingFlow extends StatefulWidget {
   State<OnboardingFlow> createState() => _OnboardingFlowState();
 }
 
-String _t(String fr, String en) => L.en ? en : fr;
+String _t(String fr, String en) {
+  if (L.lang == 'fr') return fr;
+  if (L.lang == 'en') return en;
+  if (fr.startsWith('ÉTAPE ')) {
+    final w = {'es': 'PASO', 'de': 'SCHRITT', 'pt': 'ETAPA'}[L.lang]!, of = {'es': 'DE', 'de': 'VON', 'pt': 'DE'}[L.lang]!;
+    final m = RegExp(r'(\d+) SUR (\d+)').firstMatch(fr)!;
+    return '$w ${m[1]} $of ${m[2]}';
+  }
+  return _tr[fr]?[L.lang] ?? en;
+}
+
+const _tr = <String, Map<String, String>>{
+  'Continuer': {'es': 'Continuar', 'de': 'Weiter', 'pt': 'Continuar'},
+  'Passer': {'es': 'Omitir', 'de': 'Überspringen', 'pt': 'Saltar'},
+  'Retour': {'es': 'Atrás', 'de': 'Zurück', 'pt': 'Voltar'},
+  'Commencer': {'es': 'Empezar', 'de': 'Los geht\'s', 'pt': 'Começar'},
+  'Plus tard': {'es': 'Más tarde', 'de': 'Später', 'pt': 'Mais tarde'},
+  'Bienvenue sur MinouFlix': {'es': 'Bienvenido a MinouFlix', 'de': 'Willkommen bei MinouFlix', 'pt': 'Bem-vindo ao MinouFlix'},
+  'Quelques choix et c\'est parti.': {'es': 'Unas elecciones y listo.', 'de': 'Ein paar Fragen und es geht los.', 'pt': 'Algumas escolhas e já está.'},
+  'Quelle langue préfères-tu ?': {'es': '¿Qué idioma prefieres?', 'de': 'Welche Sprache bevorzugst du?', 'pt': 'Que idioma preferes?'},
+  'Pour l\'appli, les catégories proposées et la recherche.': {'es': 'Para la app, las categorías sugeridas y la búsqueda.', 'de': 'Für die App, die vorgeschlagenen Kategorien und die Suche.', 'pt': 'Para a app, as categorias sugeridas e a pesquisa.'},
+  'Quelle version préfères-tu ?': {'es': '¿Qué versión prefieres?', 'de': 'Welche Fassung bevorzugst du?', 'pt': 'Que versão preferes?'},
+  'Coche celles qui te conviennent. Si un titre n\'existe pas dans la première, l\'appli prend la suivante.': {'es': 'Marca las que te gusten. Si un título no existe en la primera, la app usa la siguiente.', 'de': 'Wähle aus, was dir passt. Gibt es einen Titel nicht in der ersten Fassung, nimmt die App die nächste.', 'pt': 'Marca as que preferes. Se um título não existir na primeira, a app usa a seguinte.'},
+  'Que regardez-vous ?': {'es': '¿Qué sueles ver?', 'de': 'Was schaust du?', 'pt': 'O que costumas ver?'},
+  'Choisis tout ce qui te plaît, tu pourras changer plus tard.': {'es': 'Elige lo que quieras, podrás cambiarlo después.', 'de': 'Wähle alles, was dir gefällt. Du kannst es später ändern.', 'pt': 'Escolhe o que quiseres, podes mudar depois.'},
+  'Films': {'es': 'Películas', 'de': 'Filme', 'pt': 'Filmes'},
+  'Séries': {'es': 'Series', 'de': 'Serien', 'pt': 'Séries'},
+  'TV en direct': {'es': 'TV en vivo', 'de': 'Live-TV', 'pt': 'TV ao vivo'},
+  'Sport': {'es': 'Deportes', 'de': 'Sport', 'pt': 'Desporto'},
+  'Enfants': {'es': 'Infantil', 'de': 'Kinder', 'pt': 'Infantil'},
+  'Documentaires': {'es': 'Documentales', 'de': 'Dokus', 'pt': 'Documentários'},
+  'Ton sport': {'es': 'Tu deporte', 'de': 'Dein Sport', 'pt': 'O teu desporto'},
+  'Choisis tes compétitions et tes équipes : leurs matchs passent en premier.': {'es': 'Elige tus competiciones y equipos: sus partidos van primero.', 'de': 'Wähle deine Wettbewerbe und Teams: ihre Spiele kommen zuerst.', 'pt': 'Escolhe as tuas competições e equipas: os jogos delas vêm primeiro.'},
+  'Mes compétitions': {'es': 'Mis competiciones', 'de': 'Meine Wettbewerbe', 'pt': 'As minhas competições'},
+  'Mes équipes': {'es': 'Mis equipos', 'de': 'Meine Teams', 'pt': 'As minhas equipas'},
+  'Tout est prêt': {'es': 'Todo listo', 'de': 'Alles bereit', 'pt': 'Tudo pronto'},
+  'Ton MinouFlix est préparé. Tu pourras tout modifier dans Réglages.': {'es': 'Tu MinouFlix está listo. Podrás cambiarlo todo en Ajustes.', 'de': 'Dein MinouFlix ist vorbereitet. Alles lässt sich später in den Einstellungen ändern.', 'pt': 'O teu MinouFlix está pronto. Podes mudar tudo nas Definições.'},
+  'Découvrir MinouFlix': {'es': 'Descubrir MinouFlix', 'de': 'MinouFlix entdecken', 'pt': 'Descobrir o MinouFlix'},
+  'Personnaliser mon accueil': {'es': 'Personalizar mi inicio', 'de': 'Startseite anpassen', 'pt': 'Personalizar o meu início'},
+  'Langue': {'es': 'Idioma', 'de': 'Sprache', 'pt': 'Idioma'},
+  'Version': {'es': 'Versión', 'de': 'Fassung', 'pt': 'Versão'},
+  'Goûts': {'es': 'Gustos', 'de': 'Vorlieben', 'pt': 'Gostos'},
+  'Automatique': {'es': 'Automático', 'de': 'Automatisch', 'pt': 'Automático'},
+  'Tout': {'es': 'Todo', 'de': 'Alles', 'pt': 'Tudo'},
+};
 
 class _Taste {
   final String id, fr, en;
@@ -46,6 +91,17 @@ const _tastes = [
 ];
 
 const _kEase = Cubic(0.2, 0.8, 0.2, 1);
+
+const _langs = [('fr', 'Français'), ('en', 'English'), ('es', 'Español'), ('de', 'Deutsch'), ('pt', 'Português')];
+
+/// versions proposées selon la langue : doublé / original sous-titré / original (nom courant dans chaque pays + explication)
+const _verTxt = <String, List<String>>{
+  'fr': ['VF', 'Doublé en français', 'VOSTFR', 'Version originale, sous-titres français', 'VO', 'Version originale, sans sous-titres'],
+  'en': ['Dubbed', 'English audio', 'Original, subtitled', 'Original audio, English subtitles', 'Original', 'Original audio, no subtitles'],
+  'es': ['Doblada', 'Audio en español', 'VOSE', 'Versión original subtitulada en español', 'VO', 'Versión original, sin subtítulos'],
+  'de': ['Synchronisiert', 'Deutsche Tonspur', 'OmU', 'Originalton mit deutschen Untertiteln', 'OV', 'Originalton, ohne Untertitel'],
+  'pt': ['Dobrado', 'Áudio em português', 'Legendado', 'Áudio original com legendas em português', 'Original', 'Áudio original, sem legendas'],
+};
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
   int step = 0, dir = 1;
@@ -161,11 +217,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _sport(tv), _recap(tv)];
     final fwd = dir >= 0;
     return AnimatedSwitcher(
-      duration: Duration(milliseconds: reduce ? 150 : 420),
+      duration: Duration(milliseconds: reduce || Perf.lite ? 160 : 420),
       switchOutCurve: const Interval(0, 0.6),
       transitionBuilder: (child, anim) {
         final entering = child.key == ValueKey('p$step');
-        if (reduce) return FadeTransition(opacity: anim, child: child);
+        if (reduce || Perf.lite) return FadeTransition(opacity: anim, child: child);
         final from = Offset(entering ? (fwd ? 0.06 : -0.06) : (fwd ? -0.04 : 0.04), 0);
         return FadeTransition(
           opacity: anim,
@@ -283,27 +339,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   // ---------------------------------------------------------------- 1. langue
   Widget _lang(bool tv) {
-    Widget card(String code, String name, String hint) {
-      final on = L.lang == code;
-      return _Card(
-        label: name,
-        sub: hint,
-        a: kAccent,
-        b: const Color(0xFF3B5FD6),
-        selected: on,
-        flag: code,
-        height: tv ? 150 : 100,
-        autofocus: tv && on,
-        onTap: () async {
-          HapticFeedback.selectionClick();
-          await L.set(code);
-          setState(() {});
-          _save();
-        },
-      );
-    }
-
-    final cards = [card('fr', 'Français', 'Application et catégories'), card('en', 'English', 'App and categories')];
+    final cols = tv ? 3 : 2;
     return _shell(
       title: _t('Quelle langue préfères-tu ?', 'Which language do you prefer?'),
       sub: _t('Pour l\'appli, les catégories proposées et la recherche.', 'For the app, suggested categories and search.'),
@@ -311,19 +347,49 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       skip: false,
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(2),
-      content: tv
-          ? Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 225, child: _In(i: 3, child: cards[0])), const SizedBox(width: 16), SizedBox(width: 225, child: _In(i: 4, child: cards[1]))])
-          : Column(children: [_In(i: 3, child: cards[0]), const SizedBox(height: 14), _In(i: 4, child: cards[1])]),
+      content: LayoutBuilder(builder: (context, c) {
+        final w = tv ? 148.0 * cols + 24 : c.maxWidth;
+        const gap = 12.0;
+        final cw = (w - gap * (cols - 1)) / cols;
+        return SizedBox(
+          width: w,
+          child: Wrap(spacing: gap, runSpacing: gap, children: [
+            for (final (i, l) in _langs.indexed)
+              SizedBox(
+                width: cw,
+                child: _In(
+                  i: 3 + i,
+                  child: _Card(
+                    label: l.$2,
+                    flag: l.$1,
+                    a: kAccent,
+                    b: const Color(0xFF3B5FD6),
+                    selected: L.lang == l.$1,
+                    height: tv ? 112 : 104,
+                    autofocus: tv && L.lang == l.$1,
+                    onTap: () async {
+                      HapticFeedback.selectionClick();
+                      await L.set(l.$1);
+                      Tmdb.reset();
+                      setState(() {});
+                      _save();
+                    },
+                  ),
+                ),
+              ),
+          ]),
+        );
+      }),
     );
   }
 
   // ---------------------------------------------------------------- 2. version audio / sous-titres
   Widget _version(bool tv) {
-    final en = L.en;
+    final x = _verTxt[L.lang] ?? _verTxt['en']!;
     final rows = [
-      ('vf', Icons.chat_bubble_rounded, en ? 'Dubbed' : 'VF', en ? 'English audio' : 'Doublé en français'),
-      ('vostfr', Icons.subtitles_rounded, en ? 'Original, subtitled' : 'VOSTFR', en ? 'Original audio with English subtitles' : 'Version originale, sous-titres français'),
-      ('vo', Icons.public_rounded, en ? 'Original' : 'VO', en ? 'Original audio, no subtitles' : 'Version originale, sans sous-titres'),
+      ('vf', Icons.chat_bubble_rounded, x[0], x[1]),
+      ('vostfr', Icons.subtitles_rounded, x[2], x[3]),
+      ('vo', Icons.public_rounded, x[4], x[5]),
     ];
     return _shell(
       title: _t('Quelle version préfères-tu ?', 'Which version do you prefer?'),
@@ -425,8 +491,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   // ---------------------------------------------------------------- 5. récap
   Widget _recap(bool tv) {
-    final lang = L.lang == 'en' ? 'English' : 'Français';
-    final verTxt = ver.isEmpty ? _t('Automatique', 'Automatic') : [for (final v in ['vf', 'vostfr', 'vo']) if (ver.contains(v)) v == 'vf' ? (L.en ? 'Dubbed' : 'VF') : v == 'vostfr' ? (L.en ? 'Subtitled' : 'VOSTFR') : 'VO'].join(' · ');
+    final lang = _langs.firstWhere((l) => l.$1 == L.lang, orElse: () => _langs.first).$2;
+    final vx = _verTxt[L.lang] ?? _verTxt['en']!;
+    final verTxt = ver.isEmpty ? _t('Automatique', 'Automatic') : [for (final v in ['vf', 'vostfr', 'vo']) if (ver.contains(v)) v == 'vf' ? vx[0] : v == 'vostfr' ? vx[2] : vx[4]].join(' · ');
     Widget line(int i, String k, Widget v, int to) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: _In(i: 3 + i, child: _SummaryLine(label: k, value: v, onTap: () => go(to), autofocus: false)),
@@ -544,7 +611,7 @@ class _In extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (MediaQuery.of(context).disableAnimations) return child;
+    if (MediaQuery.of(context).disableAnimations || Perf.lite) return child;      // télé : pas de couche d'opacité par élément (mémoire) ; la page entière se fond
     final k = i < 8 ? i : 8;
     final int d = 420 + 45 * k;
     return TweenAnimationBuilder<double>(
@@ -607,7 +674,7 @@ class _CardState extends State<_Card> {
             boxShadow: on && !Perf.lite ? [BoxShadow(color: widget.a.withOpacity(0.45), blurRadius: 28, spreadRadius: -6)] : null,
           ),
           child: Stack(children: [
-            if (widget.flag != null) Positioned(right: -18, top: 10, bottom: 10, child: ClipOval(child: SizedBox(width: widget.height - 20 + 24, child: CustomPaint(painter: _FlagPainter(widget.flag!, on))))),
+            if (widget.flag != null) Positioned(left: 16, top: 14, child: _FlagOrb(code: widget.flag!, size: 46, on: on)),
             if (widget.icon != null) Positioned(left: 16, top: 14, child: Icon(widget.icon, size: 40, color: on ? fg : Colors.white.withOpacity(0.92))),
             Positioned(
               left: 16,
@@ -749,7 +816,7 @@ class _AuroraState extends State<_Aurora> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) => RepaintBoundary(
         child: TweenAnimationBuilder<Color?>(
           tween: ColorTween(end: widget.tint ?? const Color(0xFF7A5CFF)),
-          duration: const Duration(milliseconds: 800),
+          duration: Duration(milliseconds: Perf.lite ? 0 : 800),
           builder: (_, col, __) => AnimatedBuilder(
             animation: _c,
             builder: (_, __) => CustomPaint(painter: _AuroraPainter(_c.value, col ?? const Color(0xFF7A5CFF), widget.page)),
@@ -875,49 +942,83 @@ class _CheckPainter extends CustomPainter {
   bool shouldRepaint(_CheckPainter o) => o.v != v;
 }
 
-/// drapeaux dessinés (France, Royaume-Uni), incrustés à droite de la carte de langue
-class _FlagPainter extends CustomPainter {
+/// pastille drapeau : disque aux couleurs du pays, anneau clair et reflet de verre (dessiné, aucune image)
+class _FlagOrb extends StatelessWidget {
   final String code;
+  final double size;
   final bool on;
-  _FlagPainter(this.code, this.on);
+  const _FlagOrb({required this.code, required this.size, required this.on});
 
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withOpacity(on ? 0.9 : 0.35), width: 2),
+          boxShadow: Perf.lite ? null : [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: ClipOval(child: CustomPaint(painter: _FlagPainter(code), foregroundPainter: _SheenPainter())),
+      );
+}
+
+class _SheenPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final r = Offset.zero & size;
-    final a = on ? 1.0 : 0.55;
-    Paint f(Color c) => Paint()..color = c.withOpacity(a);
-    if (code == 'fr') {
-      final w = size.width / 3;
-      canvas.drawRect(Rect.fromLTWH(0, 0, w, size.height), f(const Color(0xFF1F4FD8)));
-      canvas.drawRect(Rect.fromLTWH(w, 0, w, size.height), f(Colors.white));
-      canvas.drawRect(Rect.fromLTWH(2 * w, 0, w, size.height), f(const Color(0xFFE5303C)));
-    } else {
-      canvas.drawRect(r, f(const Color(0xFF1B2F7A)));
-      final diag = size.height * 0.2;
-      Path band(double d) => Path()
-        ..moveTo(0, 0)
-        ..lineTo(d, 0)
-        ..lineTo(size.width, size.height)
-        ..lineTo(size.width - d, size.height)
-        ..close();
-      Path band2(double d) => Path()
-        ..moveTo(size.width, 0)
-        ..lineTo(size.width - d, 0)
-        ..lineTo(0, size.height)
-        ..lineTo(d, size.height)
-        ..close();
-      canvas.drawPath(band(diag), f(Colors.white));
-      canvas.drawPath(band2(diag), f(Colors.white));
-      canvas.drawPath(band(diag * 0.4), f(const Color(0xFFD02A3C)));
-      canvas.drawPath(band2(diag * 0.4), f(const Color(0xFFD02A3C)));
-      final cx = size.width / 2, cy = size.height / 2;
-      canvas.drawRect(Rect.fromLTWH(cx - size.width * 0.11, 0, size.width * 0.22, size.height), f(Colors.white));
-      canvas.drawRect(Rect.fromLTWH(0, cy - size.height * 0.17, size.width, size.height * 0.34), f(Colors.white));
-      canvas.drawRect(Rect.fromLTWH(cx - size.width * 0.06, 0, size.width * 0.12, size.height), f(const Color(0xFFD02A3C)));
-      canvas.drawRect(Rect.fromLTWH(0, cy - size.height * 0.09, size.width, size.height * 0.18), f(const Color(0xFFD02A3C)));
+    canvas.drawRect(r, Paint()..shader = ui.Gradient.radial(Offset(size.width * 0.3, size.height * 0.25), size.width * 0.9, [Colors.white.withOpacity(0.35), Colors.white.withOpacity(0)]));
+    canvas.drawRect(r, Paint()..shader = ui.Gradient.linear(Offset(0, size.height * 0.55), Offset(0, size.height), [Colors.black.withOpacity(0), Colors.black.withOpacity(0.22)]));
+  }
+
+  @override
+  bool shouldRepaint(_SheenPainter o) => false;
+}
+
+class _FlagPainter extends CustomPainter {
+  final String code;
+  _FlagPainter(this.code);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    Paint f(int c) => Paint()..color = Color(c);
+    switch (code) {
+      case 'fr':
+        canvas.drawRect(Rect.fromLTWH(0, 0, w / 3, h), f(0xFF1F4FD8));
+        canvas.drawRect(Rect.fromLTWH(w / 3, 0, w / 3, h), f(0xFFFFFFFF));
+        canvas.drawRect(Rect.fromLTWH(2 * w / 3, 0, w / 3, h), f(0xFFE5303C));
+      case 'es':
+        canvas.drawRect(Rect.fromLTWH(0, 0, w, h), f(0xFFC8102E));
+        canvas.drawRect(Rect.fromLTWH(0, h * 0.25, w, h * 0.5), f(0xFFFFC400));
+      case 'de':
+        canvas.drawRect(Rect.fromLTWH(0, 0, w, h / 3), f(0xFF1A1A1A));
+        canvas.drawRect(Rect.fromLTWH(0, h / 3, w, h / 3), f(0xFFDD0000));
+        canvas.drawRect(Rect.fromLTWH(0, 2 * h / 3, w, h / 3), f(0xFFFFCE00));
+      case 'pt':
+        canvas.drawRect(Rect.fromLTWH(0, 0, w * 0.4, h), f(0xFF046A38));
+        canvas.drawRect(Rect.fromLTWH(w * 0.4, 0, w * 0.6, h), f(0xFFDA291C));
+        canvas.drawCircle(Offset(w * 0.4, h / 2), h * 0.2, f(0xFFFFE000));
+        canvas.drawCircle(Offset(w * 0.4, h / 2), h * 0.12, f(0xFFDA291C));
+        canvas.drawCircle(Offset(w * 0.4, h / 2), h * 0.07, f(0xFFFFFFFF));
+      default:
+        canvas.drawRect(Offset.zero & size, f(0xFF1B2F7A));
+        Path band(double d, bool rev) => Path()
+          ..moveTo(rev ? w : 0, 0)
+          ..lineTo(rev ? w - d : d, 0)
+          ..lineTo(rev ? 0 : w, h)
+          ..lineTo(rev ? d : w - d, h)
+          ..close();
+        for (final rev in [false, true]) {
+          canvas.drawPath(band(h * 0.2, rev), f(0xFFFFFFFF));
+          canvas.drawPath(band(h * 0.08, rev), f(0xFFD02A3C));
+        }
+        canvas.drawRect(Rect.fromLTWH(w * 0.39, 0, w * 0.22, h), f(0xFFFFFFFF));
+        canvas.drawRect(Rect.fromLTWH(0, h * 0.39, w, h * 0.22), f(0xFFFFFFFF));
+        canvas.drawRect(Rect.fromLTWH(w * 0.44, 0, w * 0.12, h), f(0xFFD02A3C));
+        canvas.drawRect(Rect.fromLTWH(0, h * 0.44, w, h * 0.12), f(0xFFD02A3C));
     }
   }
 
   @override
-  bool shouldRepaint(_FlagPainter o) => o.code != code || o.on != on;
+  bool shouldRepaint(_FlagPainter o) => o.code != code;
 }
