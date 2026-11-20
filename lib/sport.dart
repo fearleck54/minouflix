@@ -281,7 +281,7 @@ class SportCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(hide ? 'Score\nmasqué' : 'Terminé', textAlign: TextAlign.center, style: T(10 * z, w: 600, color: kMut, h: 1.15)),
                     ])
-                  : Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, style: T(12.5 * z, w: 700, h: 1.25));
+                  : FittedBox(fit: BoxFit.scaleDown, child: Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, softWrap: false, style: T(12.5 * z, w: 700, h: 1.25)));
           return SizedBox(
             width: width,
             child: FocusCard(

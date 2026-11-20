@@ -273,7 +273,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         a: kAccent,
         b: const Color(0xFF3B5FD6),
         selected: on,
-        watermark: code == 'fr' ? 'Aa' : 'Aa',
+        flag: code,
         height: tv ? 150 : 100,
         autofocus: tv && on,
         onTap: () async {
@@ -290,7 +290,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       title: _t('Quelle langue préfères-tu ?', 'Which language do you prefer?'),
       sub: _t('Pour l\'appli, les catégories proposées et la recherche.', 'For the app, suggested categories and search.'),
       tv: tv,
-      skip: true,
+      skip: false,
       primary: _t('Continuer', 'Continue'),
       onPrimary: () => go(2),
       content: tv
@@ -309,8 +309,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     ];
     return _shell(
       title: _t('Quelle version préfères-tu ?', 'Which version do you prefer?'),
-      sub: _t('Tu peux en choisir plusieurs. L\'appli prend la première disponible.', 'Pick as many as you like. The app uses the first one available.'),
+      sub: _t('Coche celles qui te conviennent. Si un titre n\'existe pas dans la première, l\'appli prend la suivante.', 'Tick the ones you like. If a title isn\'t available in the first, the app uses the next one.'),
       tv: tv,
+      skip: false,
       primary: _t('Continuer', 'Continue'),
       enabled: ver.isNotEmpty,
       onPrimary: () => go(3),
@@ -505,13 +506,13 @@ class _In extends StatelessWidget {
 /// carte de choix : verre teinté au repos, dégradé plein quand elle est cochée, coche à ressort
 class _Card extends StatefulWidget {
   final String label;
-  final String? sub, watermark;
+  final String? sub, flag;
   final IconData? icon;
   final Color a, b;
   final bool selected, darkText, autofocus;
   final double height;
   final VoidCallback onTap;
-  const _Card({required this.label, required this.a, required this.b, required this.selected, required this.height, required this.onTap, this.sub, this.watermark, this.icon, this.darkText = false, this.autofocus = false});
+  const _Card({required this.label, required this.a, required this.b, required this.selected, required this.height, required this.onTap, this.sub, this.flag, this.icon, this.darkText = false, this.autofocus = false});
   @override
   State<_Card> createState() => _CardState();
 }
@@ -543,6 +544,7 @@ class _CardState extends State<_Card> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           height: widget.height,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: kBg2,
@@ -551,7 +553,7 @@ class _CardState extends State<_Card> {
             boxShadow: on && !Perf.lite ? [BoxShadow(color: widget.a.withOpacity(0.45), blurRadius: 28, spreadRadius: -6)] : null,
           ),
           child: Stack(children: [
-            if (widget.watermark != null) Positioned(right: 14, bottom: -6, child: Text(widget.watermark!, style: T(64, w: 800, color: Colors.white.withOpacity(0.13)))),
+            if (widget.flag != null) Positioned(right: -18, top: 10, bottom: 10, child: ClipOval(child: SizedBox(width: widget.height - 20 + 24, child: CustomPaint(painter: _FlagPainter(widget.flag!, on))))),
             if (widget.icon != null) Positioned(left: 16, top: 14, child: Icon(widget.icon, size: 40, color: on ? fg : Colors.white.withOpacity(0.92))),
             Positioned(
               left: 16,
@@ -817,4 +819,51 @@ class _CheckPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CheckPainter o) => o.v != v;
+}
+
+/// drapeaux dessinés (France, Royaume-Uni), incrustés à droite de la carte de langue
+class _FlagPainter extends CustomPainter {
+  final String code;
+  final bool on;
+  _FlagPainter(this.code, this.on);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Offset.zero & size;
+    final a = on ? 1.0 : 0.55;
+    Paint f(Color c) => Paint()..color = c.withOpacity(a);
+    if (code == 'fr') {
+      final w = size.width / 3;
+      canvas.drawRect(Rect.fromLTWH(0, 0, w, size.height), f(const Color(0xFF1F4FD8)));
+      canvas.drawRect(Rect.fromLTWH(w, 0, w, size.height), f(Colors.white));
+      canvas.drawRect(Rect.fromLTWH(2 * w, 0, w, size.height), f(const Color(0xFFE5303C)));
+    } else {
+      canvas.drawRect(r, f(const Color(0xFF1B2F7A)));
+      final diag = size.height * 0.2;
+      Path band(double d) => Path()
+        ..moveTo(0, 0)
+        ..lineTo(d, 0)
+        ..lineTo(size.width, size.height)
+        ..lineTo(size.width - d, size.height)
+        ..close();
+      Path band2(double d) => Path()
+        ..moveTo(size.width, 0)
+        ..lineTo(size.width - d, 0)
+        ..lineTo(0, size.height)
+        ..lineTo(d, size.height)
+        ..close();
+      canvas.drawPath(band(diag), f(Colors.white));
+      canvas.drawPath(band2(diag), f(Colors.white));
+      canvas.drawPath(band(diag * 0.4), f(const Color(0xFFD02A3C)));
+      canvas.drawPath(band2(diag * 0.4), f(const Color(0xFFD02A3C)));
+      final cx = size.width / 2, cy = size.height / 2;
+      canvas.drawRect(Rect.fromLTWH(cx - size.width * 0.11, 0, size.width * 0.22, size.height), f(Colors.white));
+      canvas.drawRect(Rect.fromLTWH(0, cy - size.height * 0.17, size.width, size.height * 0.34), f(Colors.white));
+      canvas.drawRect(Rect.fromLTWH(cx - size.width * 0.06, 0, size.width * 0.12, size.height), f(const Color(0xFFD02A3C)));
+      canvas.drawRect(Rect.fromLTWH(0, cy - size.height * 0.09, size.width, size.height * 0.18), f(const Color(0xFFD02A3C)));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FlagPainter o) => o.code != code || o.on != on;
 }

@@ -2465,6 +2465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                       child: FocusCard(
                         radius: 16,
+                        autofocus: Device.tv && i == 0,
                         onTap: () => setState(() => _sec = i),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
