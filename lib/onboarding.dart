@@ -9,6 +9,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'l10n.dart';
 import 'onb_prefs.dart';
 import 'perf.dart';
+import 'perso.dart' show HomeSettings;
+import 'sport.dart' show fetchSport, manageLeagues, manageTeams;
 import 'store.dart';
 import 'ui.dart';
 
@@ -49,7 +51,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int step = 0, dir = 1;
   final order = <String>[];      // goûts dans l'ordre où ils sont cochés
   final ver = <String>{};
-  static const _steps = 5;
+  List<int> get _seq => [0, 1, 2, 3, if (order.contains('sport')) 4, 5];
+  int get _steps => _seq.length;
+  int _next(int s) => _seq[(_seq.indexOf(s) + 1).clamp(0, _seq.length - 1)];
+  int _prev(int s) => _seq[(_seq.indexOf(s) - 1).clamp(0, _seq.length - 1)];
+  bool _busy = false;
 
   bool get reduce => MediaQuery.of(context).disableAnimations;
 
@@ -63,7 +69,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     } else {
       try {
         final j = jsonDecode(Store.str('onb_state')) as Map;
-        step = (j['step'] as num?)?.toInt().clamp(0, _steps - 1) ?? 0;
+        step = (j['step'] as num?)?.toInt().clamp(0, 5) ?? 0;
         order.addAll([for (final x in (j['order'] as List? ?? const [])) '$x']);
         ver.addAll([for (final x in (j['ver'] as List? ?? const [])) '$x']);
       } catch (_) {}
@@ -76,7 +82,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     HapticFeedback.lightImpact();
     setState(() {
       dir = to >= step ? 1 : -1;
-      step = to.clamp(0, _steps - 1);
+      step = to.clamp(0, 5);
     });
     _save();
   }
@@ -90,6 +96,15 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       await OnbPrefs.apply(tastes: order.toList(), ver: ver.toList());
     }
     widget.onDone();
+  }
+
+  /// applique les choix puis ouvre l'écran « Écran d'accueil » existant pour ajuster l'ordre ; on termine au retour
+  Future<void> _customHome() async {
+    HapticFeedback.lightImpact();
+    await OnbPrefs.apply(tastes: order.toList(), ver: ver.toList());
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeSettings()));
+    if (mounted) widget.onDone();
   }
 
   void _toggleTaste(String id) {
@@ -125,7 +140,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         onPopInvokedWithResult: (didPop, _) {
           if (didPop) return;
           if (step > (widget.redo ? 1 : 0)) {
-            go(step - 1);
+            go(_prev(step));
           } else if (widget.redo) {
             widget.onDone();
           }
@@ -143,7 +158,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Widget _page(BuildContext context) {
     final tv = Device.tv;
-    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _recap(tv)];
+    final pages = <Widget>[_welcome(tv), _lang(tv), _version(tv), _tastesPage(tv), _sport(tv), _recap(tv)];
     final fwd = dir >= 0;
     return AnimatedSwitcher(
       duration: Duration(milliseconds: reduce ? 150 : 420),
@@ -171,11 +186,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     bool enabled = true,
     bool skip = true,
     bool tv = false,
-    int stagger = 1,
+    Widget? extra,
   }) {
-    final head = _OnbHead(step: step, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(step - 1) : null, onSkip: skip ? () => step < _steps - 1 ? go(step + 1) : _finish() : null);
+    final pos = _seq.indexOf(step);
+    final head = _OnbHead(step: pos, total: _steps, onBack: step > (widget.redo ? 1 : 0) ? () => go(_prev(step)) : null, onSkip: skip ? () => step < 5 ? go(_next(step)) : _finish() : null);
     final titleW = [
-      _In(i: 0, child: mat(_t('ÉTAPE ${step + 1} SUR $_steps', 'STEP ${step + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
+      _In(i: 0, child: mat(_t('ÉTAPE ${pos + 1} SUR $_steps', 'STEP ${pos + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
       _In(i: 1, child: Text(title, style: T(tv ? 40 : 32, w: 800, ls: -0.03, h: 1.05))),
       const SizedBox(height: 10),
@@ -193,7 +209,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               ...titleW,
               const SizedBox(height: 28),
               _In(i: 5, child: _PrimaryButton(label: primary, onTap: onPrimary, enabled: enabled, autofocus: step == 0)),
-              const SizedBox(height: 40),
+              if (extra != null) Padding(padding: const EdgeInsets.only(top: 8), child: extra),
+              const SizedBox(height: 24),
             ]),
           ),
           const SizedBox(width: 40),
@@ -216,6 +233,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               Expanded(child: SingleChildScrollView(physics: const BouncingScrollPhysics(), child: content)),
               const SizedBox(height: 12),
               _In(i: 6, child: _PrimaryButton(label: primary, onTap: onPrimary, enabled: enabled, wide: true)),
+              if (extra != null) Center(child: extra),
             ]),
           ),
         ),
@@ -338,7 +356,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       tv: tv,
       primary: _t('Continuer', 'Continue'),
       enabled: order.isNotEmpty,
-      onPrimary: () => go(4),
+      onPrimary: () => go(order.contains('sport') ? 4 : 5),
       content: LayoutBuilder(builder: (context, c) {
         final w = (tv ? 148.0 * cols + 24 : c.maxWidth);
         const gap = 12.0;
@@ -370,7 +388,42 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
-  // ---------------------------------------------------------------- 4. récap
+  // ---------------------------------------------------------------- 4. sport (écrans existants de Réglages › Sport)
+  Future<void> _leagues() async {
+    final k = await manageLeagues(context);
+    if (k != null) await Store.saveSportKeys(k);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _teams() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final ev = await fetchSport(Store.sportKeys);
+      if (mounted) await manageTeams(context, ev);
+    } catch (_) {}
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Widget _sport(bool tv) {
+    final nl = Store.sportKeys.length, nt = Store.sportTeams.length;
+    return _shell(
+      title: _t('Ton sport', 'Your sports'),
+      sub: _t('Choisis tes compétitions et tes équipes : leurs matchs passent en premier.', 'Pick your competitions and teams: their matches come first.'),
+      tv: tv,
+      primary: _t('Continuer', 'Continue'),
+      onPrimary: () => go(5),
+      content: SizedBox(
+        width: tv ? 470 : double.infinity,
+        child: Column(children: [
+          Padding(padding: const EdgeInsets.only(bottom: 12), child: _In(i: 3, child: _Row(icon: Icons.emoji_events_rounded, title: _t('Mes compétitions', 'My competitions'), sub: _t('$nl suivie(s)', '$nl followed'), selected: nl > 0, autofocus: tv, onTap: _leagues))),
+          _In(i: 4, child: _Row(icon: Icons.groups_rounded, title: _t('Mes équipes', 'My teams'), sub: _busy ? _t('Chargement…', 'Loading…') : _t('$nt suivie(s)', '$nt followed'), selected: nt > 0, onTap: _teams)),
+        ]),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------- 5. récap
   Widget _recap(bool tv) {
     final lang = L.lang == 'en' ? 'English' : 'Français';
     final verTxt = ver.isEmpty ? _t('Automatique', 'Automatic') : [for (final v in ['vf', 'vostfr', 'vo']) if (ver.contains(v)) v == 'vf' ? (L.en ? 'Dubbed' : 'VF') : v == 'vostfr' ? (L.en ? 'Subtitled' : 'VOSTFR') : 'VO'].join(' · ');
@@ -395,6 +448,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       skip: false,
       primary: widget.redo ? _t('Appliquer', 'Apply') : _t('Découvrir MinouFlix', 'Discover MinouFlix'),
       onPrimary: _finish,
+      extra: _LinkButton(label: _t('Personnaliser mon accueil', 'Customize my home'), onTap: _customHome),
       content: SizedBox(
         width: tv ? 470 : double.infinity,
         child: Column(children: [
