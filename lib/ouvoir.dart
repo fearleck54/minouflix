@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import 'epg.dart';
+import 'lfp.dart';
 import 'names.dart';
 import 'sport.dart';
 import 'store.dart';
@@ -75,6 +76,21 @@ Future<bool> quickCheck(Ev e, Chan c) async {
 
 Future<List<WatchPick>> whereToWatch(Ev e, List<Chan> chans, {void Function(List<WatchPick>)? progress}) async {
   final l = lgOf(e.lg);
+  // chaîne officielle (Ligue 1 / Ligue 2) : celle que la LFP annonce pour ce match, retrouvée dans ta playlist
+  final official = <WatchPick>[];
+  try {
+    final want = {for (final n in await Lfp.channels(e)) Lfp.key(n)};
+    if (want.isNotEmpty) {
+      for (final c in chans) {
+        if (want.contains(Lfp.key(c.name))) official.add(WatchPick(c, 'Diffuseur officiel', 9));
+      }
+      official.sort((a, b) => (a.c.name.toLowerCase().contains('hd') ? 0 : 1).compareTo(b.c.name.toLowerCase().contains('hd') ? 0 : 1));
+      if (official.isNotEmpty) {
+        progress?.call(official);
+        return official.take(8).toList();
+      }
+    }
+  } catch (_) {}
   final pats = [for (final p in l.ch) RegExp(p)];
   final base = <Chan>[];
   for (final p in pats) {
