@@ -3345,6 +3345,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           player.setRate(_rate);
           setState(() {});
         }),
+      (CupertinoIcons.timer, 'Synchro audio : $_syncTxt', _syncOpen),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
     ];
@@ -3649,13 +3650,47 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (_) {}
   }
 
+  bool _syncMode = false;
+  Timer? _syncT;
+  DateTime _syncLast = DateTime(2000);
+  String _syncRead = '';
+
   Future<void> _setDelay(double v) async {
     _aDelay = double.parse(v.clamp(-5.0, 5.0).toStringAsFixed(2));
     try {
       final dynamic n = player.platform;
       await n.setProperty('audio-delay', '$_aDelay');
+      _syncRead = '${await n.getProperty('audio-delay')}';
     } catch (_) {}
+    if (mounted) setState(() {});
   }
+
+  /// calage du son : ← son plus tôt, → son plus tard (pas de 50 ms), OK ferme ; se ferme seul après 6 s
+  void _syncOpen() {
+    setState(() => _syncMode = true);
+    _syncTick();
+  }
+
+  void _syncTick() {
+    _syncT?.cancel();
+    _syncT = Timer(const Duration(seconds: 6), _syncClose);
+  }
+
+  void _syncClose() {
+    _syncT?.cancel();
+    if (mounted && _syncMode) setState(() => _syncMode = false);
+    if (mounted) _main.requestFocus();
+  }
+
+  void _syncStep(int dir, {bool repeat = false}) {
+    final n = DateTime.now();
+    if (repeat && n.difference(_syncLast).inMilliseconds < 140) return;
+    _syncLast = n;
+    _setDelay(_aDelay + dir * 0.05);
+    _syncTick();
+  }
+
+  String get _syncTxt => '${_aDelay > 0 ? '+' : ''}${(_aDelay * 1000).round()} ms';
 
   void _tracks() {
     final t = player.state.tracks;
@@ -3685,13 +3720,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
             builder: (_, set) => Column(children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text('Synchro audio : ${_aDelay > 0 ? '+' : ''}${(_aDelay * 1000).round()} ms', style: T(15.5, w: 600)),
-                subtitle: Text('Son en retard : −  ·  son en avance : +', style: T(12.5, color: kMut)),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  IconButton(icon: const Icon(CupertinoIcons.minus_circle_fill), onPressed: () async { await _setDelay(_aDelay - 0.1); set(() {}); }),
-                  IconButton(icon: const Icon(CupertinoIcons.plus_circle_fill), onPressed: () async { await _setDelay(_aDelay + 0.1); set(() {}); }),
-                ]),
-                onLongPress: () async { await _setDelay(0); set(() {}); },
+                leading: const Icon(CupertinoIcons.timer),
+                title: Text('Synchro audio : $_syncTxt', style: T(15.5, w: 600)),
+                subtitle: Text('Caler les dialogues avec ← →', style: T(12.5, color: kMut)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _syncOpen();
+                },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -3818,6 +3853,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
     _nextT?.cancel();
+    _syncT?.cancel();
     _nextNode.dispose();
     _skipNode.dispose();
     if (!kIsWeb && Platform.isAndroid && Device.tv && _fpsFor != 0) _fpsCh.invokeMethod('set', 0.0).catchError((_) {});
@@ -3895,6 +3931,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   KeyEventResult _tvKey(FocusNode node, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final k = e.logicalKey;
+    if (_syncMode) {
+      if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
+        _syncStep(k == LogicalKeyboardKey.arrowLeft ? -1 : 1, repeat: e is KeyRepeatEvent);
+      } else if (e is KeyDownEvent) {
+        _syncClose();
+      }
+      return KeyEventResult.handled;
+    }
     if (_fail != null) {
       // message d'échec : ← → passent d'un bouton à l'autre, OK valide
       final ns = [_retryNode, if (_alts.length > 1) _failNodes[0], _failNodes[1]];
@@ -4149,6 +4193,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.maybePop(context)),
                   ]),
                 ]),
+              ),
+            ),
+          if (_syncMode)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 90,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  decoration: BoxDecoration(color: const Color(0xD9000000), borderRadius: BorderRadius.circular(22)),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text('Synchro audio', style: T(14, w: 600, color: kMut)),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(iconSize: 34, icon: const Icon(CupertinoIcons.minus_circle_fill), onPressed: () => _syncStep(-1)),
+                      SizedBox(width: 130, child: Text(_syncTxt, textAlign: TextAlign.center, style: T(26, w: 750))),
+                      IconButton(iconSize: 34, icon: const Icon(CupertinoIcons.plus_circle_fill), onPressed: () => _syncStep(1)),
+                    ]),
+                    Text('← son plus tôt   ·   son plus tard →   ·   OK pour fermer', style: T(12.5, color: kMut)),
+                    if (_syncRead.isNotEmpty && (double.tryParse(_syncRead.replaceAll(',', '.')) ?? _aDelay) != _aDelay) Text('non appliqué par le lecteur ($_syncRead)', style: T(12, color: const Color(0xFFFFB86B))),
+                  ]),
+                ),
               ),
             ),
           if (_nextIn > 0)
