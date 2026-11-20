@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 
+import 'onboarding.dart' show FlagOrb;
 import 'perf.dart';
 import 'ui.dart';
 
@@ -9,11 +10,12 @@ class ChoiceGrid extends StatelessWidget {
   final List<(String, String)> options;
   final String selected;
   final Future<void> Function(String) onPick;
-  const ChoiceGrid({super.key, required this.options, required this.selected, required this.onPick});
+  final bool flags;       // langues : drapeau devant le nom
+  const ChoiceGrid({super.key, required this.options, required this.selected, required this.onPick, this.flags = false});
 
   @override
   Widget build(BuildContext context) {
-    final cols = Device.tv ? 3 : (isWide(context) ? 3 : 2);
+    const cols = 3;
     final firstSel = options.indexWhere((o) => o.$1 == selected);
     return LayoutBuilder(builder: (context, c) {
       const gap = 10.0;
@@ -26,6 +28,7 @@ class ChoiceGrid extends StatelessWidget {
               width: cw,
               child: ChoiceCard(
                 label: o.$2,
+                flag: flags && const ['fr', 'en', 'es', 'de', 'pt'].contains(o.$1) ? o.$1 : null,
                 selected: o.$1 == selected,
                 autofocus: Device.tv && i == (firstSel < 0 ? 0 : firstSel),
                 onTap: () {
@@ -43,8 +46,9 @@ class ChoiceGrid extends StatelessWidget {
 class ChoiceCard extends StatelessWidget {
   final String label;
   final bool selected, autofocus;
+  final String? flag;
   final VoidCallback onTap;
-  const ChoiceCard({super.key, required this.label, required this.selected, required this.onTap, this.autofocus = false});
+  const ChoiceCard({super.key, this.flag, required this.label, required this.selected, required this.onTap, this.autofocus = false});
 
   @override
   Widget build(BuildContext context) => FocusCard(
@@ -63,6 +67,7 @@ class ChoiceCard extends StatelessWidget {
             border: Border.all(color: selected ? const Color(0x59FFFFFF) : kEdge, width: selected ? 1.5 : 1),
           ),
           child: Row(children: [
+            if (flag != null) ...[FlagOrb(code: flag!, size: 30, on: selected), const SizedBox(width: 10)],
             Expanded(child: Text(label, maxLines: 3, style: T(15, w: 650, h: 1.15))),
             const SizedBox(width: 8),
             AnimatedScale(

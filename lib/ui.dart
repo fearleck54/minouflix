@@ -1096,9 +1096,6 @@ class NavPill extends StatelessWidget {
         HapticFeedback.selectionClick();
         onSelect(k);
       },
-      onFocus: Device.tv && k != index ? () {
-              if (!hold) onSelect(k);
-            } : null,
       focusNode: nodes[k],
       preferred: on,
       autofocus: Device.tv && on,      // télé : au lancement, le focus est sur l'onglet ouvert (flèche bas = entrer dans la page)

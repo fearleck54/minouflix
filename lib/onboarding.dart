@@ -352,7 +352,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   // ---------------------------------------------------------------- 1. langue
   Widget _lang(bool tv) {
-    final cols = tv ? 3 : 2;
+    const cols = 3;
     return _shell(
       title: _t('Quelle langue préfères-tu ?', 'Which language do you prefer?'),
       sub: _t('Pour l\'appli, les catégories proposées et la recherche.', 'For the app, suggested categories and search.'),
@@ -427,7 +427,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   // ---------------------------------------------------------------- 3. goûts
   Widget _tastesPage(bool tv) {
-    final cols = tv ? 3 : 2;
+    const cols = 3;
     final h = tv ? 120.0 : 128.0;
     return _shell(
       title: _t('Que regardez-vous ?', 'What do you watch?'),
@@ -498,7 +498,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       final n = sportName(l);
       if (!names.contains(n)) names.add(n);
     }
-    final cols = tv ? 3 : 2;
+    const cols = 3;
     final firstSel = names.indexWhere(sports.contains);
     return _shell(
       title: _t('Quels sports ?', 'Which sports?'),
@@ -636,7 +636,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Widget _teams(bool tv) {
     final mine = {...Store.sportTeams};
-    final cols = tv ? 3 : 2;
+    const cols = 3;
     Widget body() {
       if (_loadingTeams) {
         return Padding(padding: const EdgeInsets.all(40), child: Column(children: [const Spinner(), const SizedBox(height: 14), Text(_t('Chargement des équipes…', 'Loading teams…'), style: T(14, color: kMut))]));
@@ -880,7 +880,7 @@ class _CardState extends State<_Card> {
             boxShadow: on && !Perf.lite ? [BoxShadow(color: widget.a.withOpacity(0.45), blurRadius: 28, spreadRadius: -6)] : null,
           ),
           child: Stack(children: [
-            if (widget.flag != null) Positioned(left: 16, top: 14, child: _FlagOrb(code: widget.flag!, size: 46, on: on)),
+            if (widget.flag != null) Positioned(left: 16, top: 14, child: FlagOrb(code: widget.flag!, size: 46, on: on)),
             if (widget.icon != null) Positioned(left: 16, top: 14, child: Icon(widget.icon, size: 40, color: on ? fg : Colors.white.withOpacity(0.92))),
             Positioned(
               left: 16,
@@ -1149,11 +1149,11 @@ class _CheckPainter extends CustomPainter {
 }
 
 /// pastille drapeau : disque aux couleurs du pays, anneau clair et reflet de verre (dessiné, aucune image)
-class _FlagOrb extends StatelessWidget {
+class FlagOrb extends StatelessWidget {
   final String code;
   final double size;
   final bool on;
-  const _FlagOrb({required this.code, required this.size, required this.on});
+  const FlagOrb({required this.code, required this.size, required this.on});
 
   @override
   Widget build(BuildContext context) => Container(

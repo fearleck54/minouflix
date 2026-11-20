@@ -2367,7 +2367,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final kid = Store.kid;
     final name = Store.name;
     final counts = [for (final k in Kind.values) if ((Store.selection(k) ?? []).isNotEmpty) '${k.label} ${Store.selection(k)!.length}'].join(' · ');
-    final sports = [for (final k in knownLeagues(Store.sportKeys)) lgOf(k).n].join(', ');
     final dls = Downloads.all();
     final dlTotal = dls.fold<int>(0, (a, d) => a + Downloads.bytes(d));
     final account = Account.expired
@@ -2390,15 +2389,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
-        _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
+        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Compte lié' : 'Non lié', chevron: true, onTap: () => traktSheet(context, () => setState(() {}))),
+      ]),
+      ('Langues', 'Langues', CupertinoIcons.globe, [
+        _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
           await L.set(v);
           Tmdb.reset();
-        }, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
+        }, flags: true, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
+        _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), flags: true, foot: 'Choisie automatiquement quand le film la propose.')),
+        _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), flags: true, foot: 'Appliqués au lancement de la lecture.')),
       ]),
       ('Lecture', 'Lecture', CupertinoIcons.play_circle, [
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
-        _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), foot: 'Choisie automatiquement quand le film la propose.')),
-        _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), foot: 'Appliqués au lancement de la lecture.')),
         if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
         _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
         if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
@@ -2407,9 +2409,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
         _row(CupertinoIcons.wand_stars, const Color(0xFF5B8CFF), 'Refaire la configuration', value: '', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => OnboardingFlow(redo: true, onDone: () => Navigator.of(context).pop())))),
-        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Compte lié' : 'Non lié', chevron: true, onTap: () => traktSheet(context, () => setState(() {}))),
         _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Onglets', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
-        _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
+        if (!kid) _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
               await Store.saveSportKeys(k);
               Store.persoTick.value++;
             })))),
@@ -2429,7 +2430,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           widget.onSelection();
         }),
         _row(CupertinoIcons.eye_slash_fill, grey, 'Chaînes masquées', value: Store.hidden.isEmpty ? 'Aucune' : '${Store.hidden.length}', chevron: Store.hidden.isNotEmpty, onTap: Store.hidden.isEmpty ? null : _hiddenPage),
-        if (!kid) _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF453A), 'Championnats', value: sports.isEmpty ? 'Aucun' : '${knownLeagues(Store.sportKeys).length}', chevron: true, onTap: _sport),
         ValueListenableBuilder<(int, int)>(
           valueListenable: widget.progress,
           builder: (_, p, __) => _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Actualiser', value: p.$2 > 0 ? '${p.$1}/${p.$2}' : _ago(Store.catT), trailing: p.$2 > 0 ? const SizedBox(width: 18, height: 18, child: Spinner(strokeWidth: 2)) : null, onTap: () {
@@ -2641,8 +2641,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
   /// choix dans une liste à coche (qualité, langues)
-  void _pickPage(String title, List<(String, String)> opts, String Function() cur, Future<void> Function(String) pick, {String foot = ''}) => _page(title, () => [
+  void _pickPage(String title, List<(String, String)> opts, String Function() cur, Future<void> Function(String) pick, {String foot = '', bool flags = false}) => _page(title, () => [
         ChoiceGrid(
+          flags: flags,
           options: opts,
           selected: cur(),
           onPick: (v) async {

@@ -35,7 +35,12 @@ class _TabsState extends State<TabsSettings> {
   FocusNode _nd(Object id, int d) => _nodes.putIfAbsent('$id/$d', () => FocusNode());
   /// après un déplacement, le sélecteur reste sur la ligne déplacée (flèche choisie, ou l'autre en bout de liste)
   void _stay(Object id, int d, bool canMore) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _nd(id, canMore ? d : -d).requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final n = _nd(id, canMore ? d : -d);
+      n.requestFocus();
+      final c = n.context;
+      if (c != null) Scrollable.ensureVisible(c, alignment: 0.5, duration: const Duration(milliseconds: 120));
+    });
   }
 
   @override
@@ -189,7 +194,12 @@ class _HomeState extends State<HomeSettings> {
   FocusNode _nd(Object id, int d) => _nodes.putIfAbsent('$id/$d', () => FocusNode());
   /// après un déplacement, le sélecteur reste sur la ligne déplacée (flèche choisie, ou l'autre en bout de liste)
   void _stay(Object id, int d, bool canMore) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _nd(id, canMore ? d : -d).requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final n = _nd(id, canMore ? d : -d);
+      n.requestFocus();
+      final c = n.context;
+      if (c != null) Scrollable.ensureVisible(c, alignment: 0.5, duration: const Duration(milliseconds: 120));
+    });
   }
 
   @override
