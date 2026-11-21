@@ -2317,7 +2317,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget line(String label, String txt, Color c) => Padding(
           padding: const EdgeInsets.only(bottom: 5),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(width: 108, child: Text(label, style: T(12.5, w: 700, color: c, h: 1.4))),
+            SizedBox(width: 124, child: Text(label, style: T(12.5, w: 700, color: c, h: 1.4))),
             Expanded(child: Text(txt, style: T(12.5, color: kMut, h: 1.4))),
           ]),
         );
