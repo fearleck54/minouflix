@@ -3344,6 +3344,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           player.setRate(_rate);
           setState(() {});
         }),
+      (CupertinoIcons.speaker_2_fill, 'Son : ${const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[_mode]}  (changer)', () async {
+        const order = ['off', 'cinema', 'night', 'voice'];
+        final m = order[(order.indexOf(_mode) + 1) % order.length];
+        await Store.setStr('snd_mode', m);
+        final ok = await _applyNight();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Son : ${const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[m]}' : 'Filtre audio non pris en charge par le lecteur sur cet appareil.')));
+      }),
       (CupertinoIcons.timer, 'Synchro audio : $_syncTxt', _syncOpen),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
