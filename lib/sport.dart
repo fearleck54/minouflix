@@ -692,7 +692,10 @@ class _SportTabState extends State<SportTab> {
         final l = all.where((e) => (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e))).toList();
         final live = l.where((e) => e.live).toList();
         final next = l.where((e) => !e.live && !e.post).toList();
-        final hero = live.isNotEmpty ? live.first : (next.isNotEmpty ? next.first : null);
+        // grande fiche : d'abord le match en cours de mes équipes, puis le leur qui commence dans moins de 2 h, sinon l'ordre habituel
+        final nowS = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        final liveF = live.where(followed).toList(), nextF = next.where((e) => followed(e) && e.ts - nowS < 7200).toList();
+        final hero = liveF.isNotEmpty ? liveF.first : (nextF.isNotEmpty ? nextF.first : (live.isNotEmpty ? live.first : (next.isNotEmpty ? next.first : null)));
         final groups = <String, List<Ev>>{};
         for (final e in l.where((e) => !e.live)) {
           groups.putIfAbsent(dayTitle(e), () => []).add(e);

@@ -15,13 +15,14 @@ class ChoiceGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const cols = 3;
     final firstSel = options.indexWhere((o) => o.$1 == selected);
     return LayoutBuilder(builder: (context, c) {
       const gap = 10.0;
-      final cw = (c.maxWidth - gap * (cols - 1)) / cols;
+      final hp = Device.tv ? 0.0 : 20.0;      // téléphone : marge comme le titre
+      final cols = c.maxWidth < 520 ? 2 : 3;      // téléphone : 2 colonnes, chaque nom tient sur une ligne
+      final cw = (c.maxWidth - 2 * hp - gap * (cols - 1)) / cols;
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: hp),
         child: Wrap(spacing: gap, runSpacing: gap, children: [
           for (final (i, o) in options.indexed)
             SizedBox(
@@ -68,7 +69,7 @@ class ChoiceCard extends StatelessWidget {
           ),
           child: Row(children: [
             if (flag != null) ...[RepaintBoundary(child: FlagOrb(code: flag!, size: 30, on: selected)), const SizedBox(width: 10)],
-            Expanded(child: Text(label, maxLines: 3, style: T(15, w: 650, h: 1.15))),
+            Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(label, maxLines: 1, softWrap: false, style: T(15, w: 650, h: 1.15)))),
             const SizedBox(width: 8),
             if (Perf.lite) (selected ? Container(width: 22, height: 22, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: const Icon(Icons.check_rounded, size: 16, color: Color(0xFF16203A))) : const SizedBox(width: 22)) else AnimatedScale(
               scale: selected ? 1 : 0.4,
