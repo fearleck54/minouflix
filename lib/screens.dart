@@ -2301,6 +2301,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) _snack('Catalogue vidé : rechargement en cours.');
   }
 
+  /// déconnexion du compte seulement : l'appli et l'abonnement IPTV restent, la synchronisation s'arrête
+  Future<void> _accountOut() async {
+    if (!await _confirm('Se déconnecter du compte ?', 'Tu gardes MinouFlix et ton abonnement IPTV sur cet appareil. Ton compte reste sur le serveur : reconnecte-toi quand tu veux pour tout retrouver. D\'ici là, plus de synchronisation avec tes autres appareils.', 'Se déconnecter')) return;
+    await Account.signOut();
+    await Store.setFlag('noacct', true);      // l'appli reste utilisable sans compte, sans redemander la connexion au lancement
+    if (mounted) {
+      _tick.value++;
+      _snack('Déconnecté du compte.');
+    }
+  }
+
+  /// toutes les déconnexions et suppressions au même endroit, de la moins à la plus définitive
+  void _disconnectPage() => _page('Déconnexion et suppression', () => [
+        if (Account.signedIn) ...[
+          _foot('Connecté : ${Account.email}'),
+          const SizedBox(height: 14),
+          _box([_row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Se déconnecter du compte', onTap: _accountOut)]),
+          _foot('Tu gardes l\'appli et ton abonnement IPTV sur cet appareil. Le compte reste sur le serveur ; plus de synchronisation tant que tu ne te reconnectes pas.'),
+          const SizedBox(height: 22),
+        ],
+        _box([_row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), 'Retirer l\'abonnement IPTV de cet appareil', onTap: _logout)]),
+        _foot('Efface l\'adresse, l\'identifiant et le mot de passe IPTV de cet appareil. Ton compte MinouFlix, ta liste et ta reprise sont conservés.'),
+        const SizedBox(height: 22),
+        _box([_row(CupertinoIcons.trash_fill, const Color(0xFFFF453A), 'Effacer les données de cet appareil', danger: true, onTap: _wipe)]),
+        _foot('Remet MinouFlix à zéro sur cet appareil, sans toucher au compte. Reconnecte-toi pour tout retrouver.'),
+        if (Account.signedIn) ...[
+          const SizedBox(height: 22),
+          _box([_row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), 'Supprimer mon compte', danger: true, onTap: _deleteAccount)]),
+          _foot('Efface définitivement ton compte et toutes ses données synchronisées, sur le serveur comme sur cet appareil. Irréversible.'),
+        ],
+      ]);
+
   Future<void> _logout() async {
     if (!await _confirm('Se déconnecter de l\'abonnement ?', 'Les identifiants IPTV de cet appareil seront effacés. Ton compte MinouFlix, ta liste et ta reprise sont conservés.', 'Se déconnecter')) return;
     if (!mounted) return;
@@ -2311,12 +2343,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _wipe() async {
     if (!await _unlocked()) return;
     if (!await _confirm(
-      'Effacer mes données ?',
-      'Tout ce que MinouFlix garde sur cet appareil sera supprimé : identifiants, réglages, ma liste, reprise, catalogue et téléchargements.${Account.signedIn ? ' La copie synchronisée de ton compte sera aussi effacée si possible.' : ''}',
+      'Effacer les données de cet appareil ?',
+      'Tout ce que MinouFlix garde sur cet appareil sera supprimé : identifiants, réglages, ma liste, reprise, catalogue et téléchargements.${Account.signedIn ? ' Ton compte et sa copie sur le serveur ne sont pas touchés : reconnecte-toi pour tout retrouver.' : ''}',
       'Tout effacer',
       danger: true,
     )) return;
-    if (Account.signedIn) await Sync.wipe();
     await Account.signOut();
     await Store.wipe();
     await Journal.clear();
@@ -2410,6 +2441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
+        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
       ('Langues', 'Langues', CupertinoIcons.globe, [
         _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
@@ -2703,14 +2735,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
           _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
         ]),
-        _foot('Le journal ne contient jamais tes identifiants.'),
-        const SizedBox(height: 22),
-        _box([
-          _row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), 'Retirer l\'abonnement IPTV de cet appareil', onTap: _logout),
-          _row(CupertinoIcons.trash_fill, const Color(0xFFFF453A), 'Effacer mes données', danger: true, onTap: _wipe),
-          if (Account.signedIn) _row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), 'Supprimer mon compte', danger: true, onTap: _deleteAccount),
-        ]),
-        _foot('« Retirer l\'abonnement » garde ton compte MinouFlix connecté. « Effacer mes données » remet l\'appli à zéro sur cet appareil. « Supprimer mon compte » efface aussi les données synchronisées. Pour te déconnecter du compte seulement : Compte et synchronisation.'),
+        _foot('Le journal ne contient jamais tes identifiants. Déconnexion, effacement et suppression du compte : Réglages › Compte.'),
       ]);
 
   void _aboutPage() => _page('À propos', () => [

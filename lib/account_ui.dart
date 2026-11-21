@@ -29,6 +29,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthState extends State<AuthScreen> {
   final mail = TextEditingController(), pw = TextEditingController();
   bool create = true, busy = false;
+  bool _intro = true;      // premier écran : avantages du compte, puis choix (créer · se connecter · continuer sans compte)
   String? msg;
   late final PhoneEntry phone = PhoneEntry(const [('mail', 'E-mail', false), ('pw', 'Mot de passe', true)], (f) {
     mail.text = f['mail'] ?? '';
@@ -141,9 +142,51 @@ class _AuthState extends State<AuthScreen> {
           ),
       ]);
 
+  List<Widget> _introForm() => [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(18)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Avec un compte MinouFlix', style: T(16, w: 750)),
+            const SizedBox(height: 10),
+            for (final t in const [
+              'Ta liste et ta reprise sur tous tes appareils',
+              'Réinstalle ou change d\'appareil sans rien refaire',
+              'Connecte ta télé en scannant un code',
+              'Identifiants IPTV chiffrés, illisibles par le serveur',
+            ])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Padding(padding: EdgeInsets.only(top: 1), child: Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF30D158))),
+                  const SizedBox(width: 9),
+                  Expanded(child: Text(t, style: T(14, h: 1.3))),
+                ]),
+              ),
+          ]),
+        ),
+        const SizedBox(height: 10),
+        Text('Sans compte, tout marche aussi : seulement sur cet appareil.', style: T(13, color: kMut, h: 1.35)),
+        const SizedBox(height: 14),
+        PillButton(primary: true, height: 54, label: 'Créer mon compte', onTap: () => setState(() {
+              _intro = false;
+              create = true;
+            })),
+        const SizedBox(height: 10),
+        PillButton(label: 'J\'ai déjà un compte', onTap: () => setState(() {
+              _intro = false;
+              create = false;
+            })),
+        const SizedBox(height: 10),
+        PillButton(label: 'Continuer sans compte', onTap: () async {
+          await Store.setFlag('noacct', true);
+          if (mounted) widget.onDone();
+        }),
+      ];
+
   Widget _layout() => AuthLayout(
         step: 0,
-        text: create ? 'Crée ton compte pour retrouver ta liste et ta reprise partout.' : 'Connecte-toi à ton compte.',
+        text: _intro ? 'Bienvenue sur MinouFlix.' : (create ? 'Crée ton compte pour retrouver ta liste et ta reprise partout.' : 'Connecte-toi à ton compte.'),
         side: !Connect.tvNow ? const [] : [
           Container(
             padding: const EdgeInsets.all(16),
@@ -161,7 +204,7 @@ class _AuthState extends State<AuthScreen> {
             ]),
           ),
         ],
-        form: [
+        form: _intro ? _introForm() : [
           AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: InputDecoration(labelText: 'E-mail', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
           const SizedBox(height: 14),
           AppField(controller: pw, obscureText: true, onSubmitted: (_) => go(), decoration: InputDecoration(labelText: 'Mot de passe', filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kEdge)))),
@@ -243,23 +286,7 @@ class _SyncChoiceState extends State<SyncChoiceScreen> {
                         )
                       : null,
                   child: Padding(padding: const EdgeInsets.all(14), child: Text(widget.first ? 'Continuer' : 'Enregistrer'))),
-                if (!widget.first && Account.signedIn) TextButton(onPressed: () async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (c) => AlertDialog(
-                          title: const Text('Se déconnecter du compte ?'),
-                          content: const Text('Tu gardes MinouFlix et ton abonnement IPTV sur cet appareil. Ton compte reste sur le serveur : reconnecte-toi quand tu veux pour tout retrouver. D\'ici là, plus de synchronisation avec tes autres appareils.'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-                            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Se déconnecter')),
-                          ],
-                        ),
-                      );
-                      if (ok != true) return;
-                      await Account.signOut();
-                      await Store.setFlag('noacct', true);      // l'appli reste utilisable sans compte, sans redemander la connexion au prochain lancement
-                      if (context.mounted) Navigator.of(context).pop();
-                    }, child: const Text('Se déconnecter du compte')),
+                if (!widget.first && Account.signedIn) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Pour te déconnecter ou supprimer ton compte : Réglages › Déconnexion et suppression.', textAlign: TextAlign.center, style: T(13, color: kMut, h: 1.35))),
               ]),
             ),
           ),
