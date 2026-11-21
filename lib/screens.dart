@@ -2312,24 +2312,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// ce que fait une action, ce qui est conservé, comment revenir : trois lignes sous chaque bouton
+  Widget _why(String fait, String garde, String retour) {
+    Widget line(String label, String txt, Color c) => Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 108, child: Text(label, style: T(12.5, w: 700, color: c, h: 1.4))),
+            Expanded(child: Text(txt, style: T(12.5, color: kMut, h: 1.4))),
+          ]),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 10, 24, 0),
+      child: Column(children: [
+        line('Ce qui se passe', fait, const Color(0xFFFFB86B)),
+        line('Conservé', garde, const Color(0xFF30D158)),
+        line('Pour revenir', retour, const Color(0xFF8AB4FF)),
+      ]),
+    );
+  }
+
   /// toutes les déconnexions et suppressions au même endroit, de la moins à la plus définitive
   void _disconnectPage() => _page('Déconnexion et suppression', () => [
         if (Account.signedIn) ...[
           _foot('Connecté : ${Account.email}'),
           const SizedBox(height: 14),
-          _box([_row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Se déconnecter du compte', onTap: _accountOut)]),
-          _foot('Tu gardes l\'appli et ton abonnement IPTV sur cet appareil. Le compte reste sur le serveur ; plus de synchronisation tant que tu ne te reconnectes pas.'),
-          const SizedBox(height: 22),
+          _box([_row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), '1 · Se déconnecter du compte', onTap: _accountOut)]),
+          _why('Ton e-mail est retiré de cet appareil et la synchronisation s\'arrête.', 'L\'appli, ton abonnement IPTV, ta liste et ta reprise sur cet appareil ; ton compte sur le serveur.', 'Te reconnecter avec ton e-mail et ton mot de passe.'),
+          const SizedBox(height: 24),
         ],
-        _box([_row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), 'Retirer l\'abonnement IPTV de cet appareil', onTap: _logout)]),
-        _foot('Efface l\'adresse, l\'identifiant et le mot de passe IPTV de cet appareil. Ton compte MinouFlix, ta liste et ta reprise sont conservés.'),
-        const SizedBox(height: 22),
-        _box([_row(CupertinoIcons.trash_fill, const Color(0xFFFF453A), 'Effacer les données de cet appareil', danger: true, onTap: _wipe)]),
-        _foot('Remet MinouFlix à zéro sur cet appareil, sans toucher au compte. Reconnecte-toi pour tout retrouver.'),
+        _box([_row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), '${Account.signedIn ? '2' : '1'} · Retirer l\'abonnement IPTV', onTap: _logout)]),
+        _why('L\'adresse, l\'identifiant et le mot de passe IPTV sont effacés de cet appareil ; le catalogue disparaît.', 'Ton compte MinouFlix (reste connecté), ta liste, ta reprise et tes réglages.', 'Ressaisir ton abonnement, ou le retrouver via ton compte s\'il était synchronisé.'),
+        const SizedBox(height: 24),
+        _box([_row(CupertinoIcons.trash_fill, const Color(0xFFFF453A), '${Account.signedIn ? '3' : '2'} · Effacer les données de cet appareil', danger: true, onTap: _wipe)]),
+        _why('Tout est supprimé sur cet appareil : abonnement, réglages, liste, reprise, catalogue, téléchargements. Tu es aussi déconnecté du compte.', 'Ton compte et sa copie sur le serveur.', 'Te reconnecter : tout revient si la synchronisation était active.'),
         if (Account.signedIn) ...[
-          const SizedBox(height: 22),
-          _box([_row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), 'Supprimer mon compte', danger: true, onTap: _deleteAccount)]),
-          _foot('Efface définitivement ton compte et toutes ses données synchronisées, sur le serveur comme sur cet appareil. Irréversible.'),
+          const SizedBox(height: 24),
+          _box([_row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), '4 · Supprimer mon compte', danger: true, onTap: _deleteAccount)]),
+          _why('Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.', 'Rien.', 'Créer un nouveau compte : rien ne peut être récupéré.'),
         ],
       ]);
 
