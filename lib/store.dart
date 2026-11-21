@@ -163,7 +163,7 @@ class Store {
 
   // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
   static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver'];
-  static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil', 'onb_done'];
+  static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil', 'onb_done', 'snd_night', 'snd_voice'];
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
         if (_p.getStringList('tab_order') != null) 'tab_order': _p.getStringList('tab_order'),
