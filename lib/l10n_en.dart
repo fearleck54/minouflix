@@ -654,4 +654,8 @@ const Map<String, String> kEn = {
   'Aucun film ni série de cet acteur dans ton catalogue.': 'No movie or series with this actor in your catalogue.',
   'Nouvelle playlist (Soirée Marvel…)': 'New playlist (Marvel night…)',
   'Qualité ajustée': 'Quality adjusted',
+  'Se déconnecter du compte ?': 'Sign out of your account?',
+  'Tu gardes MinouFlix et ton abonnement IPTV sur cet appareil. Ton compte reste sur le serveur : reconnecte-toi quand tu veux pour tout retrouver. D\'ici là, plus de synchronisation avec tes autres appareils.': 'You keep MinouFlix and your IPTV subscription on this device. Your account stays on the server: sign back in whenever you like to get everything back. Until then, no syncing with your other devices.',
+  'Retirer l\'abonnement IPTV de cet appareil': 'Remove the IPTV subscription from this device',
+  '« Retirer l\'abonnement » garde ton compte MinouFlix connecté. « Effacer mes données » remet l\'appli à zéro sur cet appareil. « Supprimer mon compte » efface aussi les données synchronisées. Pour te déconnecter du compte seulement : Compte et synchronisation.': '“Remove the subscription” keeps your MinouFlix account signed in. “Erase my data” resets the app on this device. “Delete my account” also erases the synced data. To sign out of the account only: Account and sync.',
 };

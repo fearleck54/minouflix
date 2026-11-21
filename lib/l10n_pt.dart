@@ -654,4 +654,8 @@ const Map<String, String> kPt = {
   'Aucun film ni série de cet acteur dans ton catalogue.': 'Nenhum filme ou série deste ator no teu catálogo.',
   'Nouvelle playlist (Soirée Marvel…)': 'Nova playlist (Noite Marvel…)',
   'Qualité ajustée': 'Qualidade ajustada',
+  'Se déconnecter du compte ?': 'Terminar sessão da conta?',
+  'Tu gardes MinouFlix et ton abonnement IPTV sur cet appareil. Ton compte reste sur le serveur : reconnecte-toi quand tu veux pour tout retrouver. D\'ici là, plus de synchronisation avec tes autres appareils.': 'Manténs o MinouFlix e a tua subscrição IPTV neste dispositivo. A tua conta continua no servidor: inicia sessão de novo quando quiseres para recuperar tudo. Até lá, sem sincronização com os teus outros dispositivos.',
+  'Retirer l\'abonnement IPTV de cet appareil': 'Remover a subscrição IPTV deste dispositivo',
+  '« Retirer l\'abonnement » garde ton compte MinouFlix connecté. « Effacer mes données » remet l\'appli à zéro sur cet appareil. « Supprimer mon compte » efface aussi les données synchronisées. Pour te déconnecter du compte seulement : Compte et synchronisation.': '«Remover a subscrição» mantém a tua conta MinouFlix ligada. «Apagar os meus dados» repõe a app neste dispositivo. «Eliminar a minha conta» apaga também os dados sincronizados. Para terminar só a sessão da conta: Conta e sincronização.',
 };

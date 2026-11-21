@@ -34,7 +34,6 @@ import 'pairing.dart';
 import 'phone_entry.dart';
 import 'chaines.dart';
 import 'connect.dart';
-import 'telecommande.dart';
 import 'diag.dart';
 import 'profils.dart';
 import 'voice.dart';
@@ -2466,8 +2465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       if (!Connect.tvNow)
         ('Appareils', 'Appareils', CupertinoIcons.tv, [
-          if (Connect.canSend && !Connect.tvNow) _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF32ADE6), 'Télécommande', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TelecommandeScreen()))),
-          if (!Connect.tvNow) _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
+          _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
         ]),
       ('Aide', '', CupertinoIcons.question_circle, [
         _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Aide et dépannage', chevron: true, onTap: _aidePage),
@@ -2708,11 +2706,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _foot('Le journal ne contient jamais tes identifiants.'),
         const SizedBox(height: 22),
         _box([
-          _row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), 'Se déconnecter de l\'abonnement', onTap: _logout),
+          _row(CupertinoIcons.arrow_right_square_fill, const Color(0xFFFF9F0A), 'Retirer l\'abonnement IPTV de cet appareil', onTap: _logout),
           _row(CupertinoIcons.trash_fill, const Color(0xFFFF453A), 'Effacer mes données', danger: true, onTap: _wipe),
           if (Account.signedIn) _row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), 'Supprimer mon compte', danger: true, onTap: _deleteAccount),
         ]),
-        _foot('« Effacer mes données » remet l\'appli à zéro sur cet appareil. « Supprimer mon compte » efface aussi les données synchronisées.'),
+        _foot('« Retirer l\'abonnement » garde ton compte MinouFlix connecté. « Effacer mes données » remet l\'appli à zéro sur cet appareil. « Supprimer mon compte » efface aussi les données synchronisées. Pour te déconnecter du compte seulement : Compte et synchronisation.'),
       ]);
 
   void _aboutPage() => _page('À propos', () => [

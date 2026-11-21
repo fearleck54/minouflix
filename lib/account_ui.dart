@@ -244,7 +244,20 @@ class _SyncChoiceState extends State<SyncChoiceScreen> {
                       : null,
                   child: Padding(padding: const EdgeInsets.all(14), child: Text(widget.first ? 'Continuer' : 'Enregistrer'))),
                 if (!widget.first && Account.signedIn) TextButton(onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Se déconnecter du compte ?'),
+                          content: const Text('Tu gardes MinouFlix et ton abonnement IPTV sur cet appareil. Ton compte reste sur le serveur : reconnecte-toi quand tu veux pour tout retrouver. D\'ici là, plus de synchronisation avec tes autres appareils.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+                            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Se déconnecter')),
+                          ],
+                        ),
+                      );
+                      if (ok != true) return;
                       await Account.signOut();
+                      await Store.setFlag('noacct', true);      // l'appli reste utilisable sans compte, sans redemander la connexion au prochain lancement
                       if (context.mounted) Navigator.of(context).pop();
                     }, child: const Text('Se déconnecter du compte')),
               ]),
