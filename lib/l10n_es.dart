@@ -653,4 +653,5 @@ const Map<String, String> kEs = {
   'Au cinéma (qualité caméra)': 'En cines (calidad de cámara)',
   'Aucun film ni série de cet acteur dans ton catalogue.': 'Ninguna película ni serie de este actor en tu catálogo.',
   'Nouvelle playlist (Soirée Marvel…)': 'Nueva lista (Noche Marvel…)',
+  'Qualité ajustée': 'Calidad ajustada',
 };

@@ -3458,6 +3458,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   List<StreamSubscription>? _dbg;
 
+  // direct : si une chaîne ne repart pas, on passe seul à une autre version (HD → SD, doublon…), puis on revient à la meilleure plus tard
+  int _altTried = 0, _backMin = 3;
+  bool _adjNote = false;
+  Timer? _backT, _stableT, _noteT;
+
+  void _adjNoteShow() {
+    _noteT?.cancel();
+    setState(() => _adjNote = true);
+    _noteT = Timer(const Duration(seconds: 6), () => mounted ? setState(() => _adjNote = false) : null);
+  }
+
+  void _backSchedule() {
+    _backT?.cancel();
+    if (_alt == 0 || _alts.length < 2) return;
+    _backT = Timer(Duration(minutes: _backMin), () {
+      if (!mounted || _fail != null || _alt == 0) return;
+      _backMin = (_backMin * 2).clamp(3, 24);      // si la meilleure version recoupe, on attend de plus en plus longtemps avant de réessayer
+      _altTried = 0;
+      _silent = 1;
+      Journal.add('Direct : retour à la meilleure version');
+      setState(() => _alt = 0);
+      _open(_alts[0].$2);
+      _stableCheck();
+    });
+  }
+
+  /// 30 s de lecture sans incident : la panne est finie
+  void _stableCheck() {
+    _stableT?.cancel();
+    _stableT = Timer(const Duration(seconds: 30), () {
+      if (!mounted || _fail != null) return;
+      _altTried = 0;
+      _silent = 0;
+      if (_alt == 0) _backMin = 3;
+    });
+  }
+
+  void _manualAlt() {
+    _backT?.cancel();
+    _stableT?.cancel();
+    _altTried = 0;
+    _backMin = 3;
+  }
+
   void _failed(String why) {
     if (!mounted || _fail != null) return;
     // direct : un nouvel essai silencieux (coupure passagère), puis le message ; de nouveau permis après 2 min de lecture
@@ -3468,6 +3512,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _open(_cur);
       return;
     }
+    _stableT?.cancel();
+    if (_live && _alts.length > 1 && _altTried < _alts.length - 1) {
+      _altTried++;
+      final from = _alt;
+      _alt = (_alt + 1) % _alts.length;
+      Journal.add('Direct : bascule automatique vers une autre version ($why)');
+      setState(() {});
+      _adjNoteShow();
+      _open(_alts[_alt].$2);
+      _backSchedule();
+      _stableCheck();
+      if (from == _alt) _altTried = _alts.length;
+      return;
+    }
     Journal.add('Lecture impossible : $why');
     setState(() => _fail = why);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3476,6 +3534,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _retryNow() {
+    _altTried = 0;
     _silent = 0;
     _open(_cur);
   }
@@ -3494,12 +3553,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     if (i == null || i == _alt || !mounted) return;
     setState(() => _alt = i);
+    _manualAlt();
     _silent = 0;
     _open(_alts[i].$2);
   }
 
   void _otherQuality() {
     if (_alts.length < 2) return;
+    _manualAlt();
     _silent = 0;
     setState(() => _alt = (_alt + 1) % _alts.length);
     _open(_alts[_alt].$2);
@@ -3540,6 +3601,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _showTitle = true;
       _epgLine = e == null ? '' : '${e.title} · encore ${e.leftMin} min';
     });
+    _manualAlt();
     _silent = 0;
     _open(c.alts.first.$2);
     _banner?.cancel();
@@ -3921,6 +3983,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
     _nextT?.cancel();
+    _backT?.cancel();
+    _stableT?.cancel();
+    _noteT?.cancel();
     _syncT?.cancel();
     _ap?.cancel();
     _nextNode.dispose();
@@ -4264,6 +4329,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ]),
               ),
             ),
+          if (_adjNote)
+            Positioned(
+              top: 18,
+              left: 28,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(color: const Color(0xB3000000), borderRadius: BorderRadius.circular(99)),
+                child: Text('Qualité ajustée', style: T(13, w: 650, color: const Color(0xFFFFD08A))),
+              ),
+            ),
           if (_syncMode)
             Positioned(
               left: 0,
@@ -4340,6 +4415,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   color: const Color(0xFF1A1D26),
                   onSelected: (i) {
                     setState(() => _alt = i);
+                    _manualAlt();
                     _silent = 0;
                     _open(_alts[i].$2);
                   },

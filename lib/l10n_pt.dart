@@ -653,4 +653,5 @@ const Map<String, String> kPt = {
   'Au cinéma (qualité caméra)': 'No cinema (qualidade de câmara)',
   'Aucun film ni série de cet acteur dans ton catalogue.': 'Nenhum filme ou série deste ator no teu catálogo.',
   'Nouvelle playlist (Soirée Marvel…)': 'Nova playlist (Noite Marvel…)',
+  'Qualité ajustée': 'Qualidade ajustada',
 };

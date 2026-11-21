@@ -653,4 +653,5 @@ const Map<String, String> kEn = {
   'Au cinéma (qualité caméra)': 'In theatres (camera quality)',
   'Aucun film ni série de cet acteur dans ton catalogue.': 'No movie or series with this actor in your catalogue.',
   'Nouvelle playlist (Soirée Marvel…)': 'New playlist (Marvel night…)',
+  'Qualité ajustée': 'Quality adjusted',
 };
