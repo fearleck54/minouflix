@@ -3639,32 +3639,71 @@ class _PlayerScreenState extends State<PlayerScreen> {
   StreamSubscription? _ap;
   int _lastCh = 2;
 
-  /// mode nuit : compresse la dynamique (explosions moins fortes, dialogues plus audibles)
+  /// mode de son : off · cinema · night · voice (un seul à la fois, par profil ; les anciens réglages nuit / dialogues sont repris)
+  String get _mode {
+    final m = Store.str('snd_mode');
+    if (m.isNotEmpty) return m;
+    return Store.flag('snd_voice', false) ? 'voice' : (Store.flag('snd_night', false) ? 'night' : 'off');
+  }
+
+  /// filtres mpv (ffmpeg) de chaque mode, d'après ce que font les barres de son haut de gamme :
+  /// · Cinéma : dynamique d'origine, voie des basses (LFE) remise dans le mélange stéréo, un peu de grave et d'aigu
+  /// · Nuit (« Night Sound » Sonos) : forte compression de dynamique, grave réduit, limiteur
+  /// · Dialogues (« Speech Enhancement » Sonos, Dolby Dialogue Enhancer) : voie centrale poussée (5.1) ou centre du mélange poussé (stéréo),
+  ///   égaliseur de la voix (présence 2–3,5 kHz), le reste un peu compressé
+  String _filters(String mode, int ch) {
+    final sur = ch >= 8;      // 7.1 : voies latérales c6 c7 en plus
+    String down(double fl, double fc, double bl, double lfe, double sd) =>
+        'pan=stereo|c0=${fl}*c0+${fc}*c2+${bl}*c4+${lfe}*c3${sur ? '+${sd}*c6' : ''}|c1=${fl}*c1+${fc}*c2+${bl}*c5+${lfe}*c3${sur ? '+${sd}*c7' : ''}';
+    switch (mode) {
+      case 'cinema':
+        return [
+          if (ch >= 6) down(0.55, 0.42, 0.32, 0.45, 0.3),
+          'bass=g=3:f=90',
+          'treble=g=2:f=7500',
+          'alimiter=limit=0.95',
+        ].join(',');
+      case 'night':
+        return [
+          if (ch >= 6) down(0.5, 0.6, 0.3, 0, 0.25),
+          'highpass=f=70',
+          'bass=g=-4:f=130',
+          'acompressor=threshold=0.035:ratio=9:attack=6:release=280:makeup=7',
+          'alimiter=limit=0.75',
+        ].join(',');
+      case 'voice':
+        return [
+          if (ch >= 6) down(0.4, 2.0, 0.3, 0, 0.2) else if (ch == 2) 'pan=stereo|c0=0.85*c0+0.45*c1|c1=0.45*c0+0.85*c1',
+          'highpass=f=140',
+          'equalizer=f=250:t=q:w=0.7:g=-3',
+          'equalizer=f=2000:t=q:w=0.8:g=5',
+          'equalizer=f=3500:t=q:w=0.8:g=3',
+          'acompressor=threshold=0.08:ratio=3:attack=10:release=250:makeup=3',
+          'alimiter=limit=0.9',
+        ].join(',');
+    }
+    return '';
+  }
+
   /// vrai si le lecteur a bien pris le filtre (ou s'il n'y en a pas)
   Future<bool> _applyNight() async {
     try {
       final dynamic n = player.platform;
       final ch = player.state.audioParams.channelCount ?? 2;
       _lastCh = ch;
-      final f = [
-        // dialogues : source 5.1 → voix du canal central poussée dans le mélange stéréo ; sinon égaliseur centré sur la voix
-        if (Store.flag('snd_voice', false))
-          ch >= 6 ? 'pan=stereo|c0=2.0*c2+0.45*c0+0.35*c4+0.2*c3|c1=2.0*c2+0.45*c1+0.35*c5+0.2*c3' : 'highpass=f=140,equalizer=f=1800:t=q:w=0.7:g=5,equalizer=f=3200:t=q:w=0.8:g=6',
-        // mode nuit : forte compression (les pics, explosions et combats, retombent près des dialogues) + limiteur
-        if (Store.flag('snd_night', false)) 'acompressor=threshold=0.02:ratio=12:attack=5:release=250:makeup=8,alimiter=limit=0.8',
-      ];
-      await n.setProperty('af', f.isEmpty ? '' : 'lavfi=[${f.join(',')}]');
+      final f = _filters(_mode, ch);
+      await n.setProperty('af', f.isEmpty ? '' : 'lavfi=[$f]');
       return f.isEmpty || '${await n.getProperty('af')}'.contains('lavfi');
     } catch (_) {
       return false;
     }
   }
 
-  Future<void> _soundToggle(String k, bool v, void Function(void Function()) set) async {
-    await Store.setFlag(k, v);
+  Future<void> _setMode(String m, void Function(void Function()) set) async {
+    await Store.setStr('snd_mode', m);
     final ok = await _applyNight();
     set(() {});
-    if (!ok && v && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Filtre audio non pris en charge par le lecteur sur cet appareil.')));
+    if (!ok && m != 'off' && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Filtre audio non pris en charge par le lecteur sur cet appareil.')));
   }
 
   bool _syncMode = false;
@@ -3776,20 +3815,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   _syncOpen();
                 },
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Dialogues renforcés', style: T(15.5, w: 600)),
-                subtitle: Text('Voix plus présentes, musique et bruitages en retrait', style: T(12.5, color: kMut)),
-                value: Store.flag('snd_voice', false),
-                onChanged: (v) => _soundToggle('snd_voice', v, set),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('Mode nuit (sons forts atténués)', style: T(15.5, w: 600)),
-                subtitle: Text('Explosions et combats moins forts, dialogues plus clairs', style: T(12.5, color: kMut)),
-                value: Store.flag('snd_night', false),
-                onChanged: (v) => _soundToggle('snd_night', v, set),
-              ),
+              for (final (id, name, sub) in const [
+                ('off', 'Standard', 'Son d\'origine, sans traitement'),
+                ('cinema', 'Mode Cinéma', 'Dynamique d\'origine, graves et aigus plus présents'),
+                ('night', 'Mode nuit', 'Explosions et combats atténués, grave réduit'),
+                ('voice', 'Dialogues renforcés', 'Voix plus nettes, musique et bruitages en retrait'),
+              ])
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(name, style: T(15.5, w: 600)),
+                  subtitle: Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, color: kMut)),
+                  trailing: _mode == id ? const Icon(Icons.check_rounded, color: kAccent) : null,
+                  onTap: () => _setMode(id, set),
+                ),
             ]),
           ),
         ]),

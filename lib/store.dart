@@ -162,7 +162,7 @@ class Store {
   }
 
   // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
-  static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver'];
+  static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver', 'snd_mode'];
   static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil', 'onb_done', 'snd_night', 'snd_voice'];
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
@@ -659,7 +659,7 @@ class Store {
   static Future<void> clearRecentSearches() => _p.remove('recent_q');
 
   /// réglages propres à chaque profil (le profil d'origine garde les clés historiques, donc la synchro de compte)
-  static const _profKeys = {'snd_night', 'snd_voice', 'autonext', 'skipauto', 'pref_q', 'pref_aud', 'pref_sub'};
+  static const _profKeys = {'snd_mode', 'snd_night', 'snd_voice', 'autonext', 'skipauto', 'pref_q', 'pref_aud', 'pref_sub'};
   static String _pk(String k) => _prof.isNotEmpty && _profKeys.contains(k) ? 'p${_prof}_$k' : k;
 
   static bool flag(String k, [bool def = true]) => _p.getBool('f_${_pk(k)}') ?? def;
