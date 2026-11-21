@@ -3753,6 +3753,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _aDelay = 0;
   StreamSubscription? _ap;
   int _lastCh = 2;
+  String? _lastAf;
 
   /// mode de son : off · cinema · night · voice (un seul à la fois, par profil ; les anciens réglages nuit / dialogues sont repris)
   String get _mode {
@@ -3809,7 +3810,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       final ch = player.state.audioParams.channelCount ?? 2;
       _lastCh = ch;
       final f = _filters(_mode, ch);
-      await n.setProperty('af', f.isEmpty ? '' : 'lavfi=[$f]');
+      final af = f.isEmpty ? '' : 'lavfi=[$f]';
+      if (af == _lastAf) return true;      // identique : on ne réinitialise pas la chaîne audio (cela peut perturber la position)
+      _lastAf = af;
+      await n.setProperty('af', af);
       return f.isEmpty || '${await n.getProperty('af')}'.contains('lavfi');
     } catch (_) {
       return false;
@@ -4044,17 +4048,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final p = _prog;
     if (p != null) {
       if (p.pos > 20000) {
-        final start = p.pos;
-        // le flux peut se fermer avant (écran quitté) : pas d'erreur non gérée
-        player.stream.duration.firstWhere((d) => d > Duration.zero).then((_) => player.seek(Duration(milliseconds: start))).catchError((_) {});
+        _resumePending = true;
+        unawaited(_resumeAt(p.pos));
       }
       _t = Timer.periodic(const Duration(seconds: 10), (_) => _save());
     }
   }
 
+  bool _resumePending = false;
+
+  /// reprise : on va au temps enregistré, puis on vérifie (le lecteur peut ignorer un déplacement demandé trop tôt) ; jusqu'à 4 essais
+  Future<void> _resumeAt(int ms) async {
+    try {
+      await player.stream.duration.firstWhere((d) => d > Duration.zero);
+      for (var i = 0; i < 4 && mounted; i++) {
+        await player.seek(Duration(milliseconds: ms));
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        if ((player.state.position.inMilliseconds - ms).abs() < 15000) break;
+        Journal.add('Reprise : le lecteur n\'a pas atteint le temps enregistré, nouvel essai');
+      }
+    } catch (_) {}
+    _resumePending = false;
+  }
+
   void _save() {
     final p = _prog;
-    if (p == null) return;
+    if (p == null || _resumePending) return;      // pas d'enregistrement tant que la reprise n'a pas eu lieu (sinon le début écraserait le temps gardé)
     final pos = player.state.position.inMilliseconds, dur = player.state.duration.inMilliseconds;
     if (pos > 20000) {
       p.pos = pos;
