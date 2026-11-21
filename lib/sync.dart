@@ -64,8 +64,14 @@ class Sync {
   }
 
   /// fusionne avec le serveur, puis renvoie le résultat ; true si les données locales ont changé
-  static Future<bool> run() async {
-    if (!on || _busy) return false;
+  /// fresh : première connexion de cet appareil à un compte déjà configuré : la copie du serveur l'emporte sur tout ce qui existe ici
+  static Future<bool> run({bool fresh = false}) async {
+    if (!on) return false;
+    for (var i = 0; _busy && i < 150; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));      // une synchro est déjà en cours : on attend son tour au lieu de repartir les mains vides
+    }
+    if (_busy) return false;
+    int lt(int v) => fresh ? 0 : v;
     final origin = Store.activeId.isEmpty && Store.profId.isEmpty;     // liste, reprise et prénom : source et profil d'origine seulement
     _busy = true;
     try {
@@ -79,7 +85,7 @@ class Sync {
       var changed = false;
       if (origin && opt('favs')) {
         final rf = (d['favs_t'] as num?)?.toInt() ?? 0;
-        if (rf > Store.favsT) {
+        if (rf > lt(Store.favsT)) {
           await Store.setFavs([for (final x in (d['favs'] as List? ?? [])) '$x'], rf);
           changed = true;
         }
@@ -88,7 +94,7 @@ class Sync {
       }
       if (origin && opt('meta')) {
         final rm = (d['meta_t'] as num?)?.toInt() ?? 0;
-        if (rm > Store.metaT) {
+        if (rm > lt(Store.metaT)) {
           var sport = [for (final x in (d['sport'] as List? ?? [])) '$x'];
           if (sport.isEmpty) sport = Store.sportKeys;
           await Store.setMeta('${d['name'] ?? ''}', sport, rm);
@@ -115,7 +121,7 @@ class Sync {
       if (opt('creds')) {
         // source d'origine : la copie la plus récente gagne (modifiable sur n'importe quel appareil)
         final rt = (d['creds_t'] as num?)?.toInt() ?? 0, rc = d['creds'];
-        if (rc is String && rt > Store.credsT) {
+        if (rc is String && rt > lt(Store.credsT)) {
           final txt = await Account.open(rc);
           final nc = txt == null ? null : Creds.fromJson(jsonDecode(txt) as Map<String, dynamic>);
           if (nc != null) {
@@ -141,7 +147,7 @@ class Sync {
       }   // option coupée : on ne touche pas aux identifiants des autres appareils
       if (opt('settings')) {
         final rt = (d['settings_t'] as num?)?.toInt() ?? 0;
-        if (rt > Store.settingsT && d['settings'] is Map) {
+        if (rt > lt(Store.settingsT) && d['settings'] is Map) {
           await Store.applySettings((d['settings'] as Map).cast<String, dynamic>(), rt);
           changed = true;
         } else if (Store.settingsT > 0) {
@@ -156,7 +162,7 @@ class Sync {
           final id = src.$1, key = id.isEmpty ? '_' : id;
           final rm = remote[key];
           final rt = rm is Map ? (rm['t'] as num?)?.toInt() ?? 0 : 0;
-          if (rm is Map && rt > Store.selT(id)) {
+          if (rm is Map && rt > lt(Store.selT(id))) {
             await Store.applySel(id, rm.cast<String, dynamic>());
             changed = true;
           } else {

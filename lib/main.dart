@@ -241,7 +241,10 @@ class _BootState extends State<Boot> {
           await Store.saveCreds(c);
           creds = c;
         }
-        await Sync.run().timeout(const Duration(seconds: 40), onTimeout: () => false);
+        final first = !Store.flag('acct_known', false);
+        await Sync.run(fresh: first).timeout(const Duration(seconds: 40), onTimeout: () => false);
+        // compte déjà configuré sur un autre appareil : jamais de configuration d'office, on garde exactement ses réglages
+        if (Store.flag('acct_known', false) && !Store.flag('onb_done', false)) await Store.setFlag('onb_done', true);
       } catch (_) {}
       if (mounted) setState(() => restoring = false);
     }
