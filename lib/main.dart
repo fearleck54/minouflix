@@ -241,7 +241,7 @@ class _BootState extends State<Boot> {
           await Store.saveCreds(c);
           creds = c;
         }
-        await Sync.run().timeout(const Duration(seconds: 15), onTimeout: () => false);
+        await Sync.run().timeout(const Duration(seconds: 40), onTimeout: () => false);
       } catch (_) {}
       if (mounted) setState(() => restoring = false);
     }
@@ -256,7 +256,8 @@ class _BootState extends State<Boot> {
     if (Account.signedIn && !Store.syncAsked) return SyncChoiceScreen(onDone: () => setState(() {}));
     // nouveau compte : parcours de configuration (langue, version, goûts) avant le choix des catégories ; reprise si interrompu
     // compte déjà connu du serveur : jamais de configuration d'office (elle reste dans Réglages)
-    final fresh = Account.signedIn ? !Store.flag('acct_known', false) : Store.settingsT == 0;
+    // connecté : configuration seulement si le serveur a répondu et que le compte est vide (réseau lent ou absent : jamais)
+    final fresh = Account.signedIn ? (Sync.pulled && !Store.flag('acct_known', false)) : Store.settingsT == 0;
     if (!Store.hasSelection && !pick && !Store.flag('onb_done', false) && (fresh || Store.str('onb_state').isNotEmpty)) {
       return OnboardingFlow(onDone: () => setState(() {}));
     }
