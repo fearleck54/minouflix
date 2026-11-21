@@ -691,7 +691,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onPageChanged: (i) {
         if (!_slide && vis[i] != tab) setState(() => tab = vis[i]);
       },
-      children: [for (final v in vis) _KeepAlive(child: pages[v])],
+      // un seul défilement « principal » à la fois : sinon le toucher de la barre d'état (retour en haut sur iPhone) échoue, plusieurs listes étant attachées au même contrôleur
+      children: [for (final v in vis) _KeepAlive(child: v == tab ? pages[v] : PrimaryScrollController.none(child: pages[v]))],
     );
   }
 
@@ -2460,7 +2461,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
-        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
       ('Langues', 'Langues', CupertinoIcons.globe, [
         _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
@@ -2521,6 +2521,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Aide', '', CupertinoIcons.question_circle, [
         _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Aide et dépannage', chevron: true, onTap: _aidePage),
         _row(CupertinoIcons.info_circle_fill, grey, 'À propos', value: 'Version $kBuild', chevron: true, onTap: _aboutPage),
+      ]),
+      ('Déconnexion', '', CupertinoIcons.person_crop_circle_badge_xmark, [
+        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
     ];
     _groups = groups;
@@ -3862,12 +3865,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   String get _syncTxt => '${_aDelay > 0 ? '+' : ''}${(_aDelay * 1000).round()} ms';
 
+  String _lab(String? lang, String? title, int i) {
+    final l = [if (lang != null && lang.isNotEmpty) lang.toUpperCase(), if (title != null && title.isNotEmpty) title].join(' · ');
+    return l.isEmpty ? 'Piste ${i + 1}' : l;
+  }
+
+  List<AudioTrack> get _aTracks => player.state.tracks.audio.where((x) => x.id != 'auto' && x.id != 'no').toList();
+  List<SubtitleTrack> get _sTracks => player.state.tracks.subtitle.where((x) => x.id != 'auto' && x.id != 'no').toList();
+
+  /// menu Son : quatre entrées, chacune ouvre son sous-menu
   void _tracks() {
-    final t = player.state.tracks;
-    final a = t.audio.where((x) => x.id != 'auto' && x.id != 'no').toList();
-    final s = t.subtitle.where((x) => x.id != 'auto' && x.id != 'no').toList();
-    String lab(String? lang, String? title, int i) => [if (lang != null && lang.isNotEmpty) lang.toUpperCase(), if (title != null && title.isNotEmpty) title].join(' · ').isEmpty ? 'Piste ${i + 1}' : [if (lang != null && lang.isNotEmpty) lang.toUpperCase(), if (title != null && title.isNotEmpty) title].join(' · ');
+    final a = _aTracks, s = _sTracks;
     final ca = player.state.track.audio, cs = player.state.track.subtitle;
+    final audioNow = a.isEmpty ? 'Une seule piste' : _lab(ca.language, ca.title, a.indexWhere((x) => x.id == ca.id).clamp(0, 99));
+    final subNow = cs.id == 'no' ? 'Aucun' : (s.isEmpty ? 'Aucun' : _lab(cs.language, cs.title, s.indexWhere((x) => x.id == cs.id).clamp(0, 99)));
+    Widget row(IconData ic, String title, String value, VoidCallback go) => ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(ic),
+          title: Text(title, style: T(16, w: 650)),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 170), child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, color: kMut))),
+            const Icon(Icons.chevron_right_rounded, color: kMut),
+          ]),
+          onTap: () {
+            Navigator.pop(context);
+            go();
+          },
+        );
+    appSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 16, 20, 16), children: [
+          Text('Son', style: T(18, w: 750)),
+          const SizedBox(height: 6),
+          row(CupertinoIcons.speaker_2_fill, 'Audio', audioNow, _audioMenu),
+          row(CupertinoIcons.captions_bubble_fill, 'Sous-titres', subNow, _subMenu),
+          row(CupertinoIcons.timer, 'Synchro audio', _syncTxt, _syncOpen),
+          row(CupertinoIcons.slider_horizontal_3, 'Mode son', _modeName(_mode), _modeMenu),
+        ]),
+      ));
+  }
+
+  void _audioMenu() {
+    final a = _aTracks;
+    final ca = player.state.track.audio;
     appSheet<void>(
       context: context,
       builder: (_) => SafeArea(
@@ -3877,14 +3918,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
           for (var i = 0; i < a.length; i++)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(lab(a[i].language, a[i].title, i) + (a[i].id == ca.id ? '  ✓' : ''), style: T(15.5, w: 600)),
+              title: Text(_lab(a[i].language, a[i].title, i) + (a[i].id == ca.id ? '  ✓' : ''), style: T(15.5, w: 600)),
               onTap: () {
                 player.setAudioTrack(a[i]);
                 Store.setStr('pref_aud', (a[i].language ?? '').toLowerCase());
                 Navigator.pop(context);
               },
             ),
-          const SizedBox(height: 10),
+        ]),
+      ));
+  }
+
+  void _subMenu() {
+    final s = _sTracks;
+    final cs = player.state.track.subtitle;
+    appSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 16, 20, 16), children: [
           Text('Sous-titres', style: T(18, w: 750)),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -3898,7 +3949,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           for (var i = 0; i < s.length; i++)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(lab(s[i].language, s[i].title, i) + (s[i].id == cs.id ? '  ✓' : ''), style: T(15.5, w: 600)),
+              title: Text(_lab(s[i].language, s[i].title, i) + (s[i].id == cs.id ? '  ✓' : ''), style: T(15.5, w: 600)),
               onTap: () {
                 player.setSubtitleTrack(s[i]);
                 Store.setStr('pref_sub', (s[i].language ?? '').toLowerCase());
@@ -3915,36 +3966,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _onlineSubs();
               },
             ),
-          const SizedBox(height: 10),
-          Text('Son', style: T(18, w: 750)),
-          StatefulBuilder(
-            builder: (_, set) => Column(children: [
+        ]),
+      ));
+  }
+
+  void _modeMenu() {
+    appSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: StatefulBuilder(
+          builder: (_, set) => ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(20, 16, 20, 16), children: [
+            Text('Mode son', style: T(18, w: 750)),
+            const SizedBox(height: 4),
+            for (final (id, name, sub) in const [
+              ('off', 'Standard', 'Son d\'origine, sans aucun traitement.'),
+              ('cinema', 'Mode Cinéma', 'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.'),
+              ('night', 'Mode nuit', 'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.'),
+              ('voice', 'Dialogues renforcés', 'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.'),
+            ])
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(CupertinoIcons.timer),
-                title: Text('Synchro audio : $_syncTxt', style: T(15.5, w: 600)),
-                subtitle: Text('Caler les dialogues avec ← →', style: T(12.5, color: kMut)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _syncOpen();
-                },
+                title: Text(name, style: T(15.5, w: 650)),
+                subtitle: Padding(padding: const EdgeInsets.only(top: 2), child: Text(sub, style: T(12.5, color: kMut, h: 1.35))),
+                trailing: _mode == id ? const Icon(Icons.check_rounded, color: kAccent) : null,
+                onTap: () => _setMode(id, set),
               ),
-              for (final (id, name, sub) in const [
-                ('off', 'Standard', 'Son d\'origine, sans traitement'),
-                ('cinema', 'Mode Cinéma', 'Dynamique d\'origine, graves et aigus plus présents'),
-                ('night', 'Mode nuit', 'Explosions et combats atténués, grave réduit'),
-                ('voice', 'Dialogues renforcés', 'Voix plus nettes, musique et bruitages en retrait'),
-              ])
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(name, style: T(15.5, w: 600)),
-                  subtitle: Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12.5, color: kMut)),
-                  trailing: _mode == id ? const Icon(Icons.check_rounded, color: kAccent) : null,
-                  onTap: () => _setMode(id, set),
-                ),
-            ]),
-          ),
-        ]),
+          ]),
+        ),
       ));
   }
 
@@ -4315,10 +4363,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: _scaffold(context),
       ));
 
+  /// tampon en mémoire : trait fin au bas de l'écran (film : zone déjà chargée en clair, lecture en blanc ; direct : jauge d'avance sur le tampon réglé)
+  Widget _bufBar() => StreamBuilder<Duration>(
+        stream: player.stream.buffer.distinct((a, b) => a.inSeconds == b.inSeconds),
+        initialData: player.state.buffer,
+        builder: (_, sn) {
+          final buf = sn.data ?? Duration.zero, pos = player.state.position, dur = player.state.duration;
+          final ahead = (buf - pos).inSeconds.clamp(0, 9999);
+          final double bufV = _live ? (ahead / _PlayerScreenState.bufSecs).clamp(0.0, 1.0) : (dur.inMilliseconds > 0 ? (buf.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0) : 0.0);
+          final double posV = !_live && dur.inMilliseconds > 0 ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0) : 0.0;
+          return IgnorePointer(
+            child: Stack(alignment: Alignment.bottomLeft, children: [
+              if (Device.tv && _tvUi) Align(alignment: Alignment.bottomRight, child: Padding(padding: const EdgeInsets.only(right: 18, bottom: 8), child: Text('${L.tr('Tampon')} : $ahead s', style: T(13, w: 650, color: const Color(0xCCFFFFFF))))),
+              SizedBox(height: 3, width: double.infinity, child: Stack(children: [
+                const Positioned.fill(child: ColoredBox(color: Color(0x26FFFFFF))),
+                FractionallySizedBox(widthFactor: bufV, child: const ColoredBox(color: Color(0x99FFC857), child: SizedBox.expand())),
+                if (!_live) FractionallySizedBox(widthFactor: posV, child: const ColoredBox(color: Colors.white, child: SizedBox.expand())),
+              ])),
+            ]),
+          );
+        },
+      );
+
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
         body: Stack(children: [
           Video(controller: controller),
+          Positioned(left: 0, right: 0, bottom: 0, height: Device.tv && _tvUi ? 34 : 3, child: _bufBar()),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)
           if (_alts.isEmpty)
             Positioned.fill(

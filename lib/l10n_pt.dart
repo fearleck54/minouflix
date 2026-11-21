@@ -698,4 +698,11 @@ const Map<String, String> kPt = {
   'Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.': 'A tua conta e todos os dados sincronizados são apagados do servidor e deste dispositivo. Irreversível.',
   'Rien.': 'Nada.',
   'Créer un nouveau compte : rien ne peut être récupéré.': 'Criar uma nova conta: nada pode ser recuperado.',
+  'Mode son': 'Modo de som',
+  'Tampon': 'Buffer',
+  'Déconnexion': 'Terminar sessão',
+  'Son d\'origine, sans aucun traitement.': 'Som original, sem qualquer tratamento.',
+  'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.': 'Dinâmica original, graves e agudos mais presentes. Para um filme em volume normal.',
+  'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.': 'Explosões e lutas atenuadas, menos graves. Para ver em volume baixo sem incomodar.',
+  'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.': 'Vozes mais nítidas, música e efeitos em segundo plano. Quando os diálogos são difíceis de perceber.',
 };

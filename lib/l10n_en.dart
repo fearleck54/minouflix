@@ -698,4 +698,11 @@ const Map<String, String> kEn = {
   'Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.': 'Your account and all synced data are erased from the server and from this device. Irreversible.',
   'Rien.': 'Nothing.',
   'Créer un nouveau compte : rien ne peut être récupéré.': 'Create a new account: nothing can be recovered.',
+  'Mode son': 'Sound mode',
+  'Tampon': 'Buffer',
+  'Déconnexion': 'Sign out',
+  'Son d\'origine, sans aucun traitement.': 'Original sound, with no processing at all.',
+  'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.': 'Original dynamics, fuller bass and treble. For a movie at normal volume.',
+  'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.': 'Explosions and fights softened, less bass. To watch at low volume without disturbing anyone.',
+  'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.': 'Clearer voices, music and effects pushed back. When dialogue is hard to understand.',
 };

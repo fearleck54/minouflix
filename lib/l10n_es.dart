@@ -698,4 +698,11 @@ const Map<String, String> kEs = {
   'Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.': 'Tu cuenta y todos los datos sincronizados se borran del servidor y de este dispositivo. Irreversible.',
   'Rien.': 'Nada.',
   'Créer un nouveau compte : rien ne peut être récupéré.': 'Crear una cuenta nueva: no se puede recuperar nada.',
+  'Mode son': 'Modo de sonido',
+  'Tampon': 'Búfer',
+  'Déconnexion': 'Cerrar sesión',
+  'Son d\'origine, sans aucun traitement.': 'Sonido original, sin ningún procesamiento.',
+  'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.': 'Dinámica original, graves y agudos más presentes. Para una película a volumen normal.',
+  'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.': 'Explosiones y combates atenuados, menos graves. Para ver a poco volumen sin molestar.',
+  'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.': 'Voces más nítidas, música y efectos en segundo plano. Cuando los diálogos cuestan de entender.',
 };

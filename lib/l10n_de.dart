@@ -698,4 +698,11 @@ const Map<String, String> kDe = {
   'Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.': 'Dein Konto und alle synchronisierten Daten werden vom Server und von diesem Gerät gelöscht. Nicht rückgängig zu machen.',
   'Rien.': 'Nichts.',
   'Créer un nouveau compte : rien ne peut être récupéré.': 'Neues Konto erstellen: nichts kann wiederhergestellt werden.',
+  'Mode son': 'Tonmodus',
+  'Tampon': 'Puffer',
+  'Déconnexion': 'Abmelden',
+  'Son d\'origine, sans aucun traitement.': 'Originalton, ganz ohne Bearbeitung.',
+  'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.': 'Originale Dynamik, kräftigere Bässe und Höhen. Für einen Film bei normaler Lautstärke.',
+  'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.': 'Explosionen und Kämpfe gedämpft, weniger Bass. Zum Schauen bei niedriger Lautstärke, ohne zu stören.',
+  'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.': 'Klarere Stimmen, Musik und Effekte im Hintergrund. Wenn Dialoge schwer zu verstehen sind.',
 };
