@@ -3344,13 +3344,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           player.setRate(_rate);
           setState(() {});
         }),
-      (CupertinoIcons.speaker_2_fill, 'Son : ${const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[_mode]}  (changer)', () async {
+      (CupertinoIcons.speaker_2_fill, '${L.tr('Son')} : ${L.tr(_modeName(_mode))}', () async {
         const order = ['off', 'cinema', 'night', 'voice'];
         final m = order[(order.indexOf(_mode) + 1) % order.length];
         await Store.setStr('snd_mode', m);
         final ok = await _applyNight();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? 'Son : ${const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[m]}' : 'Filtre audio non pris en charge par le lecteur sur cet appareil.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '${L.tr('Son')} : ${L.tr(_modeName(m))}' : L.tr('Filtre audio non pris en charge par le lecteur sur cet appareil.'))));
       }),
       (CupertinoIcons.timer, 'Synchro audio : $_syncTxt', _syncOpen),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
@@ -3653,6 +3653,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (m.isNotEmpty) return m;
     return Store.flag('snd_voice', false) ? 'voice' : (Store.flag('snd_night', false) ? 'night' : 'off');
   }
+
+  static String _modeName(String m) => const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[m] ?? 'Standard';
 
   /// filtres mpv (ffmpeg) de chaque mode, d'après ce que font les barres de son haut de gamme :
   /// · Cinéma : dynamique d'origine, voie des basses (LFE) remise dans le mélange stéréo, un peu de grave et d'aigu
