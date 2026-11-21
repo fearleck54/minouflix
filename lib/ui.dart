@@ -1923,3 +1923,26 @@ class TvMenuItem extends StatelessWidget {
         ),
       );
 }
+
+
+/// FutureBuilder qui garde le dernier résultat en mémoire : une rangée reconstruite (défilement) reprend tout de suite sa vraie hauteur,
+/// au lieu de passer par une rangée vide qui fait sauter la page quand on remonte
+class CachedFuture<T> extends StatelessWidget {
+  final String memKey;
+  final Future<T> future;
+  final AsyncWidgetBuilder<T> builder;
+  const CachedFuture({super.key, required this.memKey, required this.future, required this.builder});
+  static final _mem = <String, Object?>{};
+  /// à appeler quand la langue ou la source change
+  static void clear() => _mem.clear();
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<T>(
+        future: future,
+        initialData: _mem[memKey] as T?,
+        builder: (c, s) {
+          if (s.hasData) _mem[memKey] = s.data;
+          return builder(c, s);
+        },
+      );
+}

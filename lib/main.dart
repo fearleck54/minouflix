@@ -48,6 +48,7 @@ void main() {
       Tmdb.reset();
       Calendar.reset();
       Epg.reset();
+      CachedFuture.clear();
     };
     await Account.load();
     await Downloads.init();

@@ -1443,7 +1443,8 @@ class HomeTab extends StatelessWidget {
             onTab(0);
           })),
       'mylist': Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
-      'soon': FutureBuilder<List<Soon>>(
+      'soon': CachedFuture<List<Soon>>(
+        memKey: 'soon',
         future: Calendar.of(sl),
         builder: (_, s) => Rail(title: 'Prochains épisodes', height: 118, count: (s.data ?? const []).length, moreLabel: '', builder: (_, i) => SoonCard(s: s.data![i], onTap: () => onOpen(s.data![i].it))),
       ),
@@ -1516,16 +1517,18 @@ class HomeTab extends StatelessWidget {
               ),
             ));
       }),
-      'top10': FutureBuilder<List<Map>>(
+      'top10': CachedFuture<List<Map>>(
+        memKey: 'top10',
         future: Tmdb.trending(),
         builder: (_, s) {
-          if (s.connectionState != ConnectionState.done) return SizedBox(height: ph + 120);     // pas de liste provisoire qui change une seconde plus tard
+          if (!s.hasData && s.connectionState != ConnectionState.done) return SizedBox(height: ph + 120);     // pas de liste provisoire qui change une seconde plus tard
           final tr = trendTop(s.data ?? const [], vl, sl);
           final l = tr.isNotEmpty ? tr : top;
           return Rail(title: 'Top 10 cette semaine', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Top10Card(rank: i + 1, item: l[i], width: pw, onTap: () => onOpen(l[i])));
         },
       ),
-      'affiche': FutureBuilder<List<Map>>(
+      'affiche': CachedFuture<List<Map>>(
+        memKey: 'affiche',
         future: Tmdb.nowPlaying(),
         builder: (_, s) {
           final seen = <int>{};
@@ -1539,7 +1542,8 @@ class HomeTab extends StatelessWidget {
           return Rail(title: 'À l\'affiche', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => onOpen(l[i])));
         },
       ),
-      'sport': FutureBuilder<List<Ev>>(
+      'sport': CachedFuture<List<Ev>>(
+        memKey: 'sport',
         future: sport,
         builder: (_, s) {
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -1556,14 +1560,15 @@ class HomeTab extends StatelessWidget {
       'recentS': rail('Séries mises à jour', rs, tab: 3),
       'trakt': !Trakt.linked
           ? const SizedBox.shrink()
-          : FutureBuilder<List<Item>>(
+          : CachedFuture<List<Item>>(
+              memKey: 'trakt',
               future: Trakt.inCatalog([...uniqueTitles(vl?.rows ?? []), ...uniqueTitles(sl?.rows ?? [])]),
               builder: (_, s) => rail('Ma liste Trakt', s.data ?? const []),
             ),
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
-    return ListView(cacheExtent: Device.tv ? 1100 : null, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [
+    return ListView(cacheExtent: Device.tv ? 1100 : 2600, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [      // téléphone : les rangées voisines restent construites (pas de saut de page en remontant)
       // plus de grande affiche nulle part (télé, Android, iPhone) : le Top 10 passe tout en haut
       if (Device.tv || wide) const SizedBox(height: 8) else SizedBox(height: pad.top + 70),
       for (final id in ['top10', ...Store.homeOrder().where((x) => x != 'top10')])
