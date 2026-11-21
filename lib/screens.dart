@@ -118,25 +118,25 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final form = <Widget>[
       if (!widget.adding) ...[
-        AppField(controller: prenom, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Nom du profil (pour « Bonjour … »)', border: OutlineInputBorder())),
-        const SizedBox(height: 14),
+        AppField(controller: prenom, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: 'Nom du profil (pour « Bonjour … »)', border: const OutlineInputBorder(), isDense: Device.tv, contentPadding: Device.tv ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : null)),
+        SizedBox(height: Device.tv ? 8 : 14),
       ],
       SegmentedButton<bool>(
         segments: const [ButtonSegment(value: false, label: Text('Identifiants')), ButtonSegment(value: true, label: Text('Playlist M3U'))],
         selected: {m3u},
         onSelectionChanged: (v) => setState(() => m3u = v.first),
       ),
-      const SizedBox(height: 14),
-      AppField(controller: server, keyboardType: TextInputType.url, autocorrect: false, onSubmitted: (_) => m3u ? go() : null, decoration: InputDecoration(labelText: m3u ? 'Adresse de la playlist (http://….m3u)' : 'Adresse du serveur (http://…)', border: const OutlineInputBorder())),
+      SizedBox(height: Device.tv ? 8 : 14),
+      AppField(controller: server, keyboardType: TextInputType.url, autocorrect: false, onSubmitted: (_) => m3u ? go() : null, decoration: InputDecoration(labelText: m3u ? 'Adresse de la playlist (http://….m3u)' : 'Adresse du serveur (http://…)', border: const OutlineInputBorder(), isDense: Device.tv, contentPadding: Device.tv ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : null)),
       if (!m3u) ...[
-        const SizedBox(height: 14),
-        AppField(controller: user, autocorrect: false, decoration: const InputDecoration(labelText: 'Identifiant', border: OutlineInputBorder())),
-        const SizedBox(height: 14),
-        AppField(controller: pass, obscureText: true, autocorrect: false, onSubmitted: (_) => go(), decoration: const InputDecoration(labelText: 'Mot de passe', border: OutlineInputBorder())),
+        SizedBox(height: Device.tv ? 8 : 14),
+        AppField(controller: user, autocorrect: false, decoration: InputDecoration(labelText: 'Identifiant', border: const OutlineInputBorder(), isDense: Device.tv, contentPadding: Device.tv ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : null)),
+        SizedBox(height: Device.tv ? 8 : 14),
+        AppField(controller: pass, obscureText: true, autocorrect: false, onSubmitted: (_) => go(), decoration: InputDecoration(labelText: 'Mot de passe', border: const OutlineInputBorder(), isDense: Device.tv, contentPadding: Device.tv ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10) : null)),
       ],
       if (error != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(error!, style: const TextStyle(color: Color(0xFFFF6B7A)))),
-      const SizedBox(height: 22),
-      FilledButton(onPressed: busy ? null : go, child: Padding(padding: const EdgeInsets.all(14), child: busy ? const SizedBox(height: 18, width: 18, child: Spinner(strokeWidth: 2)) : const Text('Se connecter'))),
+      SizedBox(height: Device.tv ? 10 : 22),
+      FilledButton(onPressed: busy ? null : go, child: Padding(padding: EdgeInsets.all(Device.tv ? 8 : 14), child: busy ? const SizedBox(height: 18, width: 18, child: Spinner(strokeWidth: 2)) : const Text('Se connecter'))),
     ];
     const intro = 'Connecte ton abonnement. Les identifiants restent chiffrés sur cet appareil.';
     if (!widget.adding) {

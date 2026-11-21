@@ -233,7 +233,16 @@ class _SyncChoiceState extends State<SyncChoiceScreen> {
                       },
                     ),
                 const SizedBox(height: 18),
-                FilledButton(onPressed: done, child: Padding(padding: const EdgeInsets.all(14), child: Text(widget.first ? 'Continuer' : 'Enregistrer'))),
+                FilledButton(
+                  onPressed: done,
+                  style: Device.tv
+                      ? ButtonStyle(
+                          backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.focused) ? Colors.white : Colors.transparent),
+                          foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.focused) ? kBg : Colors.white),
+                          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+                        )
+                      : null,
+                  child: Padding(padding: const EdgeInsets.all(14), child: Text(widget.first ? 'Continuer' : 'Enregistrer'))),
                 if (!widget.first && Account.signedIn) TextButton(onPressed: () async {
                       await Account.signOut();
                       if (context.mounted) Navigator.of(context).pop();

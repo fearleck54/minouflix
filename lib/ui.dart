@@ -1515,7 +1515,7 @@ class AuthLayout extends StatelessWidget {
     final head = w
         ? [
             Row(children: [
-              SvgPicture.asset('assets/logo.svg', height: 52),
+              SvgPicture.asset('assets/logo.svg', height: 40),
               const SizedBox(width: 14),
               Text('MinouFlix', style: T(34, w: 850, ls: -0.04)),
             ]),
@@ -1525,7 +1525,7 @@ class AuthLayout extends StatelessWidget {
             Text(text, style: T(15, color: kMut, h: 1.35)),
           ]
         : [
-            Center(child: SvgPicture.asset('assets/logo.svg', height: 96)),
+            Center(child: SvgPicture.asset('assets/logo.svg', height: 72)),
             const SizedBox(height: 10),
             Center(child: Text('MinouFlix', style: T(36, w: 850, ls: -0.04))),
             const SizedBox(height: 12),
@@ -1541,7 +1541,7 @@ class AuthLayout extends StatelessWidget {
         child: w && side.isNotEmpty
             ? Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 56, vertical: 12),
                   child: Row(children: [
                     Expanded(
                       flex: 11,

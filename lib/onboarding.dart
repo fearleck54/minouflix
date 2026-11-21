@@ -779,31 +779,44 @@ class _LinkButton extends StatelessWidget {
       );
 }
 
-class _PrimaryButton extends StatelessWidget {
+class _PrimaryButton extends StatefulWidget {
   final String label;
   final VoidCallback onTap;
   final bool enabled, wide, autofocus;
   const _PrimaryButton({required this.label, required this.onTap, this.enabled = true, this.wide = false, this.autofocus = false});
+  @override
+  State<_PrimaryButton> createState() => _PrimaryButtonState();
+}
+
+class _PrimaryButtonState extends State<_PrimaryButton> {
+  bool _f = false;
 
   @override
   Widget build(BuildContext context) {
     final h = Device.tv ? 56.0 : 54.0;
-    return FocusCard(
-      radius: h / 2,
-      autofocus: autofocus && Device.tv,
-      focusScale: 1.04,
-      onTap: () {
-        if (enabled) onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        height: h,
-        width: wide ? double.infinity : null,
-        constraints: const BoxConstraints(minWidth: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(h / 2), color: enabled ? Colors.white : const Color(0x1FFFFFFF)),
-        child: Text(label, style: T(17, w: 650, color: enabled ? kBg : kMut)),
+    // télé : blanc seulement quand le curseur est dessus, sinon de la couleur du fond ; téléphone : toujours blanc
+    final lit = !Device.tv || _f;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (v) => setState(() => _f = v),
+      child: FocusCard(
+        radius: h / 2,
+        autofocus: widget.autofocus && Device.tv,
+        focusScale: 1.04,
+        onTap: () {
+          if (widget.enabled) widget.onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          height: h,
+          width: widget.wide ? double.infinity : null,
+          constraints: const BoxConstraints(minWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(h / 2), color: !widget.enabled ? const Color(0x1FFFFFFF) : (lit ? Colors.white : Colors.transparent)),
+          child: Text(widget.label, style: T(17, w: 650, color: !widget.enabled ? kMut : (lit ? kBg : Colors.white))),
+        ),
       ),
     );
   }
