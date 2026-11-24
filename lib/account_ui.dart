@@ -216,8 +216,7 @@ class _AuthState extends State<AuthScreen> {
           if (!create) ...[
             const SizedBox(height: 10),
             PillButton(label: 'Mot de passe oublié ?', onTap: () async {
-              final ok = await Navigator.push<bool>(context, softRoute((_) => ResetPasswordScreen(mail: mail.text)));
-              if (ok == true && mounted) widget.onDone();
+              await Navigator.push<bool>(context, softRoute((_) => ResetPasswordScreen(mail: mail.text)));
             }),
           ],
           const SizedBox(height: 10),
@@ -311,7 +310,7 @@ class LoadingScreen extends StatelessWidget {
 }
 
 
-/// ---------- mot de passe oublié : e-mail → code à 6 chiffres → nouveau mot de passe ----------
+/// ---------- mot de passe oublié : e-mail → lien reçu → page web pour choisir le nouveau mot de passe ----------
 class ResetPasswordScreen extends StatefulWidget {
   final String mail;
   const ResetPasswordScreen({super.key, this.mail = ''});
@@ -321,7 +320,6 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetState extends State<ResetPasswordScreen> {
   late final mail = TextEditingController(text: widget.mail);
-  final code = TextEditingController(), pw = TextEditingController();
   bool sent = false, busy = false;
   String? msg;
 
@@ -346,28 +344,6 @@ class _ResetState extends State<ResetPasswordScreen> {
     });
   }
 
-  Future<void> _apply() async {
-    if (busy) return;
-    if (code.text.trim().length < 6 || pw.text.length < 6) {
-      setState(() => msg = 'Code à 6 chiffres et nouveau mot de passe (6 caractères minimum).');
-      return;
-    }
-    setState(() {
-      busy = true;
-      msg = null;
-    });
-    final e = await Account.resetWithCode(mail.text, code.text, pw.text);
-    if (!mounted) return;
-    if (e == null) {
-      Navigator.pop(context, true);
-      return;
-    }
-    setState(() {
-      busy = false;
-      msg = e;
-    });
-  }
-
   @override
   Widget build(BuildContext context) => DsBg(
         child: Scaffold(
@@ -378,21 +354,16 @@ class _ResetState extends State<ResetPasswordScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-                  Text(sent ? 'Un code à 6 chiffres vient d\'être envoyé à ${mail.text.trim()}. Saisis-le avec ton nouveau mot de passe.' : 'Saisis l\'e-mail de ton compte : tu recevras un code pour choisir un nouveau mot de passe.', style: T(15, color: kMut, h: 1.35)),
+                  Text(sent ? 'Un e-mail vient d\'être envoyé à ${mail.text.trim()}. Ouvre le lien qu\'il contient (sur n\'importe quel appareil), choisis ton nouveau mot de passe, puis reviens te connecter ici. Pense à regarder dans les courriers indésirables.' : 'Saisis l\'e-mail de ton compte : tu recevras un lien pour choisir un nouveau mot de passe.', style: T(15, color: kMut, h: 1.4)),
                   const SizedBox(height: 16),
-                  AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: _dec('E-mail'), onSubmitted: (_) => sent ? null : _send()),
-                  if (sent) ...[
-                    const SizedBox(height: 14),
-                    AppField(controller: code, keyboardType: TextInputType.number, decoration: _dec('Code reçu par e-mail')),
-                    const SizedBox(height: 14),
-                    AppField(controller: pw, obscureText: true, decoration: _dec('Nouveau mot de passe'), onSubmitted: (_) => _apply()),
-                  ],
+                  if (!sent) AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: _dec('E-mail'), onSubmitted: (_) => _send()),
                   if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: const Color(0xFFFF6B7A)))),
                   const SizedBox(height: 22),
-                  PillButton(primary: true, height: 54, label: busy ? 'Un instant…' : (sent ? 'Changer le mot de passe' : 'Envoyer le code'), onTap: () => sent ? _apply() : _send()),
+                  if (!sent) PillButton(primary: true, height: 54, label: busy ? 'Un instant…' : 'Envoyer le lien', onTap: _send),
                   if (sent) ...[
+                    PillButton(primary: true, height: 54, label: 'Retour à la connexion', onTap: () => Navigator.pop(context)),
                     const SizedBox(height: 10),
-                    PillButton(label: 'Renvoyer un code', onTap: _send),
+                    PillButton(label: busy ? 'Un instant…' : 'Renvoyer le lien', onTap: _send),
                   ],
                   const SizedBox(height: 14),
                   Text('Tes sources IPTV sont chiffrées avec ton mot de passe : après un changement de mot de passe, il faudra peut-être les ressaisir une fois.', style: T(12.5, color: kMut, h: 1.35)),

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MinouFlix</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#06080d;color:#fff;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+.c{width:min(420px,92vw);padding:28px;background:#0e121b;border-radius:22px;box-shadow:0 10px 40px #0008}
+h1{font-size:22px;margin:0 0 8px}p{color:#9aa3b5;line-height:1.45}
+input{width:100%;box-sizing:border-box;padding:14px;margin:8px 0;border:0;border-radius:14px;background:#ffffff1f;color:#fff;font-size:16px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:26px;background:#fff;color:#06080d;font-size:16px;font-weight:700;cursor:pointer}
+.e{color:#ff6b7a}.ok{color:#30d158}
+</style></head><body><div class="c" id="c"><h1>MinouFlix</h1><p>Chargement…</p></div>
+<script>
+const SB='https://huvxeflutvbmjryvmyzg.supabase.co',KEY='sb_publishable_54QMEMeqIcD33p-akCzsdw_V_YJNDLm';
+const h=new URLSearchParams(location.hash.slice(1)),c=document.getElementById('c');
+const show=(t,b,cls)=>c.innerHTML='<h1>'+t+'</h1><p class="'+(cls||'')+'">'+b+'</p>';
+if(h.get('error')||h.get('error_description')){
+  show('Lien expiré','Ce lien n\'est plus valable (il ne marche qu\'une fois, pendant une heure). Dans MinouFlix, demande un nouveau lien depuis « Mot de passe oublié ? ».','e');
+}else if(h.get('type')==='recovery'&&h.get('access_token')){
+  const tok=h.get('access_token');
+  c.innerHTML='<h1>Nouveau mot de passe</h1><p>Choisis un mot de passe (6 caractères minimum).</p><input id="a" type="password" placeholder="Nouveau mot de passe" autocomplete="new-password"><input id="b" type="password" placeholder="Confirme le mot de passe" autocomplete="new-password"><p id="m" class="e"></p><button id="go">Enregistrer</button><p style="font-size:12.5px">Tes sources IPTV sont chiffrées avec ton mot de passe : il faudra peut-être les ressaisir une fois dans l\'appli.</p>';
+  document.getElementById('go').onclick=async()=>{
+    const a=document.getElementById('a').value,b=document.getElementById('b').value,m=document.getElementById('m');
+    if(a.length<6){m.textContent='6 caractères minimum.';return}
+    if(a!==b){m.textContent='Les deux mots de passe sont différents.';return}
+    try{
+      const r=await fetch(SB+'/auth/v1/user',{method:'PUT',headers:{apikey:KEY,Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({password:a})});
+      if(r.ok)show('Mot de passe changé','Ouvre MinouFlix et connecte-toi avec ton nouveau mot de passe.','ok');
+      else{const j=await r.json().catch(()=>({}));m.textContent=(j.msg||j.message||'Erreur')+'';}
+    }catch(e){m.textContent='Connexion impossible, réessaie.'}
+  };
+}else if(h.get('type')==='signup'||h.get('type')==='email_change'||h.get('access_token')){
+  show('Adresse confirmée','Ton adresse e-mail est confirmée. Retourne dans MinouFlix et connecte-toi.','ok');
+}else{
+  show('MinouFlix','Cette page sert aux liens reçus par e-mail (confirmation du compte, mot de passe oublié).');
+}
+</script></body></html>
