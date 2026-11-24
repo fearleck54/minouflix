@@ -4236,11 +4236,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         Store.setStr('snd_mode', 'off');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(L.tr('Filtre audio non pris en charge par le lecteur sur cet appareil.'))));
       }
+      // erreur de décodeur audio (piste TrueHD par défaut, changée aussitôt) ou de filtre : l'image continue, ce n'est pas une coupure du flux
+      if (e.contains('decoder for codec') || e.contains('Audio filter')) return;
       // certaines erreurs ne sont pas bloquantes : échec seulement si la lecture avait démarré et n'avance plus
       // (au démarrage, c'est la surveillance des 15 s qui tranche)
       final at = player.state.position;
       Timer(const Duration(seconds: 4), () {
-        if (mounted && at > Duration.zero && player.state.position == at) _failed('Le flux a été interrompu.');
+        // pas d'échec si le lecteur est simplement en train de charger (reprise au milieu d'un film 4K : le tampon se remplit)
+        if (mounted && at > Duration.zero && player.state.position == at && !player.state.buffering) _failed('Le flux a été interrompu.');
       });
     });
     _endSub = player.stream.completed.listen((c) {

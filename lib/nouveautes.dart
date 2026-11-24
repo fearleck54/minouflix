@@ -1,8 +1,8 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
-  ('Version 207', [
-    'Reprise de lecture corrigée : le film repart bien à l\'endroit enregistré.',
+  ('Versions 207 et 208', [
+    'Reprise de lecture corrigée : le film repart bien à l\'endroit enregistré, sans faux message « Lecture impossible » pendant le chargement.',
     'Fiche du film : « Depuis le début » à côté de « Reprendre », bouton Version plus compact.',
     'Tampon réglable directement depuis « Plus » dans le lecteur.',
     'Télé : plus d\'envoi par e-mail ni de copie du journal (inutiles sans clavier ni messagerie).',
