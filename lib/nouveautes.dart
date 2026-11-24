@@ -3,6 +3,8 @@
 const kNews = <(String, List<String>)>[
   ('Version 213', [
     'Retirer un titre de « Continuer à regarder » se synchronise maintenant avec tes autres appareils.',
+    'Synchronisation : la liste, la reprise et les playlists de chaque profil et de chaque source suivent maintenant (avant, seul le profil d\'origine).',
+    'Synchronisation : les réglages partent dès que tu quittes les Réglages ou que l\'appli passe en arrière-plan.',
   ]),
   ('Version 212', [
     'Télé : retirer un titre de « Continuer à regarder » place la sélection sur le titre suivant (plus de retour à l\'accueil).',

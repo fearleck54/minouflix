@@ -542,6 +542,13 @@ class Store {
   // ---- synchronisation entre appareils (Supabase) : code personnel, dernières modifications
   static bool get syncAsked => _p.getBool('sync_asked') ?? false;
   static Future<void> setSyncAsked() => _p.setBool('sync_asked', true);
+  static int get collsT => _p.getInt('${ppre}colls_t') ?? 0;
+  static String get collsRaw => _p.getString('${ppre}colls') ?? '{}';
+  static Future<void> setCollsRaw(String v, int t) async {
+    await _p.setString('${ppre}colls', v);
+    await _p.setInt('${ppre}colls_t', t);
+    favTick.value++;
+  }
   static int get favsT => _p.getInt('${ppre}favs_t') ?? 0;
   static int get metaT => _p.getInt('meta_t') ?? 0;
   static Future<void> setFavs(List<String> l, int t) async {
@@ -670,7 +677,11 @@ class Store {
     final f = _p.setString('${ppre}colls', jsonEncode(m));
     favTick.value++;     // l'accueil affiche aussi les playlists
     await f;
-    if (_prof.isEmpty) await _touchSel();
+    if (_prof.isEmpty) {
+      await _touchSel();
+    } else {
+      await _p.setInt('${ppre}colls_t', DateTime.now().millisecondsSinceEpoch);      // playlists d'un autre profil : synchronisées avec le reste de son contexte
+    }
   }
 
   /// change quand la barre du bas ou l'écran d'accueil sont personnalisés : l'accueil se redessine tout de suite

@@ -741,6 +741,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.resumed && mounted) unawaited(_sync());
+    if (s == AppLifecycleState.paused) unawaited(Sync.run());      // l'appli passe en arrière-plan : tout part avant qu'elle soit fermée
   }
 
   Timer? _syncT;
@@ -1193,6 +1194,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             )),
       ).then((_) {
         if (mounted) setState(() {});
+        unawaited(Sync.run());      // les réglages modifiés partent tout de suite vers les autres appareils
       });
 
   @override

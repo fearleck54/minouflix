@@ -83,14 +83,18 @@ class Sync {
       if (d0.isNotEmpty && !Store.flag('acct_known', false)) await Store.setFlag('acct_known', true);
       final d = <String, dynamic>{...d0};
       var changed = false;
-      if (origin && opt('favs')) {
-        final rf = (d['favs_t'] as num?)?.toInt() ?? 0;
+      // liste, reprise et playlists : profil d'origine à la racine, chaque autre profil / source dans « ctx » (sans quoi leur liste et leur reprise ne suivaient pas)
+      final ck = Store.ppre;
+      final ctxAll = d['ctx'] is Map ? (d['ctx'] as Map).cast<String, dynamic>() : <String, dynamic>{};
+      final ctxMine = ck.isEmpty ? d : (ctxAll[ck] is Map ? (ctxAll[ck] as Map).cast<String, dynamic>() : <String, dynamic>{});
+      if (opt('favs')) {
+        final rf = (ctxMine['favs_t'] as num?)?.toInt() ?? 0;
         if (rf > lt(Store.favsT)) {
-          await Store.setFavs([for (final x in (d['favs'] as List? ?? [])) '$x'], rf);
+          await Store.setFavs([for (final x in (ctxMine['favs'] as List? ?? [])) '$x'], rf);
           changed = true;
         }
-        d['favs'] = Store.favs.toList();
-        d['favs_t'] = Store.favsT;
+        ctxMine['favs'] = Store.favs.toList();
+        ctxMine['favs_t'] = Store.favsT;
       }
       if (origin && opt('meta')) {
         final rm = (d['meta_t'] as num?)?.toInt() ?? 0;
@@ -104,9 +108,9 @@ class Sync {
         d['sport'] = Store.sportKeys;
         d['meta_t'] = Store.metaT;
       }
-      if (origin && opt('prog')) {
+      if (opt('prog')) {
         final loc = {for (final p in Store.allProg()) p.key: p};
-        for (final x in (d['prog'] as List? ?? [])) {
+        for (final x in (ctxMine['prog'] as List? ?? [])) {
           final p = Prog.fromJson((x as Map).cast<String, dynamic>());
           final m = loc[p.key];
           if (m == null || p.t > m.t || (p.t == m.t && p.hidden && !m.hidden)) {      // à date égale, le retrait l'emporte
@@ -116,7 +120,21 @@ class Sync {
         }
         final all = loc.values.toList()..sort((a, b) => b.t.compareTo(a.t));
         if (changed) await Store.setAllProg(all);
-        d['prog'] = [for (final p in all.take(40)) p.toJson()];
+        ctxMine['prog'] = [for (final p in all.take(40)) p.toJson()];
+      }
+      if (Store.profId.isNotEmpty && opt('favs')) {      // playlists d'un autre profil (celles du profil d'origine voyagent avec la sélection)
+        final rt = (ctxMine['colls_t'] as num?)?.toInt() ?? 0;
+        if (rt > lt(Store.collsT) && ctxMine['colls'] is String) {
+          await Store.setCollsRaw(ctxMine['colls'] as String, rt);
+          changed = true;
+        } else if (Store.collsT > 0) {
+          ctxMine['colls'] = Store.collsRaw;
+          ctxMine['colls_t'] = Store.collsT;
+        }
+      }
+      if (ck.isNotEmpty && (opt('favs') || opt('prog'))) {
+        ctxAll[ck] = ctxMine;
+        d['ctx'] = ctxAll;
       }
       if (opt('creds')) {
         // source d'origine : la copie la plus récente gagne (modifiable sur n'importe quel appareil)
