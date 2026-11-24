@@ -109,7 +109,7 @@ class Sync {
         for (final x in (d['prog'] as List? ?? [])) {
           final p = Prog.fromJson((x as Map).cast<String, dynamic>());
           final m = loc[p.key];
-          if (m == null || p.t > m.t) {
+          if (m == null || p.t > m.t || (p.t == m.t && p.hidden && !m.hidden)) {      // à date égale, le retrait l'emporte
             loc[p.key] = p;
             changed = true;
           }

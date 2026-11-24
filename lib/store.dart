@@ -590,7 +590,10 @@ class Store {
     if (s == null) return;
     final l = allProg();
     for (final x in l) {
-      if (x.key == key) x.hidden = true;
+      if (x.key == key) {
+        x.hidden = true;
+        x.t = DateTime.now().millisecondsSinceEpoch ~/ 1000;      // plus récent que la copie des autres appareils : le retrait se synchronise
+      }
     }
     await _p.setString('${ppre}prog', jsonEncode([for (final x in l) x.toJson()]));
   }

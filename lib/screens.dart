@@ -1503,6 +1503,7 @@ class HomeTab extends StatelessWidget {
             );
             if (ok != true) return;
             await Store.hideProg(cont[i].key);
+            unawaited(Sync.run());      // le retrait part tout de suite vers les autres appareils
             onTab(0);
             if (Device.tv && cont.length > 1) {      // la sélection va sur la carte d'après (la précédente si c'était la dernière), pas sur l'accueil
               final j = i < cont.length - 1 ? i : cont.length - 2;
