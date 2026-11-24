@@ -80,6 +80,13 @@ void main() {
       expect(parseTitle('Wonka 4K (2023)', Kind.vod).q, '4K');
       expect(parseTitle('Wonka (2023) 4K', Kind.vod).title, 'Wonka');
     });
+    test('même affiche et même année : un seul film sous deux noms', () {
+      final l = uniqueTitles([
+        Item(1, 'Matchbox – Le film (2026)', 'http://exemple.org/m.jpg', 'mkv', 'c1', Kind.vod),
+        Item(2, 'Matchbox the Movie 4K (2026)', 'http://exemple.org/m.jpg', 'mkv', 'c2', Kind.vod),
+      ]);
+      expect(l.length, 1);
+    });
     test('langue annoncée', () {
       expect(langTag('Wonka (2023) MULTI'), 'MULTI');
       expect(langTag('FR - Wonka VOSTFR'), 'VOSTFR');

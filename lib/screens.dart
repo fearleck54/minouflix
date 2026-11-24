@@ -1438,10 +1438,23 @@ class HomeTab extends StatelessWidget {
     final mylist = [...?vl?.rows.where((i) => favs.contains('vod:${i.id}')), ...?sl?.rows.where((i) => favs.contains('series:${i.id}'))];
     final secs = <String, Widget>{
       'hero': feat.isNotEmpty ? HeroBanner(items: feat.take(7).toList(), detailFor: detailFor, onPlay: onPlay, onInfo: onInfo) : SizedBox(height: pad.top + 70),
-      'continue': Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
+      'continue': Builder(builder: (ctx) => Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
+            // appui long : confirmation avant de retirer (la position de lecture est conservée côté fiche tant qu'on ne relance pas)
+            final ok = await showDialog<bool>(
+              context: ctx,
+              builder: (c) => AppDialog(
+                title: Text('Retirer de « Continuer à regarder » ?', style: T(18, w: 700)),
+                content: Text('${cont[i].sname.isEmpty ? cont[i].name : '${cont[i].sname} · ${cont[i].name}'}\nLe film ou l\'épisode disparaît de cette rangée.'),
+                actions: [
+                  TextButton(autofocus: true, onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+                  TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Retirer')),
+                ],
+              ),
+            );
+            if (ok != true) return;
             await Store.hideProg(cont[i].key);
             onTab(0);
-          })),
+          }))),
       'mylist': Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
       'soon': CachedFuture<List<Soon>>(
         memKey: 'soon',
@@ -2486,6 +2499,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
         _row(CupertinoIcons.wand_stars, const Color(0xFF5B8CFF), 'Refaire la configuration', value: '', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => OnboardingFlow(redo: true, onDone: () => Navigator.of(context).pop())))),
+        _row(CupertinoIcons.paintbrush_fill, const Color(0xFFFF375F), 'Fond de l\'appli', value: Aurora.current.$2.split(' (').first, chevron: true, onTap: () => _pickPage('Fond de l\'appli', [for (final e in Aurora.styles) (e.$1, e.$2)], () => Aurora.currentId, (v) async {
+              await Store.setStr('bg_style', v);
+              Aurora.tick.value++;
+            }, foot: 'Le même fond sur tous les écrans.')),
         _row(CupertinoIcons.rectangle_split_3x1_fill, const Color(0xFF5E5CE6), 'Onglets', value: '${Store.tabsVisible().length} onglets', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TabsSettings()))),
         if (!kid) _row(CupertinoIcons.sportscourt_fill, const Color(0xFFFF9F0A), 'Sport', value: '${Store.sportKeys.length} championnats', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => SportSettings(onKeys: (k) async {
               await Store.saveSportKeys(k);
@@ -2934,7 +2951,7 @@ class _DetailScreenState extends State<DetailScreen> {
     if (l == null || it.kind == Kind.live) return [it];
     final known = l.rows.where((r) => r.p.key == it.p.key && r.year.isNotEmpty).map((r) => r.year).toSet();
     final y = it.year.isNotEmpty ? it.year : (known.length == 1 ? known.first : '');
-    final v = l.rows.where((r) => r.p.key == it.p.key && (r.year == y || r.year.isEmpty || y.isEmpty)).toList();
+    final v = l.rows.where((r) => (r.p.key == it.p.key && (r.year == y || r.year.isEmpty || y.isEmpty)) || (it.icon.isNotEmpty && r.icon == it.icon && r.year == it.year)).toList();
     if (!v.any((r) => r.id == it.id)) v.insert(0, it);
     // qualité la plus haute d'abord
     const rank = {'4K': 0, 'FHD': 1, 'HD': 2, '': 2, 'SD': 3};
@@ -4579,7 +4596,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
         body: Stack(children: [
-          Video(controller: controller, controls: _syncMode ? NoVideoControls : null),
+          Video(controller: controller, controls: _syncMode ? NoVideoControls : AdaptiveVideoControls),
           if (Device.tv && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
           if (_statsOn) _statsPanel(),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)

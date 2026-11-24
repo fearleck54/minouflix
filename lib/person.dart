@@ -61,8 +61,8 @@ class _PersonState extends State<PersonScreen> {
     } catch (_) {}
     if (!mounted) return;
     setState(() {
-      films = f;
-      series = s;
+      films = uniqueTitles(f);
+      series = uniqueTitles(s);
       done = true;
     });
     if (Device.tv) WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? FocusScope.of(context).nextFocus() : null);
@@ -73,7 +73,7 @@ class _PersonState extends State<PersonScreen> {
     final pw = Device.tv ? 150.0 : 128.0, ph = pw * 1.5 + 44;
     Widget rail(String t, List<Item> l) => Rail(title: t, height: ph, count: l.length, moreLabel: '', builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => widget.onOpen(l[i])));
     final none = done && (films?.isEmpty ?? true) && (series?.isEmpty ?? true);
-    return Scaffold(
+    return DsBg(child: Scaffold(backgroundColor: Colors.transparent,
       body: SafeArea(
         child: ListView(cacheExtent: Device.tv ? 1800 : null, padding: const EdgeInsets.only(bottom: 60), children: [
           Padding(
@@ -96,6 +96,6 @@ class _PersonState extends State<PersonScreen> {
           if (none) Padding(padding: const EdgeInsets.all(40), child: Text('Aucun film ni série de cet acteur dans ton catalogue.', style: T(17, color: kMut))),
         ]),
       ),
-    );
+    ));
   }
 }

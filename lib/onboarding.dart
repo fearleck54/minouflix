@@ -1010,6 +1010,19 @@ class Aurora extends StatefulWidget {
   const Aurora({super.key, this.tint, required this.page, this.still = false});
   @override
   State<Aurora> createState() => AuroraState();
+
+  /// fonds proposés (Réglages › Fond de l'appli) : identifiant, nom, trois couleurs de halo, force des halos (0 = noir pur)
+  static const styles = <(String, String, Color, Color, Color?, double)>[
+    ('aurore', 'Aurore (bleu, rouge, violet)', Color(0xFF5B8CFF), Color(0xFFFF2D45), null, 1.0),
+    ('minuit', 'Bleu nuit', Color(0xFF2F5BFF), Color(0xFF1BB5FF), Color(0xFF5B8CFF), 1.0),
+    ('braise', 'Braise (rouge et orange)', Color(0xFFFF2D45), Color(0xFFFF8A3D), Color(0xFFC2185B), 1.0),
+    ('foret', 'Forêt (vert et turquoise)', Color(0xFF1FBF75), Color(0xFF0E8F8F), Color(0xFF5BD6A0), 0.9),
+    ('ardoise', 'Ardoise (gris sobre)', Color(0xFF5B6B85), Color(0xFF3A4660), Color(0xFF7A8AA6), 0.9),
+    ('noir', 'Noir pur (écrans OLED)', Color(0xFF5B8CFF), Color(0xFFFF2D45), null, 0.0),
+  ];
+  static final tick = ValueNotifier<int>(0);      // change quand le fond est modifié : tous les écrans se repeignent
+  static String get currentId => Store.str('bg_style').isEmpty ? 'aurore' : Store.str('bg_style');
+  static (String, String, Color, Color, Color?, double) get current => styles.firstWhere((e) => e.$1 == currentId, orElse: () => styles.first);
 }
 
 class AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
@@ -1034,13 +1047,19 @@ class AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
-        child: TweenAnimationBuilder<Color?>(
-          tween: ColorTween(end: widget.tint ?? const Color(0xFF7A5CFF)),
-          duration: Duration(milliseconds: Perf.lite ? 0 : 800),
-          builder: (_, col, __) => AnimatedBuilder(
-            animation: _c,
-            builder: (_, __) => CustomPaint(painter: _AuroraPainter(_c.value, col ?? const Color(0xFF7A5CFF), widget.page)),
-          ),
+        child: ValueListenableBuilder<int>(
+          valueListenable: Aurora.tick,
+          builder: (_, __, ___) {
+            final st = Aurora.current;
+            return TweenAnimationBuilder<Color?>(
+              tween: ColorTween(end: st.$5 ?? widget.tint ?? const Color(0xFF7A5CFF)),
+              duration: Duration(milliseconds: Perf.lite ? 0 : 800),
+              builder: (_, col, __) => AnimatedBuilder(
+                animation: _c,
+                builder: (_, __) => CustomPaint(painter: _AuroraPainter(_c.value, col ?? const Color(0xFF7A5CFF), widget.page, st.$3, st.$4, st.$6)),
+              ),
+            );
+          },
         ),
       );
 }
@@ -1049,7 +1068,9 @@ class _AuroraPainter extends CustomPainter {
   final double t;
   final Color third;
   final int page;
-  _AuroraPainter(this.t, this.third, this.page);
+  final Color c1, c2;
+  final double k;      // force des halos
+  _AuroraPainter(this.t, this.third, this.page, this.c1, this.c2, this.k);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1059,11 +1080,11 @@ class _AuroraPainter extends CustomPainter {
     final shift = page * 0.03 * w;
     void blob(Offset c, Color col, double op) {
       final r = math.max(w, h * 1.6) * 0.9;      // téléphone (écran haut et étroit) : même couverture du dégradé que sur la télé
-      canvas.drawCircle(c, r, Paint()..shader = ui.Gradient.radial(c, r, [col.withOpacity(op), col.withOpacity(0)]));
+      canvas.drawCircle(c, r, Paint()..shader = ui.Gradient.radial(c, r, [col.withOpacity(op * k), col.withOpacity(0)]));
     }
 
-    blob(Offset(w * 0.15 - shift + 0.08 * w * math.sin(a), h * 0.10 + 0.08 * h * math.cos(a)), const Color(0xFF5B8CFF), 0.20);
-    blob(Offset(w * 0.90 - shift + 0.08 * w * math.sin(a + 2.1), h * 0.55 + 0.08 * h * math.cos(a + 2.1)), const Color(0xFFFF2D45), 0.26);     // rouge du logo
+    blob(Offset(w * 0.15 - shift + 0.08 * w * math.sin(a), h * 0.10 + 0.08 * h * math.cos(a)), c1, 0.20);
+    blob(Offset(w * 0.90 - shift + 0.08 * w * math.sin(a + 2.1), h * 0.55 + 0.08 * h * math.cos(a + 2.1)), c2, 0.26);     // rouge du logo
     blob(Offset(w * 0.30 - shift + 0.08 * w * math.sin(a + 4.2), h * 0.95 + 0.08 * h * math.cos(a + 4.2)), third, 0.18);
     // voile du bas : le texte et le bouton restent lisibles
     canvas.drawRect(
@@ -1073,7 +1094,7 @@ class _AuroraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AuroraPainter o) => o.t != t || o.third != third || o.page != page;
+  bool shouldRepaint(_AuroraPainter o) => o.t != t || o.third != third || o.page != page || o.c1 != c1 || o.c2 != c2 || o.k != k;
 }
 
 // ======================================================================= coche du récap

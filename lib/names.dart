@@ -284,13 +284,18 @@ List<Item> uniqueTitles(Iterable<Item> l) {
   final out = <Item>[];
   for (final i in list) {
     final ys = years[i.p.key];
-    final k = '${i.p.key}|${i.year.isNotEmpty ? i.year : (ys != null && ys.length == 1 ? ys.first : '')}';
-    final j = at[k];
+    final y = i.year.isNotEmpty ? i.year : (ys != null && ys.length == 1 ? ys.first : '');
+    final k = '${i.p.key}|$y';
+    final ki = i.icon.isEmpty ? null : 'i|${i.icon}|$y';      // même affiche et même année : même film sous deux noms (« Matchbox – Le film » / « Matchbox the Movie 4K »)
+    final j = at[k] ?? (ki == null ? null : at[ki]);
     if (j == null) {
       at[k] = out.length;
+      if (ki != null) at[ki] = out.length;
       out.add(i);
-    } else if (out[j].icon.isEmpty && i.icon.isNotEmpty) {
-      out[j] = i;
+    } else {
+      at[k] = j;
+      if (ki != null) at[ki] = j;
+      if (out[j].icon.isEmpty && i.icon.isNotEmpty) out[j] = i;
     }
   }
   return out;

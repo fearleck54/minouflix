@@ -289,9 +289,10 @@ class _PlaylistState extends State<PlaylistScreen> {
     final keys = Store.colls[name] ?? const <String>[];
     final items = [for (final r in widget.all) if (keys.contains('${r.kind.name}:${r.id}')) r];
     final w = isWide(context) ? 170.0 : 118.0;
-    return Scaffold(
+    return DsBg(child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: kBg,
+        backgroundColor: Colors.transparent,
         title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(22, w: 750, ls: -0.03)),
         actions: [
           if (items.isNotEmpty) TextButton(onPressed: () => setState(() => edit = !edit), child: Text(edit ? 'Terminé' : 'Modifier')),
@@ -324,7 +325,7 @@ class _PlaylistState extends State<PlaylistScreen> {
                 ),
               ),
             ]),
-    );
+    ));
   }
 }
 
