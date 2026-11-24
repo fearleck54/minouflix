@@ -2948,6 +2948,33 @@ class _DetailScreenState extends State<DetailScreen> {
     return [v.quality.isEmpty ? 'HD' : v.quality, langTag(v.name), if (cat.isNotEmpty) cat, v.ext].where((e) => e.isNotEmpty).join(' · ');
   }
 
+  /// bouton « Version » : une grande zone tactile (ou un bouton télécommande) qui ouvre la liste des versions
+  Widget _verButton(List<Item> vs, Item cur) => PillButton(label: 'Version : ${_verLabel(cur)}  ▾', height: 54, onTap: () => _verMenu(vs));
+
+  Future<void> _verMenu(List<Item> vs) async {
+    final cur = ver.clamp(0, vs.length - 1);
+    final i = await appSheet<int>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(padding: const EdgeInsets.fromLTRB(28, 22, 28, 6), child: Align(alignment: Alignment.centerLeft, child: Text('Version et source', style: T(22, w: 750)))),
+            for (var k = 0; k < vs.length; k++)
+              ListTile(
+                minVerticalPadding: 14,
+                autofocus: k == cur,
+                leading: Icon(k == cur ? Icons.check_circle_rounded : Icons.circle_outlined),
+                title: Text(_verLabel(vs[k]), style: T(16, w: 600)),
+                onTap: () => Navigator.pop(context, k),
+              ),
+            const SizedBox(height: 10),
+          ]),
+        ),
+      ),
+    );
+    if (i != null && mounted) _pickVer(i);
+  }
+
   /// série : identifiant de la version choisie (les épisodes en dépendent)
   int get _sid {
     final vs = versions;
@@ -3035,6 +3062,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
     final wideActions = Wrap(spacing: 12, runSpacing: 12, children: [
       playBtn(),
+      if (vs.length > 1) _verButton(vs, cur),
       if (it.kind == Kind.vod && old != null) PillButton(label: 'Depuis le début', height: 54, onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
       PillButton(label: '+ Ajouter à…', height: 54, onTap: () => collectionSheet(context, fav)),
       if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => _trailer(fi.trailer)),
@@ -3171,11 +3199,7 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             if (det.cast.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 0), child: Text('${L.en ? 'With' : 'Avec'} ${det.cast}', maxLines: 3, overflow: TextOverflow.ellipsis, style: T(13.5, w: 400, color: kMut, h: 1.4))),
             if (det.director.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 0), child: Text('${L.en ? 'By' : 'De'} ${det.director}', style: T(13.5, w: 400, color: kMut))),
-            if (vs.length > 1) ...[
-              const SizedBox(height: 6),
-              const SectionTitle('Versions'),
-              Chips(labels: [for (final v in vs) _verLabel(v)], selected: ver.clamp(0, vs.length - 1), onSelect: _pickVer),
-            ],
+            if (vs.length > 1 && !wide) Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 0), child: _verButton(vs, cur)),
             if (error != null) Padding(padding: const EdgeInsets.all(20), child: Text(error!, style: T(14, color: const Color(0xFFFF6B7A)))),
             if (it.kind == Kind.series && eps.isNotEmpty) ...[
               const SectionTitle('Épisodes'),
@@ -4476,6 +4500,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne -', () => _zapBy(-1)),
                         if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, 'Qualité ${_alts[_alt].$1}', _qualityMenu),
                         _tvBtn(CupertinoIcons.captions_bubble, 'Audio / sous-titres', _tracks),
+                        _tvBtn(CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer stats' : 'Stats', _statsToggle),
                         _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
                       ]),
                     ),
@@ -4673,7 +4698,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ),
           ),
-          if (Device.tv && _tvUi) _tvOverlay(),
+          if (Device.tv && _tvUi && !_syncMode) _tvOverlay(),
           if (!Device.tv && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
