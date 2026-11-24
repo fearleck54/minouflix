@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 216', [
+    'Fond d\'écran : même rendu sur iPhone, Android et PC.',
+  ]),
   ('Version 215', [
     'Compte : « Mot de passe oublié ? » sur l\'écran de connexion (lien reçu par e-mail : l\'appli s\'ouvre pour choisir le nouveau mot de passe).',
   ]),
