@@ -2127,11 +2127,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ])
                               : const EmptyState(icon: Icons.search_rounded, title: 'Que cherches-tu ?', sub: 'Un titre, un acteur ou un réalisateur.'))
                           : (_pBusy
-                              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const CupertinoActivityIndicator(), const SizedBox(height: 12), Text('Recherche en cours…', style: T(15, color: kMut))]))
+                              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const Spinner(), const SizedBox(height: 12), Text('Recherche en cours…', style: T(15, color: kMut))]))
                               : EmptyState(icon: Icons.search_off_rounded, title: 'Aucun résultat pour « $q »', sub: 'Vérifie l\'orthographe ou essaie un autre titre.')),
                 )
               : CustomScrollView(slivers: [
-                  if (_pBusy) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 0), child: Row(children: [const CupertinoActivityIndicator(radius: 8), const SizedBox(width: 10), Text('Recherche d\'un acteur ou d\'un réalisateur…', style: T(13, color: kMut))]))),
+                  if (_pBusy) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 0), child: Row(children: [const SizedBox(width: 16, height: 16, child: Spinner(strokeWidth: 2)), const SizedBox(width: 10), Text('Recherche d\'un acteur ou d\'un réalisateur…', style: T(13, color: kMut))]))),
                   if (pm.isNotEmpty) SliverToBoxAdapter(child: _tiles('Plateformes', [for (final p in pm) PlatTile(keyName: p.$1, name: p.$2, onTap: () => Navigator.push(context, softRoute((_) => GridScreen(title: p.$2, items: p.$3, onOpen: widget.onOpen))))])),
                   if (sm.isNotEmpty) SliverToBoxAdapter(child: _tiles('Studios', [for (final s in sm) StudioTile(name: s.name, icon: s.items.first.icon, logo: kStore ? '' : tmImg(s.logo, 'w185'), onTap: () => Navigator.push(context, softRoute((_) => GridScreen(title: s.name, items: s.items, onOpen: widget.onOpen))))])),
                   for (final sec in [if (pl.isNotEmpty) ('Avec $_pName', pl), ('Films', l.where((i) => i.kind == Kind.vod).toList()), ('Séries', l.where((i) => i.kind == Kind.series).toList())])
