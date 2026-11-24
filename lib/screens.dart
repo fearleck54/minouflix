@@ -1097,13 +1097,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  /// plateformes présentes dans le catalogue (films et séries réunis) : clé, nom, titres
+  List<(String, String, List<Item>)> _platsAll() {
+    final acc = <String, (String, List<Item>)>{};
+    for (final k in [Kind.vod, Kind.series]) {
+      final lb = libs[k];
+      if (lb == null) continue;
+      final gp = <String, Set<String>>{};
+      for (final c in [...lb.ofKind('studio'), ...lb.ofKind('autre'), ...lb.ofKind('selection')]) {
+        final pk = platOf(c.label);
+        if (pk != null) gp.putIfAbsent(pk, () => {}).add(c.id);
+      }
+      for (final p in platforms) {
+        final ids = gp[p.$1];
+        if (ids == null) continue;
+        final cur = acc[p.$1];
+        acc[p.$1] = (p.$2, [...?cur?.$2, ...uniqueTitles(lb.inCats(ids))]);
+      }
+    }
+    return [for (final e in acc.entries) (e.key, e.value.$1, e.value.$2)];
+  }
+
+  /// studios déjà appariés (on ne lance pas ici la construction, longue, des studios)
+  Future<List<StudioHit>> _studiosAll() async => [
+        for (final k in [Kind.vod, Kind.series])
+          if (libs[k] != null && Studios.ready(k)) ...await Studios.of(libs[k]!),
+      ];
+
   void openItem(Item it) => it.kind == Kind.live ? play(it) : info(it);
   bool _searchOpen = false;
 
   void search() {
     _searchOpen = true;
     kCatalog = () => [...uniqueTitles(libs[Kind.vod]?.rows ?? []), ...uniqueTitles(libs[Kind.series]?.rows ?? [])];
-    Navigator.push(context, softRoute((_) => SearchScreen(items: kCatalog(), onOpen: openItem))).then((_) => _searchOpen = false);
+    Navigator.push(context, softRoute((_) => SearchScreen(items: kCatalog(), onOpen: openItem, plats: _platsAll, studios: _studiosAll))).then((_) => _searchOpen = false);
   }
 
   /// MinouFlix Connect : commande reçue d'un autre appareil du même compte
@@ -1743,7 +1770,10 @@ class LibTab extends StatelessWidget {
         Rail(
           title: 'Plateformes',
           height: 132,
-          count: plats.length,
+          count: plats.length > 10 ? 10 : plats.length,
+          onMore: plats.length > 10
+              ? () => Navigator.push(context, softRoute((_) => AllTilesScreen(title: 'Plateformes', tiles: [for (final p in plats) PlatTile(keyName: p.$1, name: p.$2, onTap: () => _grid(context, p.$2, uniqueTitles(lb.inCats(gp[p.$1]!))))])))
+              : null,
           builder: (_, i) => PlatTile(keyName: plats[i].$1, name: plats[i].$2, onTap: () => _grid(context, plats[i].$2, uniqueTitles(lb.inCats(gp[plats[i].$1]!)))),
         ),
       // studios : appariés une fois la bibliothèque complète (pas sur une liste encore partielle)
@@ -1751,12 +1781,15 @@ class LibTab extends StatelessWidget {
       FutureBuilder<List<StudioHit>>(
         future: Studios.of(lb),
         builder: (_, snap) {
-          final st = snap.data ?? const <StudioHit>[];
+          final st = [...(snap.data ?? const <StudioHit>[])]..sort((a, b) => b.items.length.compareTo(a.items.length));      // les plus fournis d'abord
           if (st.isEmpty) return const SizedBox.shrink();
           return Rail(
             title: 'Studios',
             height: 140,
-            count: st.length,
+            count: st.length > 10 ? 10 : st.length,
+            onMore: st.length > 10
+                ? () => Navigator.push(context, softRoute((_) => AllTilesScreen(title: 'Studios', tiles: [for (final s in st) StudioTile(name: s.name, icon: s.items.first.icon, logo: kStore ? '' : tmImg(s.logo, 'w185'), onTap: () => _grid(context, s.name, s.items))])))
+                : null,
             builder: (_, i) => StudioTile(name: st[i].name, icon: st[i].items.first.icon, logo: kStore ? '' : tmImg(st[i].logo, 'w185'), onTap: () => _grid(context, st[i].name, st[i].items)),
           );
         },
@@ -1779,6 +1812,21 @@ class LibTab extends StatelessWidget {
 }
 
 /// liste en grille avec tri (plateforme, genre, thème)
+/// « Tout voir » des plateformes et des studios : toutes les tuiles en grille
+class AllTilesScreen extends StatelessWidget {
+  final String title;
+  final List<Widget> tiles;
+  const AllTilesScreen({super.key, required this.title, required this.tiles});
+  @override
+  Widget build(BuildContext context) => DsBg(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(backgroundColor: Colors.transparent, title: Text(title, style: T(22, w: 750, ls: -0.03))),
+          body: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), child: Wrap(spacing: 14, runSpacing: 18, children: tiles)),
+        ),
+      );
+}
+
 class GridScreen extends StatefulWidget {
   final String title;
   final List<Item> items;
@@ -1866,7 +1914,9 @@ class SearchScreen extends StatefulWidget {
   final List<Item> items;
   final void Function(Item) onOpen;
   final String initial;
-  const SearchScreen({super.key, required this.items, required this.onOpen, this.initial = ''});
+  final List<(String, String, List<Item>)> Function()? plats;      // plateformes du catalogue : clé, nom, titres
+  final Future<List<StudioHit>> Function()? studios;               // studios déjà appariés
+  const SearchScreen({super.key, required this.items, required this.onOpen, this.initial = '', this.plats, this.studios});
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
@@ -1879,22 +1929,44 @@ class _SearchScreenState extends State<SearchScreen> {
   String _pName = '';     // recherche par acteur ou réalisateur (TMDB) : titres du catalogue où la personne apparaît
   List<Item> _pItems = const [];
   Timer? _pT;
+  bool _pBusy = false;      // recherche d'une personne (acteur, réalisateur) en cours
+  List<(String, String, List<Item>)>? _plats;
+  List<StudioHit> _studios = const [];
+
+  /// rangée de tuiles (plateformes, studios) dans les résultats
+  Widget _tiles(String title, List<Widget> tiles) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 10), child: Text(title, style: T(19, w: 700, ls: -0.02))),
+        SizedBox(
+          height: 140,
+          child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: tiles.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => tiles[i]),
+        ),
+      ]);
 
   void _askPerson(String text) {
     _pT?.cancel();
     final nt = norm(text);
     if (nt.length < 4 || kTmdbKey.isEmpty) {
-      if (_pItems.isNotEmpty) setState(() => _pItems = const []);
+      if (_pItems.isNotEmpty || _pBusy) setState(() {
+            _pItems = const [];
+            _pBusy = false;
+          });
       return;
     }
-    _pT = Timer(const Duration(milliseconds: 600), () async {
+    if (mounted) setState(() => _pBusy = true);
+    _pT = Timer(const Duration(milliseconds: 350), () async {
       try {
         final r = await Tmdb.raw('/search/person', {'query': text.trim(), 'language': L.tmdb});
         final res = r is Map ? r['results'] as List? : null;
-        if (res == null || res.isEmpty) return;
+        if (res == null || res.isEmpty) {
+          if (mounted && _tc.text == text) setState(() => _pBusy = false);
+          return;
+        }
         final p = res.first as Map;
         final dep = '${p['known_for_department']}', nm = norm('${p['name']}');
-        if (!['Acting', 'Directing', 'Writing'].contains(dep) || !(nm.contains(nt) || nt.contains(nm))) return;
+        if (!['Acting', 'Directing', 'Writing'].contains(dep) || !(nm.contains(nt) || nt.contains(nm))) {
+          if (mounted && _tc.text == text) setState(() => _pBusy = false);
+          return;
+        }
         final c = await Tmdb.raw('/person/${p['id']}/combined_credits', {'language': L.tmdb});
         final names = <String>{};
         for (final k in ['cast', 'crew']) {
@@ -1905,12 +1977,15 @@ class _SearchScreenState extends State<SearchScreen> {
             }
           }
         }
-        final items = widget.items.where((i) => names.contains(norm(i.title))).take(60).toList();
+        final items = widget.items.where((i) => names.contains(i.nTitle)).take(60).toList();
         if (mounted && _tc.text == text) setState(() {
               _pName = '${p['name']}';
               _pItems = items;
             });
-      } catch (_) {}
+      } catch (_) {
+      } finally {
+        if (mounted && _tc.text == text) setState(() => _pBusy = false);
+      }
     });
   }
 
@@ -1924,6 +1999,9 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     Connect.query.addListener(_remote);
+    widget.studios?.call().then((v) {
+      if (mounted) setState(() => _studios = v);
+    }).catchError((_) {});
     if (widget.initial.isNotEmpty) {
       q = widget.initial;
       _tc.text = widget.initial;
@@ -1947,7 +2025,9 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final nq = norm(q);
-    final l = nq.length < 2 ? <Item>[] : widget.items.where((i) => (_only == null || i.kind == _only) && norm(i.title).contains(nq)).take(120).toList();
+    final l = nq.length < 2 ? <Item>[] : widget.items.where((i) => (_only == null || i.kind == _only) && i.nTitle.contains(nq)).take(120).toList();
+    final pm = nq.length < 2 ? const <(String, String, List<Item>)>[] : (_plats ??= widget.plats?.call() ?? const []).where((p) => norm(p.$2).contains(nq) && p.$3.isNotEmpty).toList();
+    final sm = nq.length < 2 ? const <StudioHit>[] : _studios.where((s) => norm(s.name).contains(nq)).toList();
     final pl = [for (final i in _pItems) if (_only == null || i.kind == _only) i];
     final wide = isWide(context);
     final w = wide ? 170.0 : 118.0;
@@ -2017,7 +2097,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
         Expanded(
-          child: l.isEmpty && pl.isEmpty
+          child: l.isEmpty && pl.isEmpty && pm.isEmpty && sm.isEmpty
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 90),
                   child: widget.items.isEmpty
@@ -2046,9 +2126,14 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ]),
                                 ])
                               : const EmptyState(icon: Icons.search_rounded, title: 'Que cherches-tu ?', sub: 'Un titre, un acteur ou un réalisateur.'))
-                          : EmptyState(icon: Icons.search_off_rounded, title: 'Aucun résultat pour « $q »', sub: 'Vérifie l\'orthographe ou essaie un autre titre.'),
+                          : (_pBusy
+                              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [const CupertinoActivityIndicator(), const SizedBox(height: 12), Text('Recherche en cours…', style: T(15, color: kMut))]))
+                              : EmptyState(icon: Icons.search_off_rounded, title: 'Aucun résultat pour « $q »', sub: 'Vérifie l\'orthographe ou essaie un autre titre.')),
                 )
               : CustomScrollView(slivers: [
+                  if (_pBusy) SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 0), child: Row(children: [const CupertinoActivityIndicator(radius: 8), const SizedBox(width: 10), Text('Recherche d\'un acteur ou d\'un réalisateur…', style: T(13, color: kMut))]))),
+                  if (pm.isNotEmpty) SliverToBoxAdapter(child: _tiles('Plateformes', [for (final p in pm) PlatTile(keyName: p.$1, name: p.$2, onTap: () => Navigator.push(context, softRoute((_) => GridScreen(title: p.$2, items: p.$3, onOpen: widget.onOpen))))])),
+                  if (sm.isNotEmpty) SliverToBoxAdapter(child: _tiles('Studios', [for (final s in sm) StudioTile(name: s.name, icon: s.items.first.icon, logo: kStore ? '' : tmImg(s.logo, 'w185'), onTap: () => Navigator.push(context, softRoute((_) => GridScreen(title: s.name, items: s.items, onOpen: widget.onOpen))))])),
                   for (final sec in [if (pl.isNotEmpty) ('Avec $_pName', pl), ('Films', l.where((i) => i.kind == Kind.vod).toList()), ('Séries', l.where((i) => i.kind == Kind.series).toList())])
                     if (sec.$2.isNotEmpty) ...[
                       SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(20, 14, 20, 10), child: Row(children: [Text(sec.$1, style: T(19, w: 700, ls: -0.02)), const SizedBox(width: 8), Text('${sec.$2.length}', style: T(14, color: kMut))]))),

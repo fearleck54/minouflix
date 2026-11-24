@@ -2,7 +2,8 @@
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
   ('Versions 207 à 209', [
-    'Films et séries : beaucoup plus de plateformes (Max, OCS, Crunchyroll, Hulu, Arte, France.tv, M6+…) avec leur logo, et des studios affichés par leur logo.',
+    'Films et séries : les 10 principales plateformes et les 10 principaux studios, avec leur logo ; « Tout voir » ouvre la liste complète (plus de 40 plateformes : Max, OCS, Crunchyroll, Hulu, Arte, France.tv, M6+…).',
+    'La recherche trouve aussi les plateformes et les studios ; la recherche d\'un acteur est plus rapide.',
     'Changer de version (4K, HD…) reprend au même endroit.',
     'Affiche absente chez le fournisseur : remplacée par celle de TMDB.',
     'Direct (télé) : ↑ ne fait plus disparaître la sélection ni la barre.',

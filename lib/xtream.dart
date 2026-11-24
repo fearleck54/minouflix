@@ -56,6 +56,8 @@ class Item {
 
   /// titre nettoyé, année, qualité (mêmes règles que l'appli web)
   late final Parsed p = parseTitle(name, kind);
+  /// titre normalisé, calculé une seule fois (la recherche le compare à chaque frappe sur tout le catalogue)
+  late final String nTitle = norm(title);
   String get title => kind == Kind.live ? splitChannel(name).$1 : p.title;
   String get year => p.year;
   String get quality => kind == Kind.live ? (splitChannel(name).$4.startsWith('4K') ? '4K' : '') : p.q;
