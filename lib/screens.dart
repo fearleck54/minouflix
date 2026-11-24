@@ -1746,6 +1746,8 @@ class _LiveTabState extends State<LiveTab> {
   }
 }
 
+final _platLogged = <Kind>{};
+
 /// ---------- films / séries : accueil de la bibliothèque ----------
 class LibTab extends StatelessWidget {
   final Kind kind;
@@ -1770,7 +1772,14 @@ class LibTab extends StatelessWidget {
       final k = platOf(c.label);
       if (k != null) gp.putIfAbsent(k, () => {}).add(c.id);
     }
-    final plats = kStore ? <(String, String, String)>[] : [for (final p in platforms) if (gp.containsKey(p.$1)) p];     // version store : pas de rangée de plateformes
+    final plats = kStore ? <(String, String, String)>[] : [for (final p in platforms) if (gp.containsKey(p.$1)) p];
+    if (_platLogged.add(kind)) {      // diagnostic (une fois par session) : pourquoi la rangée Plateformes manque sur un appareil
+      final ks = <String, int>{};
+      for (final c in lb.cats.values) {
+        ks[c.kind] = (ks[c.kind] ?? 0) + 1;
+      }
+      Journal.add('Plateformes ${kind.name} : ${plats.length} reconnues, ${lb.cats.length} catégories $ks, ${lb.rows.length} titres, catégories candidates ${gp.length}');
+    }     // version store : pas de rangée de plateformes
     final genres = lb.ofKind('genre')..sort((a, b) => norm(a.label).compareTo(norm(b.label)));
     // sélections regroupées par thème (4K, années, sagas…)
     final tg = <String, (String, List<CatInfo>)>{};
