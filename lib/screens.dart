@@ -21,6 +21,7 @@ import 'sport.dart';
 import 'rights.dart';
 import 'sport_detail.dart';
 import 'trailer.dart';
+import 'nouveautes.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
 import 'subs.dart';
@@ -2445,7 +2446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     var t = await Journal.read();
     if (!mounted) return;
     if (t.length > 60000) t = '…\n${t.substring(t.length - 60000)}';     // la fin suffit
-    await Navigator.push(context, softRoute((_) => TextPage(title: 'Journal d\'erreurs', mono: t.isEmpty ? 'Aucune erreur notée.' : t, action: 'Copier', onAction: _copyJournal)));
+    await Navigator.push(context, softRoute((_) => TextPage(title: 'Journal d\'erreurs', mono: t.isEmpty ? 'Aucune erreur notée.' : t, action: Device.tv ? null : 'Copier', onAction: Device.tv ? null : _copyJournal)));
   }
 
   Future<void> _copyJournal() async {
@@ -2790,7 +2791,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(CupertinoIcons.wifi, const Color(0xFF30D158), 'Tester ma source', chevron: true, onTap: () => testSource(context)),
           _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Réparer l\'application', chevron: true, onTap: _repair),
           _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
-          _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
+          if (!Device.tv) _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
         ]),
         _SubHead('Ton avis'),
         _box([
@@ -2817,7 +2818,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _box([
           _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Joindre les infos techniques', on: _fbDiag, onTap: () => setState(() => _fbDiag = !_fbDiag)),
           _row(CupertinoIcons.paperplane_fill, const Color(0xFF5B8CFF), 'Envoyer', onTap: _sendFeedback),
-          _row(CupertinoIcons.mail_solid, const Color(0xFF32ADE6), 'Envoyer par e-mail', chevron: true, onTap: _mailFeedback),
+          if (!Device.tv) _row(CupertinoIcons.mail_solid, const Color(0xFF32ADE6), 'Envoyer par e-mail', chevron: true, onTap: _mailFeedback),
         ]),
         _foot('Infos techniques : version, appareil, langue et dernières erreurs. Jamais tes identifiants ni ta source. Connecté à ton compte, le retour part tout de suite ; sinon il est gardé et part à ta prochaine connexion.'),
       ]);
@@ -2854,7 +2855,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _aboutPage() => _page('À propos', () => [
         _box([
-          _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Version', value: '$kBuild', chevron: !kStore && !kIsWeb && Platform.isAndroid, onTap: !kStore && !kIsWeb && Platform.isAndroid ? _update : null),
+          _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Version', value: '$kBuild', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => TextPage(title: 'Nouveautés', sections: [for (final n in kNews) (n.$1, [for (final l in n.$2) '• $l'].join('\n'))])))),
+          if (!kStore && !kIsWeb && Platform.isAndroid) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF30D158), 'Rechercher une mise à jour', chevron: true, onTap: _update),
           _row(CupertinoIcons.lock_shield_fill, const Color(0xFF32ADE6), 'Confidentialité', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TextPage(title: 'Confidentialité', sections: kPrivacy)))),
         ]),
         Padding(padding: const EdgeInsets.fromLTRB(32, 18, 24, 0), child: Text('MinouFlix est un lecteur : il ne fournit aucun contenu. Les chaînes, films et séries viennent de l\'abonnement que tu y connectes.', style: T(12.5, color: kMut, h: 1.4))),
@@ -3037,7 +3039,10 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   /// bouton « Version » : une grande zone tactile (ou un bouton télécommande) qui ouvre la liste des versions
-  Widget _verButton(List<Item> vs, Item cur) => PillButton(label: 'Version : ${_verLabel(cur)}  ▾', height: 54, onTap: () => _verMenu(vs));
+  Widget _verButton(List<Item> vs, Item cur) {
+    final tag = langTag(cur.name);
+    return PillButton(label: 'Version ${cur.quality.isEmpty ? 'HD' : cur.quality}${tag.isEmpty ? '' : ' · $tag'} ▾', height: 54, onTap: () => _verMenu(vs));      // détail complet dans la liste
+  }
 
   Future<void> _verMenu(List<Item> vs) async {
     final cur = ver.clamp(0, vs.length - 1);
@@ -3155,8 +3160,8 @@ class _DetailScreenState extends State<DetailScreen> {
 
     final wideActions = Wrap(spacing: 12, runSpacing: 12, children: [
       playBtn(),
-      if (vs.length > 1) _verButton(vs, cur),
       if (it.kind == Kind.vod && old != null) PillButton(label: 'Depuis le début', height: 54, onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
+      if (vs.length > 1) _verButton(vs, cur),
       PillButton(label: '+ Ajouter à…', height: 54, onTap: () => collectionSheet(context, fav)),
       if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => _trailer(fi.trailer)),
       if (it.kind == Kind.vod && !Device.tv)      // pas de téléchargement sur la télé
@@ -3537,6 +3542,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (_) {}
   }
 
+  /// tampon réglable en lecture (même réglage que Réglages › Lecture), appliqué tout de suite
+  Future<void> _bufMenu() async {
+    const opts = [5, 10, 20, 30, 45, 60, 90];
+    final cur = bufSecs;
+    final v = await appSheet<int>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(padding: const EdgeInsets.fromLTRB(28, 22, 28, 2), child: Align(alignment: Alignment.centerLeft, child: Text('Tampon de lecture', style: T(22, w: 750)))),
+            Padding(padding: const EdgeInsets.fromLTRB(28, 0, 28, 8), child: Align(alignment: Alignment.centerLeft, child: Text('Plus grand : lecture plus stable si la connexion est irrégulière, mais démarrage plus lent.', style: T(13, color: kMut, h: 1.35)))),
+            for (final o in opts) ListTile(autofocus: o == opts.reduce((a, b) => (a - cur).abs() <= (b - cur).abs() ? a : b), leading: Icon(o == cur ? Icons.check_circle_rounded : Icons.circle_outlined), title: Text('$o s'), onTap: () => Navigator.pop(context, o)),
+            const SizedBox(height: 10),
+          ]),
+        ),
+      ));
+    if (v == null || !mounted) return;
+    await Store.setStr('buf_s', '$v');
+    await (_live ? _bufferLive() : _bufferVod());
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${L.tr('Tampon de lecture')} : $v s')));
+    }
+  }
+
   /// menu « Plus d'options » : chaque action avec son nom (au lieu d'une rangée d'icônes sans légende)
   Future<void> _moreMenu() async {
     final items = <(IconData, String, VoidCallback)>[
@@ -3549,6 +3579,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           player.setRate(_rate);
           setState(() {});
         }),
+      (CupertinoIcons.cloud_download, '${L.tr('Tampon de lecture')} : $bufSecs s', _bufMenu),
       (CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer les statistiques' : 'Statistiques de lecture (réseau, tampon)', _statsToggle),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),

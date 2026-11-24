@@ -1,0 +1,36 @@
+/// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
+/// à compléter à chaque publication
+const kNews = <(String, List<String>)>[
+  ('Version 207', [
+    'Reprise de lecture corrigée : le film repart bien à l\'endroit enregistré.',
+    'Fiche du film : « Depuis le début » à côté de « Reprendre », bouton Version plus compact.',
+    'Tampon réglable directement depuis « Plus » dans le lecteur.',
+    'Télé : plus d\'envoi par e-mail ni de copie du journal (inutiles sans clavier ni messagerie).',
+    'Nouveautés dans À propos.',
+  ]),
+  ('Versions 205 et 206', [
+    'Aide › Ton avis : envoie un problème, une idée ou une recommandation (avec les infos techniques si tu veux).',
+    'Télé : la barre d\'avancement se sélectionne (↑ depuis les boutons) et se règle avec ← →.',
+    'Télé : le bouton Retour de la barre quitte vraiment le lecteur ; → sur l\'engrenage ne descend plus ; → dans Réglages arrive en haut du panneau.',
+    'Son : les films dont la piste par défaut est en Dolby TrueHD (souvent les 4K) n\'ont plus un silence complet : une piste lisible est choisie seule.',
+    'Son : les modes Cinéma, Nuit et Dialogues sont refaits ; ils coupaient le son sur certains appareils.',
+    'Le journal s\'ouvre sur les lignes les plus récentes.',
+  ]),
+  ('Version 204', [
+    'Compte : les réglages de chaque profil et la version choisie pour chaque film sont synchronisés.',
+  ]),
+  ('Versions 202 et 203', [
+    'Lecteur iPhone : les commandes (lecture, pause, avance, barre) sont de retour.',
+    'Fond de l\'appli au choix (Réglages › Personnaliser), identique sur tous les écrans et synchronisé.',
+    '« Continuer à regarder » ouvre d\'abord la fiche ; l\'appui long demande confirmation avant de retirer.',
+    'Titres en thaï, arabe, chinois… remplacés par leur nom dans ta langue quand il existe.',
+    'Doublons de films (même affiche, noms différents) fusionnés.',
+    'Lecteur : « Son » regroupe audio, sous-titres, mode son et synchro ; les statistiques sont dans « Plus ».',
+  ]),
+  ('Version 201', [
+    'Lecture en plein écran dès le lancement (iPhone, iPad, Android).',
+    'Statistiques de lecture : réseau, tampon, images perdues…',
+    'Le calage du son est retenu d\'un film à l\'autre.',
+    'Choix de la version (4K, HD, langue, source) pour les films et les séries ; « Wonka » et « Wonka 4K » ne font plus qu\'un.',
+  ]),
+];
