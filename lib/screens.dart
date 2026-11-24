@@ -3015,7 +3015,7 @@ class _DetailScreenState extends State<DetailScreen> {
   void _pickVer(int i) {
     if (i == ver) return;
     setState(() => ver = i);
-    Store.setStr('ver:${widget.item.kind.name}:${widget.item.p.key}', versions[i].id.toString());      // choix retenu pour ce titre
+    Store.setVerChoice(widget.item.kind.name, widget.item.p.key, versions[i].id.toString());      // choix retenu pour ce titre
     if (widget.item.kind == Kind.series) {
       setState(() {
         d = null;
@@ -3030,7 +3030,7 @@ class _DetailScreenState extends State<DetailScreen> {
   void _initVer() {
     final vs = versions;
     if (vs.length < 2) return;
-    final saved = int.tryParse(Store.str('ver:${widget.item.kind.name}:${widget.item.p.key}')) ?? 0;
+    final saved = int.tryParse(Store.verChoice(widget.item.kind.name, widget.item.p.key)) ?? 0;
     var i = saved == 0 ? -1 : vs.indexWhere((v) => v.id == saved);
     if (i < 0) {
       final want4k = Store.quality == '4k';

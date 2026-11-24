@@ -155,6 +155,16 @@ class Sync {
           d['settings_t'] = Store.settingsT;
         }
       }
+      if (opt('settings') && origin) {
+        // réglages de chaque profil, et version choisie pour chaque film
+        if (d['psettings'] is Map && await Store.applyProfs((d['psettings'] as Map).cast<String, dynamic>(), fresh: fresh)) changed = true;
+        final mine = Store.profSnap();
+        d['psettings'] = {...(d['psettings'] is Map ? (d['psettings'] as Map).cast<String, dynamic>() : <String, dynamic>{}), ...mine};
+        final rv = (d['vers_t'] as num?)?.toInt() ?? 0;
+        if (d['vers'] is Map && await Store.mergeVers((d['vers'] as Map).cast<String, dynamic>(), fresh ? 1 << 50 : rv)) changed = true;
+        d['vers'] = Store.versSnap();
+        d['vers_t'] = Store.versT;
+      }
       if (opt('sel')) {
         final remote = d['sel'] is Map ? (d['sel'] as Map).cast<String, dynamic>() : <String, dynamic>{};
         final out = <String, dynamic>{...remote};

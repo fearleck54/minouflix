@@ -192,6 +192,70 @@ class Store {
     onSettingsApplied?.call();
   }
 
+  // ---- réglages propres à chaque profil (son, langues, qualité, lecture auto) : synchronisés avec le compte, profil par profil
+  static const _profStr = ['snd_mode', 'pref_q', 'pref_aud', 'pref_sub'];
+  static const _profFlag = ['snd_night', 'snd_voice', 'autonext', 'skipauto'];
+  static Map<String, dynamic> profSnap() => {
+        for (final e in profiles().skip(1))
+          if ((_p.getInt('prof_t_${e.$1}') ?? 0) > 0)
+            e.$1: {
+              't': _p.getInt('prof_t_${e.$1}'),
+              for (final k in _profStr) if (_p.getString('s_p${e.$1}_$k') != null) k: _p.getString('s_p${e.$1}_$k'),
+              for (final k in _profFlag) if (_p.getBool('f_p${e.$1}_$k') != null) k: _p.getBool('f_p${e.$1}_$k'),
+            },
+      };
+
+  /// applique les réglages de profils reçus (le plus récent gagne, profil par profil) ; true si quelque chose a changé
+  static Future<bool> applyProfs(Map<String, dynamic> remote, {bool fresh = false}) async {
+    var changed = false;
+    for (final e in profiles().skip(1)) {
+      final m = remote[e.$1];
+      if (m is! Map) continue;
+      final rt = (m['t'] as num?)?.toInt() ?? 0;
+      if (rt <= (fresh ? 0 : (_p.getInt('prof_t_${e.$1}') ?? 0))) continue;
+      for (final k in _profStr) {
+        if (m[k] is String) await _p.setString('s_p${e.$1}_$k', m[k] as String);
+      }
+      for (final k in _profFlag) {
+        if (m[k] is bool) await _p.setBool('f_p${e.$1}_$k', m[k] as bool);
+      }
+      await _p.setInt('prof_t_${e.$1}', rt);
+      changed = true;
+    }
+    return changed;
+  }
+
+  // ---- version (qualité / source) choisie pour chaque film ou série : synchronisée avec le compte
+  static Map<String, String> _vers() {
+    try {
+      return (jsonDecode(_p.getString('vers') ?? '{}') as Map).map((k, v) => MapEntry('$k', '$v'));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static int get versT => _p.getInt('vers_t') ?? 0;
+  static String verChoice(String kind, String key) => _vers()['$pre$kind:$key'] ?? '';
+  static Future<void> setVerChoice(String kind, String key, String id) async {
+    final m = _vers()..['$pre$kind:$key'] = id;
+    while (m.length > 400) {
+      m.remove(m.keys.first);      // les plus anciens d'abord
+    }
+    await _p.setString('vers', jsonEncode(m));
+    await _p.setInt('vers_t', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Map<String, String> versSnap() => _vers();
+  static Future<bool> mergeVers(Map<String, dynamic> remote, int rt) async {
+    final loc = _vers();
+    final rem = {for (final e in remote.entries) e.key: '${e.value}'};
+    final merged = rt > versT ? {...loc, ...rem} : {...rem, ...loc};
+    if (jsonEncode(merged) == jsonEncode(loc)) return false;
+    await _p.setString('vers', jsonEncode(merged));
+    await _p.setInt('vers_t', rt > versT ? rt : versT);
+    return true;
+  }
+
   /// appelé quand les réglages d'un autre appareil viennent d'être appliqués (fond, langue…) : l'interface se repeint
   static void Function()? onSettingsApplied;
 
@@ -546,6 +610,7 @@ class Store {
   static Future<void> setStr(String k, String v) async {
     await _p.setString('s_${_pk(k)}', v);
     if (_prof.isEmpty && _setStrKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    if (_prof.isNotEmpty && _profKeys.contains(k)) await _p.setInt('prof_t_$_prof', DateTime.now().millisecondsSinceEpoch);
   }
 
   /// collections perso : nom → clés « vod:1 », « series:2 »
@@ -670,6 +735,7 @@ class Store {
   static Future<void> setFlag(String k, bool v) async {
     await _p.setBool('f_${_pk(k)}', v);
     if (_prof.isEmpty && _setFlagKeys.contains(k)) await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    if (_prof.isNotEmpty && _profKeys.contains(k)) await _p.setInt('prof_t_$_prof', DateTime.now().millisecondsSinceEpoch);
   }
 
   static bool get hasSelection => Kind.values.any((k) => (selection(k) ?? []).isNotEmpty);
