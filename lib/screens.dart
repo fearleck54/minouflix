@@ -3559,9 +3559,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (_) {}
   }
 
+  Timer? _apT, _soundT;
+
+  /// 6 s après le départ : la lecture avance mais aucune sortie audio n'existe alors que le flux a du son → filtre retiré et sortie audio relancée
+  void _soundCheck() {
+    _soundT?.cancel();
+    _soundT = Timer(const Duration(seconds: 6), () async {
+      if (!mounted || _fail != null || !player.state.playing || player.state.position == Duration.zero) return;
+      try {
+        final dynamic n = player.platform;
+        final aid = '${await n.getProperty('aid')}';
+        final out = '${await n.getProperty('audio-out-params/channels')}';
+        if (out.isNotEmpty || aid.isEmpty || aid == 'no' || aid == 'false') return;      // le son sort, ou le flux n'en a pas
+        Journal.add('Son : aucune sortie audio détectée (mode ${_mode}), filtre retiré et sortie relancée');
+        _lastAf = '';
+        await n.setProperty('af', '');
+        await n.command(['ao-reload']);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Son relancé.')));
+      } catch (_) {}
+    });
+  }
+
   /// ouvre un flux et surveille qu'il démarre (rien au bout de 15 s = échec)
   void _open(String url) {
     _cur = url;
+    _soundCheck();
     _openedAt = DateTime.now();
     if (_fail != null) {
       setState(() => _fail = null);
@@ -4095,7 +4117,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
     _applyNight();
     _ap = player.stream.audioParams.listen((a) {
-      if ((a.channelCount ?? 2) != _lastCh) _applyNight();
+      if ((a.channelCount ?? 2) == _lastCh) return;
+      _apT?.cancel();      // le démarrage envoie plusieurs changements d'affilée : on n'agit qu'une fois, quand ils sont finis (réinitialiser la chaîne audio en pleine ouverture peut couper le son)
+      _apT = Timer(const Duration(milliseconds: 500), _applyNight);
     });
     _tr = player.stream.tracks.listen(_applyPrefs);
     _playSub = player.stream.playing.listen((_) {
@@ -4282,6 +4306,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _noteT?.cancel();
     _syncT?.cancel();
     _statsT?.cancel();
+    _apT?.cancel();
+    _soundT?.cancel();
     _bufSub?.cancel();
     _leaveFull();
     _ap?.cancel();
