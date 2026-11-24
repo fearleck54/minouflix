@@ -3792,6 +3792,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _nextT?.cancel();
     if (_nextIn > 0) _nextIn = 0;
     final nx = widget.next[_n++];
+    try {
+      (player.platform as dynamic).setProperty('start', 'none');      // le temps de reprise ne s'applique qu'au premier fichier
+    } catch (_) {}
     _trSet = false;     // langues préférées appliquées aussi à l'épisode suivant
     setState(() {
       _prog = nx.$3;
@@ -4344,9 +4347,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       Journal.add('Reprise : départ demandé à ${ms ~/ 1000} s');
       await player.stream.duration.firstWhere((d) => d > Duration.zero);
       Journal.add('Reprise : durée connue, position ${player.state.position.inSeconds} s');
-      try {
-        await (player.platform as dynamic).setProperty('start', 'none');      // ne s'applique pas aux fichiers suivants
-      } catch (_) {}
+      // changer de piste audio (langue préférée, piste TrueHD illisible) relance la lecture à la position courante et annulait la reprise :
+      // on attend donc que les pistes soient posées, puis on vérifie la position
+      for (var w = 0; w < 25 && !_trSet && mounted; w++) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
       for (var i = 0; i < 5 && mounted; i++) {
         // le démarrage au bon temps est déjà demandé ; on vérifie jusqu'à 6 s (flux lent), puis on force le déplacement
         var ok = false;
