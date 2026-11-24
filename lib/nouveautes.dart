@@ -3,7 +3,7 @@
 const kNews = <(String, List<String>)>[
   ('Version 211', [
     'Direct (télé) : ↑ ne fait plus perdre la sélection (les commandes cachées du lecteur la volaient).',
-    'Sélection à deux tons (blanc et bleu) : visible sur les affiches et logos clairs.',
+    'Sélection à deux tons (blanc et noir, lisible même en cas de daltonisme) : visible sur les affiches et logos clairs.',
     'Plateformes : plus de clignotement sur HBO Max et Starz ; « Tout voir » toujours présent.',
     'Démarrage : le chat bouge (respire, cligne des yeux, remue la queue et l\'oreille).',
   ]),

@@ -359,7 +359,7 @@ class _FocusCardState extends State<FocusCard> {
             curve: Curves.easeOut,
             child: AnimatedContainer(
               duration: Duration(milliseconds: Perf.lite ? 0 : 150),
-              // anneau à deux tons (blanc + bleu) : visible aussi bien sur une affiche claire que sur un fond sombre
+              // anneau à deux tons (blanc + noir : contraste de luminosité, lisible aussi en cas de daltonisme) : visible aussi bien sur une affiche claire que sur un fond sombre
               foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: widget.ringColor, width: 3)) : null,
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius)),
               child: Stack(fit: StackFit.passthrough, children: [
@@ -369,7 +369,7 @@ class _FocusCardState extends State<FocusCard> {
                     child: IgnorePointer(
                       child: Padding(
                         padding: const EdgeInsets.all(3),
-                        child: DecoratedBox(decoration: BoxDecoration(borderRadius: BorderRadius.circular((widget.radius - 3).clamp(0, 999).toDouble()), border: Border.all(color: widget.ringColor == Colors.white ? kAccent : Colors.white, width: 2.5))),
+                        child: DecoratedBox(decoration: BoxDecoration(borderRadius: BorderRadius.circular((widget.radius - 3).clamp(0, 999).toDouble()), border: Border.all(color: widget.ringColor == Colors.white ? Colors.black : Colors.white, width: 3))),
                       ),
                     ),
                   ),
@@ -864,7 +864,7 @@ class PillButton extends StatelessWidget {
         onTap: onTap,
         onLong: onLong,
         radius: height / 2,
-        ringColor: primary ? kAccent : Colors.white,
+        ringColor: primary ? Colors.black : Colors.white,
         child: Container(
           height: height,
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1359,7 +1359,7 @@ class StudioTile extends StatelessWidget {
           FocusCard(
             onTap: onTap,
             radius: 18,
-            ringColor: logo.isEmpty ? Colors.white : kAccent,
+            ringColor: logo.isEmpty ? Colors.white : Colors.black,
             child: Container(
               width: 150,
               height: 96,
