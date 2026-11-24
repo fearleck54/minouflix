@@ -2792,8 +2792,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
           _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
         ]),
+        _SubHead('Ton avis'),
+        _box([
+          _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', value: 'problème, idée, recommandation', chevron: true, onTap: _feedbackPage),
+        ]),
         _foot('Le journal ne contient jamais tes identifiants. Déconnexion, effacement et suppression du compte : Réglages › Compte.'),
       ]);
+
+  // ---- retours des utilisateurs
+  final TextEditingController _fbCtl = TextEditingController();
+  String _fbType = 'bug';
+  bool _fbDiag = true;
+  static const _fbTypes = [('bug', 'Un problème ou une erreur', CupertinoIcons.exclamationmark_triangle_fill, Color(0xFFFF9F0A)), ('idee', 'Une idée', CupertinoIcons.lightbulb_fill, Color(0xFFFFD60A)), ('reco', 'Une recommandation (film, série, chaîne)', CupertinoIcons.hand_thumbsup_fill, Color(0xFF30D158)), ('autre', 'Autre', CupertinoIcons.ellipsis_circle_fill, Color(0xFF8E8E93))];
+
+  void _feedbackPage() => _page('Envoyer un retour', () => [
+        _SubHead('Sujet'),
+        _box([for (final t in _fbTypes) _row(t.$3, t.$4, t.$2, check: _fbType == t.$1, onTap: () => setState(() => _fbType = t.$1))]),
+        _SubHead('Ton message'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AppField(controller: _fbCtl, maxLines: 5, maxLength: 1000, textCapitalization: TextCapitalization.sentences, decoration: InputDecoration(hintText: _fbType == 'bug' ? 'Ce qui s\'est passé, sur quel film ou quelle chaîne' : (_fbType == 'reco' ? 'Le titre ou la chaîne à ajouter' : 'Dis-nous tout'), filled: true, fillColor: kGlass, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none))),
+        ),
+        const SizedBox(height: 14),
+        _box([
+          _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Joindre les infos techniques', on: _fbDiag, onTap: () => setState(() => _fbDiag = !_fbDiag)),
+          _row(CupertinoIcons.paperplane_fill, const Color(0xFF5B8CFF), 'Envoyer', onTap: _sendFeedback),
+          _row(CupertinoIcons.mail_solid, const Color(0xFF32ADE6), 'Envoyer par e-mail', chevron: true, onTap: _mailFeedback),
+        ]),
+        _foot('Infos techniques : version, appareil, langue et dernières erreurs. Jamais tes identifiants ni ta source. Connecté à ton compte, le retour part tout de suite ; sinon il est gardé et part à ta prochaine connexion.'),
+      ]);
+
+  Future<String> _fbDiagText() async {
+    final j = (await Journal.read()).trim().split('\n');
+    final os = kIsWeb ? 'web' : '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
+    return 'MinouFlix build $kBuild · ${Device.tv ? 'Android TV' : os} · langue ${L.lang}\n${j.skip(j.length > 12 ? j.length - 12 : 0).join('\n')}';
+  }
+
+  Future<void> _sendFeedback() async {
+    final msg = _fbCtl.text.trim();
+    if (msg.length < 3) {
+      _snack('Écris d\'abord ton message.');
+      return;
+    }
+    await Store.addFeedback({'id': DateTime.now().millisecondsSinceEpoch, 't': DateTime.now().toUtc().toIso8601String(), 'type': _fbType, 'msg': msg, if (_fbDiag) 'diag': await _fbDiagText()});
+    _fbCtl.clear();
+    if (!Account.signedIn) {
+      _snack('Retour enregistré : il partira quand tu te connecteras à ton compte (ou envoie-le par e-mail).');
+    } else {
+      final ok = await Sync.run();
+      _snack(Store.feedbackPending().isEmpty || ok ? 'Merci ! Retour envoyé.' : 'Retour enregistré : il partira à la prochaine synchro.');
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _mailFeedback() async {
+    final msg = _fbCtl.text.trim();
+    final body = '$msg${_fbDiag ? '\n\n--\n${await _fbDiagText()}' : ''}';
+    final u = Uri(scheme: 'mailto', path: kContact, queryParameters: {'subject': 'MinouFlix · ${_fbTypes.firstWhere((t) => t.$1 == _fbType).$2}', 'body': body.length > 1500 ? body.substring(0, 1500) : body});
+    await launchUrl(Uri.parse(u.toString().replaceAll('+', '%20')));
+  }
 
   void _aboutPage() => _page('À propos', () => [
         _box([
@@ -3030,7 +3087,12 @@ class _DetailScreenState extends State<DetailScreen> {
   void _initVer() {
     final vs = versions;
     if (vs.length < 2) return;
-    final saved = int.tryParse(Store.verChoice(widget.item.kind.name, widget.item.p.key)) ?? 0;
+    // 1) la version déjà commencée (sinon « Reprendre » ne la trouverait pas), 2) le choix retenu pour ce titre, 3) la qualité par défaut
+    final ids = {for (final v in vs) v.id};
+    final started = Store.allProg().where((p) => !p.hidden && p.pos > 20000 && (p.dur == 0 || p.pos < p.dur * 0.95) && (widget.item.kind == Kind.series ? p.kind == 'ep' && ids.contains(p.sid) : p.kind == 'vod' && ids.contains(p.id))).toList()
+      ..sort((a, b) => b.t.compareTo(a.t));
+    final startedId = started.isEmpty ? 0 : (widget.item.kind == Kind.series ? started.first.sid : started.first.id);
+    final saved = startedId != 0 ? startedId : (int.tryParse(Store.verChoice(widget.item.kind.name, widget.item.p.key)) ?? 0);
     var i = saved == 0 ? -1 : vs.indexWhere((v) => v.id == saved);
     if (i < 0) {
       final want4k = Store.quality == '4k';
@@ -3604,12 +3666,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
         player.stream.error.listen((e) => Journal.add('Bande-annonce : erreur du lecteur', e)),
       ];
     }
-    Future<void>.value().then((_) => player.open(Media(url))).then((_) async {
+    // mode son ≠ Standard : on ouvre en pause, on laisse le lecteur annoncer ses voies audio, on pose le filtre (chaîne adaptée au nombre de voies), PUIS on lance
+    // (changer le filtre en pleine lecture pouvait couper le son)
+    final filtered = _mode != 'off';
+    Future<void>.value().then((_) => player.open(Media(url), play: !filtered)).then((_) async {
       final a = widget.audioUrl;
       if (a == null) return;
       try {
         await (player.platform as dynamic).command(['audio-add', a, 'select']);
       } catch (_) {}
+    }).then((_) async {
+      if (!filtered || !mounted) return;
+      try {
+        await player.stream.audioParams.firstWhere((p) => (p.channelCount ?? 0) > 0).timeout(const Duration(milliseconds: 2500));
+      } catch (_) {}
+      if (!mounted) return;
+      await _applyNight();
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      if (mounted) await player.play();
     });
   }
 
@@ -3935,6 +4009,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _setMode(String m, void Function(void Function()) set) async {
     await Store.setStr('snd_mode', m);
     final ok = await _applyNight();
+    _soundCheck();
     set(() {});
     if (!ok && m != 'off' && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Filtre audio non pris en charge par le lecteur sur cet appareil.')));
   }
@@ -4120,7 +4195,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) setState(() => _showTitle = false);
     });
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
-    _applyNight();
     _ap = player.stream.audioParams.listen((a) {
       if ((a.channelCount ?? 2) == _lastCh) return;
       _apT?.cancel();      // le démarrage envoie plusieurs changements d'affilée : on n'agit qu'une fois, quand ils sont finis (réinitialiser la chaîne audio en pleine ouverture peut couper le son)
@@ -4157,7 +4231,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     unawaited(_loadSegs());
     _vp = player.stream.videoParams.listen((_) => _matchFps());
     _aDelay = double.tryParse(Store.str('adelay')) ?? 0;
+    final startMs = _prog?.pos ?? 0;
     (_live ? _bufferLive() : _bufferVod()).whenComplete(() async {      // réglages du lecteur posés AVANT l'ouverture du flux
+      if (startMs > 20000 && !_live) {
+        try {
+          await (player.platform as dynamic).setProperty('start', '${startMs / 1000}');      // le flux démarre directement au temps enregistré (un déplacement demandé après coup était parfois ignoré)
+        } catch (_) {}
+      }
       if (_aDelay != 0) {
         try {
           await (player.platform as dynamic).setProperty('audio-delay', '$_aDelay');
@@ -4275,11 +4355,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _resumeAt(int ms) async {
     try {
       await player.stream.duration.firstWhere((d) => d > Duration.zero);
-      for (var i = 0; i < 4 && mounted; i++) {
-        await player.seek(Duration(milliseconds: ms));
-        await Future<void>.delayed(const Duration(milliseconds: 1500));
-        if ((player.state.position.inMilliseconds - ms).abs() < 15000) break;
+      try {
+        await (player.platform as dynamic).setProperty('start', 'none');      // ne s'applique pas aux fichiers suivants
+      } catch (_) {}
+      for (var i = 0; i < 5 && mounted; i++) {
+        // le démarrage au bon temps est déjà demandé ; on vérifie jusqu'à 6 s (flux lent), puis on force le déplacement
+        var ok = false;
+        for (var w = 0; w < 12 && mounted; w++) {
+          if ((player.state.position.inMilliseconds - ms).abs() < 15000) {
+            ok = true;
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
+        if (ok) break;
         Journal.add('Reprise : le lecteur n\'a pas atteint le temps enregistré, nouvel essai');
+        await player.seek(Duration(milliseconds: ms));
       }
     } catch (_) {}
     _resumePending = false;
@@ -4330,6 +4421,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _tvT?.cancel();
     _playSub?.cancel();
     _tvPlay.dispose();
+    _tvBar.dispose();
     for (final n in [..._tvPool, ..._failNodes]) {
       n.dispose();
     }
@@ -4348,6 +4440,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _tvUi = false;
   Timer? _tvT;
   final FocusNode _tvPlay = FocusNode(debugLabel: 'lecture');
+  final FocusNode _tvBar = FocusNode(debugLabel: 'barre d\'avancement');
+  bool _barOn = false;
   int _seekN = 0;
   DateTime _seekAt = DateTime(2000);
   Duration? _seekTgt;
@@ -4386,6 +4480,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _seekTgt = t;
     player.seek(t);
     _tvShow();
+    if (mounted) setState(() {});      // la barre suit tout de suite la position visée
   }
 
   final List<FocusNode> _failNodes = [FocusNode(debugLabel: 'autre qualité'), FocusNode(debugLabel: 'retour échec')];
@@ -4434,6 +4529,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (onBar) {
       if (_tvUi) _tvShow();      // chaque touche repousse la fermeture de la barre
+      if (_tvBar.hasFocus) {
+        // barre d'avancement sélectionnée : ← → avancent / reculent (pas qui grandit en maintenant), OK = pause, ↓ = boutons, ↑ = ferme
+        if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
+          _tvSeek(k == LogicalKeyboardKey.arrowLeft ? -1 : 1);
+          return KeyEventResult.handled;
+        }
+        if (k == LogicalKeyboardKey.arrowDown) {
+          if (down) _tvPlay.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (k == LogicalKeyboardKey.arrowUp) {
+          if (down) _tvHide();
+          return KeyEventResult.handled;
+        }
+        if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter) {
+          if (down) {
+            player.playOrPause();
+            _tvShow();
+          }
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      }
       if (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight) {
         final i = _tvBtns.indexWhere((n) => n.hasFocus);
         if (i >= 0) {
@@ -4443,8 +4561,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
         return KeyEventResult.ignored;
       }
-      if (k == LogicalKeyboardKey.arrowUp && down) {
-        _tvHide();
+      if (k == LogicalKeyboardKey.arrowUp) {
+        if (down) {
+          if (!_live && _tvBar.canRequestFocus && _tvBar.context != null) {
+            _tvBar.requestFocus();      // ↑ depuis les boutons : on monte sur la barre d'avancement
+          } else {
+            _tvHide();
+          }
+        }
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
@@ -4530,17 +4654,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           final seeking = DateTime.now().difference(_seekAt) < const Duration(milliseconds: 800) && _seekTgt != null;
                           final p = seeking ? _seekTgt! : (sn.data ?? Duration.zero);
                           final v = d.inMilliseconds > 0 ? (p.inMilliseconds / d.inMilliseconds).clamp(0.0, 1.0) : 0.0;
-                          return Row(children: [
-                            SizedBox(width: 74, child: Text(_clock(p), style: T(18, w: 650))),
-                            Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: v, minHeight: 8, backgroundColor: const Color(0x40FFFFFF), color: Colors.white))),
-                            SizedBox(width: 90, child: Text(_clock(d), textAlign: TextAlign.right, style: T(18, w: 650, color: const Color(0xCCFFFFFF)))),
-                          ]);
+                          final on = _barOn;
+                          return Focus(
+                            focusNode: _tvBar,
+                            onFocusChange: (f) {
+                              if (mounted) setState(() => _barOn = f);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(color: on ? const Color(0x33FFFFFF) : Colors.transparent, borderRadius: BorderRadius.circular(18), border: Border.all(color: on ? kAccent : Colors.transparent, width: 2.5)),
+                              child: Row(children: [
+                                SizedBox(width: 84, child: Text(_clock(p), style: T(on ? 21 : 18, w: 700))),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (_, c) => SizedBox(
+                                      height: 30,
+                                      child: Stack(alignment: Alignment.centerLeft, clipBehavior: Clip.none, children: [
+                                        AnimatedContainer(duration: const Duration(milliseconds: 120), height: on ? 14 : 8, decoration: BoxDecoration(color: const Color(0x40FFFFFF), borderRadius: BorderRadius.circular(8))),
+                                        AnimatedContainer(duration: const Duration(milliseconds: 120), width: c.maxWidth * v, height: on ? 14 : 8, decoration: BoxDecoration(color: on ? kAccent : Colors.white, borderRadius: BorderRadius.circular(8))),
+                                        if (on) Positioned(left: (c.maxWidth * v - 14).clamp(0.0, c.maxWidth - 28), child: Container(width: 28, height: 28, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0x99000000), blurRadius: 8)]))),
+                                      ]),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 100, child: Text(_clock(d), textAlign: TextAlign.right, style: T(on ? 21 : 18, w: 700, color: const Color(0xCCFFFFFF)))),
+                              ]),
+                            ),
+                          );
                         },
                       ),
                     const SizedBox(height: 16),
                     Center(
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        _tvBtn(CupertinoIcons.chevron_back, 'Retour', () => Navigator.maybePop(context)),
+                        _tvBtn(CupertinoIcons.chevron_back, 'Retour', () => Navigator.pop(context)),      // pop et non maybePop : la barre est affichée, donc la touche Retour de la télécommande ne ferait que la masquer
                         _tvBtn(player.state.playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, player.state.playing ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
                         if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
                         if (!_live) _tvBtn(CupertinoIcons.goforward_10, '+10 s', () => _tvSeek(1)),
@@ -4676,7 +4822,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                     _OvBtn(node: _retryNode, label: 'Réessayer', primary: true, onTap: _retryNow),
                     if (_alts.length > 1) _OvBtn(node: _failNodes[0], label: 'Autre qualité', onTap: _otherQuality),
-                    _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.maybePop(context)),
+                    _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.pop(context)),
                   ]),
                 ]),
               ),

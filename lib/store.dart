@@ -256,6 +256,27 @@ class Store {
     return true;
   }
 
+  // ---- retours des utilisateurs (Réglages › Aide › Envoyer un retour) : gardés ici, envoyés avec le compte à la prochaine synchro
+  static List<Map<String, dynamic>> feedback() {
+    try {
+      return [for (final x in jsonDecode(_p.getString('feedback') ?? '[]') as List) (x as Map).cast<String, dynamic>()];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> addFeedback(Map<String, dynamic> e) async {
+    final l = [...feedback(), e];
+    await _p.setString('feedback', jsonEncode(l.length > 30 ? l.sublist(l.length - 30) : l));
+  }
+
+  static List<Map<String, dynamic>> feedbackPending() => feedback().where((e) => e['sent'] != true).toList();
+
+  static Future<void> markFeedbackSent(Iterable<Object?> ids) async {
+    final s = ids.toSet();
+    await _p.setString('feedback', jsonEncode([for (final e in feedback()) s.contains(e['id']) ? {...e, 'sent': true} : e]));
+  }
+
   /// appelé quand les réglages d'un autre appareil viennent d'être appliqués (fond, langue…) : l'interface se repeint
   static void Function()? onSettingsApplied;
 

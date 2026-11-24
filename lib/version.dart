@@ -5,3 +5,5 @@ const kUpdateBase = String.fromEnvironment('UPDATE_URL');
 /// version « store » (Play Store / App Store) : `--dart-define=STORE=true` à la compilation
 /// pas de mise à jour par APK, pas de plateformes ni de logos, pas de lancement de chaîne depuis un match
 const kStore = bool.fromEnvironment('STORE');
+/// adresse des retours des utilisateurs (Réglages › Aide › Envoyer un retour › e-mail) ; la boîte contact@ reste à créer côté Cloudflare
+const kContact = 'contact@fearleck.org';

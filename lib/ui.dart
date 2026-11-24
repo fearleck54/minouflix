@@ -225,7 +225,7 @@ class _FocusCardState extends State<FocusCard> {
       }
       // on change de zone (grille → colonne de filtres, et inversement) : on arrive sur l'élément actif de la zone, sinon le plus proche en hauteur
       final mine = _vScroll(context);
-      if (best == null || vs(best) != mine) {
+      if (mine != null && (best == null || vs(best) != mine)) {      // zone fixe (barre du haut) : jamais de saut vers une rangée du dessous
         final others = [
           for (final n in cand)
             if (vs(n) != null && vs(n) != mine && (right ? rc(n).center.dx > me.center.dx : rc(n).center.dx < me.center.dx)) n

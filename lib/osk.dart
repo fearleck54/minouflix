@@ -16,6 +16,7 @@ class AppField extends StatefulWidget {
   final ValueChanged<String>? onSubmitted, onChanged;
   final TextStyle? style;
   final int? maxLength;
+  final int maxLines;      // téléphone : zone de texte sur plusieurs lignes (la télé saisit sur une ligne avec son clavier)
   final List<TextInputFormatter>? inputFormatters;
   final Iterable<String>? autofillHints;
   const AppField({
@@ -31,6 +32,7 @@ class AppField extends StatefulWidget {
     this.onChanged,
     this.style,
     this.maxLength,
+    this.maxLines = 1,
     this.inputFormatters,
     this.autofillHints,
   });
@@ -73,6 +75,7 @@ class _AppFieldState extends State<AppField> {
         onChanged: widget.onChanged,
         style: widget.style,
         maxLength: widget.maxLength,
+        maxLines: widget.obscureText ? 1 : widget.maxLines,
         inputFormatters: widget.inputFormatters,
         autofillHints: widget.autofillHints,
       );

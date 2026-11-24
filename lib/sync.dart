@@ -186,7 +186,13 @@ class Sync {
           d['profs'] = Store.profilsSnap();
         }
       }
-      await http.post(Uri.parse('$kSbUrl/rest/v1/user_data'), headers: {...h, 'Prefer': 'resolution=merge-duplicates'}, body: jsonEncode({'user_id': Account.uid, 'data': d, 'updated_at': DateTime.now().toUtc().toIso8601String()})).timeout(const Duration(seconds: 12));
+      // retours des utilisateurs : ajoutés à la copie du compte, marqués envoyés seulement si le serveur a accepté
+      final fb = Store.feedbackPending();
+      if (fb.isNotEmpty) {
+        d['feedback'] = [...(d['feedback'] is List ? d['feedback'] as List : const []), for (final e in fb) {...e}..remove('sent')];
+      }
+      final r = await http.post(Uri.parse('$kSbUrl/rest/v1/user_data'), headers: {...h, 'Prefer': 'resolution=merge-duplicates'}, body: jsonEncode({'user_id': Account.uid, 'data': d, 'updated_at': DateTime.now().toUtc().toIso8601String()})).timeout(const Duration(seconds: 12));
+      if (r.statusCode < 300 && fb.isNotEmpty) await Store.markFeedbackSent([for (final e in fb) e['id']]);
       return changed;
     } catch (_) {
       return false;
