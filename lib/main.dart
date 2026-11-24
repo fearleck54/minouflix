@@ -44,6 +44,7 @@ void main() {
         ..maximumSizeBytes = 36 << 20     // 36 Mo d'images décodées au lieu de 100
         ..maximumSize = 120;
     }
+    Store.onSettingsApplied = () => Aurora.tick.value++;
     Store.onSourceChanged = () {
       Tmdb.reset();
       Calendar.reset();

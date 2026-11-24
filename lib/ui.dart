@@ -185,6 +185,9 @@ class _FocusCardState extends State<FocusCard> {
     });
   }
 
+  /// élément à choisir en premier en arrivant dans une zone : « preferred », ou première ligne d'un bloc marqué ZoneFirst (Réglages : → depuis la colonne de gauche arrive en haut du panneau)
+  static bool _isPref(FocusNode n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true || n.context?.findAncestorWidgetOfExactType<ZoneFirst>() != null;
+
   /// télécommande : on choisit nous-mêmes l'élément voisin (même rangée pour ← →, rangée la plus proche pour ↑ ↓, élément le plus aligné) :
   /// jamais de saut par-dessus une rangée, jamais de changement de ligne au bout d'une rangée
   bool _nav(KeyEvent e) {
@@ -227,7 +230,7 @@ class _FocusCardState extends State<FocusCard> {
           for (final n in cand)
             if (vs(n) != null && vs(n) != mine && (right ? rc(n).center.dx > me.center.dx : rc(n).center.dx < me.center.dx)) n
         ];
-        final pref = others.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
+        final pref = others.where(_isPref).toList();
         if (pref.isNotEmpty) {
           best = pref.first;
         } else if (best == null && others.isNotEmpty) {
@@ -258,7 +261,7 @@ class _FocusCardState extends State<FocusCard> {
         final nearest = group.map(dist).reduce((a, b) => a < b ? a : b);
         row = [for (final n in group) if ((dist(n) - nearest).abs() <= 40) n];
       }
-      final pref = row.where((n) => n.context?.findAncestorWidgetOfExactType<FocusCard>()?.preferred == true).toList();
+      final pref = row.where(_isPref).toList();
       if (pref.isNotEmpty) {
         pref.first.requestFocus();
         return true;
@@ -453,6 +456,14 @@ class RatingPill extends StatelessWidget {
       );
 }
 
+/// marque la première ligne d'un panneau : la télécommande y arrive d'abord quand on change de zone avec ← →
+class ZoneFirst extends StatelessWidget {
+  final Widget child;
+  const ZoneFirst({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => child;
+}
+
 /// affiche (2:3) : coins 15, liseré fin, ombre, note, titre et sous-titre dessous
 class Poster extends StatelessWidget {
   final Item item;
@@ -491,7 +502,13 @@ class Poster extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: 600, ls: -0.01)),
+          if (foreignScript(item.title))
+            FutureBuilder<Fiche?>(
+              future: Tmdb.fiche(item),      // titre dans ta langue à la place de l'alphabet inconnu
+              builder: (_, sn) => Text(sn.data != null && sn.data!.title.isNotEmpty ? sn.data!.title : item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: 600, ls: -0.01)),
+            )
+          else
+            Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, w: 600, ls: -0.01)),
           if (item.year.isNotEmpty) Text(item.year, style: T(13, w: 450, color: kMut)),
         ]),
       );

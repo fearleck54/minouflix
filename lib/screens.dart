@@ -1005,6 +1005,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  /// « Continuer à regarder » : ouvre d'abord la fiche du film ou de la série (le bouton « Reprendre à … » y est) ; lecture directe si le titre n'est plus dans le catalogue
+  void openProg(Prog p) {
+    final kind = p.kind == 'ep' ? Kind.series : Kind.vod;
+    final id = p.kind == 'ep' ? p.sid : p.id;
+    final rows = libs[kind]?.rows ?? const <Item>[];
+    final nm = norm(p.kind == 'ep' ? p.sname : p.name);
+    final it = rows.where((r) => r.id == id).firstOrNull ?? (nm.isEmpty ? null : rows.where((r) => norm(r.title) == nm).firstOrNull);
+    if (it == null) {
+      resume(p);
+    } else {
+      info(it);
+    }
+  }
+
   /// reprise d'un film ou d'un épisode là où on l'avait laissé
   Future<void> resume(Prog p) async {
     if (!_once()) return;
@@ -1182,7 +1196,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       HomeTab(libs: libs, chans: chans, sport: kid ? Future.value(<Ev>[]) : sport, busy: busy, detailFor: detailFor, onOpen: openItem, onPlay: (it) => it.kind == Kind.series ? info(it) : play(it), onInfo: info, onTab: (v) {
         if (Device.tv) NavPill.jump(v);
         setState(() => tab = v);
-      }, onChan: playChan, onEv: openEv, onResume: resume),
+      }, onChan: playChan, onEv: openEv, onResume: openProg),
       LiveTab(chans: chans, busy: busy.contains(Kind.live), theme: liveTheme, onTheme: (t) => setState(() => liveTheme = t), onPlay: playChan, onHide: () => setState(() => _derive(Kind.live))),
       LibTab(kind: Kind.vod, lib: libs[Kind.vod], busy: busy.contains(Kind.vod), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
       LibTab(kind: Kind.series, lib: libs[Kind.series], busy: busy.contains(Kind.series), detailFor: detailFor, onOpen: info, onPlay: (it) => info(it)),
@@ -2707,7 +2721,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(children: [
             for (var i = 0; i < r.length; i++) ...[
               if (i > 0) Divider(height: 0.5, thickness: 0.5, indent: 56, color: kEdge),
-              r[i],
+              if (i == 0) ZoneFirst(child: r[i]) else r[i],
             ],
           ]),
         ),
@@ -3473,15 +3487,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           player.setRate(_rate);
           setState(() {});
         }),
-      (CupertinoIcons.speaker_2_fill, '${L.tr('Son')} : ${L.tr(_modeName(_mode))}', () async {
-        const order = ['off', 'cinema', 'night', 'voice'];
-        final m = order[(order.indexOf(_mode) + 1) % order.length];
-        await Store.setStr('snd_mode', m);
-        final ok = await _applyNight();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '${L.tr('Son')} : ${L.tr(_modeName(m))}' : L.tr('Filtre audio non pris en charge par le lecteur sur cet appareil.'))));
-      }),
-      (CupertinoIcons.timer, 'Synchro audio : $_syncTxt', _syncOpen),
       (CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer les statistiques' : 'Statistiques de lecture (réseau, tampon)', _statsToggle),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
@@ -4542,8 +4547,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_up, 'Chaîne +', () => _zapBy(1)),
                         if (_live && widget.zap.length > 1) _tvBtn(CupertinoIcons.chevron_down, 'Chaîne -', () => _zapBy(-1)),
                         if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, 'Qualité ${_alts[_alt].$1}', _qualityMenu),
-                        _tvBtn(CupertinoIcons.captions_bubble, 'Audio / sous-titres', _tracks),
-                        _tvBtn(CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer stats' : 'Stats', _statsToggle),
+                        _tvBtn(CupertinoIcons.speaker_2_fill, 'Son', _tracks),
                         _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
                       ]),
                     ),
@@ -4786,9 +4790,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _TopBtn(icon: CupertinoIcons.goforward_30, tip: 'Avancer de 30 secondes', onTap: () => _seekBy(30)),
               ],
               const SizedBox(width: 8),
-              _TopBtn(icon: CupertinoIcons.captions_bubble, tip: 'Audio et sous-titres', onTap: _tracks),
-              const SizedBox(width: 8),
-              _TopBtn(icon: CupertinoIcons.chart_bar_alt_fill, tip: 'Statistiques de lecture', onTap: _statsToggle),
+              _TopBtn(icon: CupertinoIcons.speaker_2_fill, tip: 'Son', onTap: _tracks),
               const SizedBox(width: 8),
               _TopBtn(icon: CupertinoIcons.ellipsis, tip: 'Plus d\'options', onTap: _moreMenu),
             ]),

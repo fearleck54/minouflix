@@ -301,6 +301,9 @@ List<Item> uniqueTitles(Iterable<Item> l) {
   return out;
 }
 
+/// vrai si le titre est écrit dans un alphabet que l'appli ne lit pas (thaï, arabe, chinois, cyrillique…) : on cherche alors son nom dans ta langue (TMDB)
+bool foreignScript(String s) => RegExp(r'[\u0400-\u052F\u0590-\u06FF\u0900-\u0DFF\u0E00-\u0EFF\u1000-\u109F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]').hasMatch(s);
+
 /// langue annoncée dans le nom d'un film ou d'une série (VOSTFR, MULTI, VF…), vide si rien
 String langTag(String raw) {
   final m = RegExp(r'(?:^|[\s\-|(\[_])(vostfr|vost|multi|vff|vfq|vf|vo|french|truefrench)(?=$|[\s\-|)\]_])', caseSensitive: false).firstMatch(raw);

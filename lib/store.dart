@@ -162,7 +162,7 @@ class Store {
   }
 
   // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
-  static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver', 'snd_mode'];
+  static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver', 'snd_mode', 'bg_style', 'buf_s', 'home_sport', 'home_sport_n'];      // les réglages propres à l'appareil (décodage, calage du son, fréquence de l'écran) restent locaux
   static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil', 'onb_done', 'snd_night', 'snd_voice'];
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
@@ -189,7 +189,11 @@ class Store {
     }
     if (m['tab_start'] is num) await _p.setInt('tab_start', (m['tab_start'] as num).toInt());
     await _p.setInt('settings_t', t);
+    onSettingsApplied?.call();
   }
+
+  /// appelé quand les réglages d'un autre appareil viennent d'être appliqués (fond, langue…) : l'interface se repeint
+  static void Function()? onSettingsApplied;
 
   // ---- catégories choisies, chaînes masquées et playlists, par source (synchronisées avec le compte)
   static String _sp(String id) => id.isEmpty ? '' : '${id}_';
