@@ -1,6 +1,12 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 210', [
+    'Télé : la sélection est maintenant visible sur les studios (logos clairs) et sur « Reprendre ».',
+    'Studios : Marvel et DC toujours dans la liste rapide.',
+    'Direct (télé) : ↑ garde la sélection sur le lecteur.',
+    'Nouvel écran de démarrage : chat animé, barre de chargement et petites phrases.',
+  ]),
   ('Versions 207 à 209', [
     'Films et séries : les 10 principales plateformes et les 10 principaux studios, avec leur logo ; « Tout voir » ouvre la liste complète (plus de 40 plateformes : Max, OCS, Crunchyroll, Hulu, Arte, France.tv, M6+…).',
     'La recherche trouve aussi les plateformes et les studios ; la recherche d\'un acteur est plus rapide.',

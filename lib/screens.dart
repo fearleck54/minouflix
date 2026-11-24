@@ -1782,6 +1782,10 @@ class LibTab extends StatelessWidget {
         future: Studios.of(lb),
         builder: (_, snap) {
           final st = [...(snap.data ?? const <StudioHit>[])]..sort((a, b) => b.items.length.compareTo(a.items.length));      // les plus fournis d'abord
+          for (final k in ['DC', 'Marvel']) {      // Marvel et DC toujours dans la liste rapide (en tête)
+            final j = st.indexWhere((x) => x.name.startsWith(k));
+            if (j > 0) st.insert(0, st.removeAt(j));
+          }
           if (st.isEmpty) return const SizedBox.shrink();
           return Rail(
             title: 'Studios',
@@ -3529,7 +3533,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _silent = 0;
   DateTime _openedAt = DateTime.now();
   final FocusNode _retryNode = FocusNode(debugLabel: 'réessayer');
-  final FocusNode _main = FocusNode(debugLabel: 'lecteur');     // zapping haut / bas, retrouvé après « Réessayer »
+  final FocusNode _main = FocusNode(debugLabel: 'lecteur', skipTraversal: true);     // zapping haut / bas, retrouvé après « Réessayer »
   bool get _live => _alts.isNotEmpty || _cur.contains('/live/');
 
   /// intro, récap et générique de l'épisode (base communautaire TheIntroDB, par identifiant TMDB) ; rien si inconnu

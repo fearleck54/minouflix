@@ -77,11 +77,12 @@ class FocusCard extends StatefulWidget {
   final bool ring;
   final VoidCallback? onLong;       // appui long (OK maintenu à la télécommande)
   final bool autofocus;
+  final Color ringColor;        // anneau de sélection (bleu sur les fonds clairs)
   final double focusScale;      // agrandissement quand la ligne est sélectionnée (1 = aucun : lignes de liste dans un cadre)
   final VoidCallback? onFocus;      // appelé quand l'élément prend le focus (télécommande) : les onglets changent de page dès qu'on s'y arrête
   final FocusNode? focusNode;
   final bool preferred;      // télé : quand on arrive sur cette rangée avec ↑ ↓, cet élément est choisi en premier (onglet actif de la barre)
-  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus, this.focusNode, this.preferred = false});
+  const FocusCard({super.key, required this.child, required this.onTap, this.radius = 15, this.ring = true, this.onLong, this.autofocus = false, this.focusScale = 1.06, this.onFocus, this.focusNode, this.preferred = false, this.ringColor = Colors.white});
   @override
   State<FocusCard> createState() => _FocusCardState();
 }
@@ -358,7 +359,7 @@ class _FocusCardState extends State<FocusCard> {
             curve: Curves.easeOut,
             child: AnimatedContainer(
               duration: Duration(milliseconds: Perf.lite ? 0 : 150),
-              foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: Colors.white, width: 3)) : null,
+              foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: widget.ringColor, width: 3)) : null,
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius)),
               child: ClipRRect(borderRadius: BorderRadius.circular(widget.radius), clipBehavior: Perf.lite ? Clip.hardEdge : Clip.antiAlias, child: RepaintBoundary(child: widget.child)),
             ),
@@ -851,6 +852,7 @@ class PillButton extends StatelessWidget {
         onTap: onTap,
         onLong: onLong,
         radius: height / 2,
+        ringColor: primary ? kAccent : Colors.white,
         child: Container(
           height: height,
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1338,6 +1340,7 @@ class StudioTile extends StatelessWidget {
           FocusCard(
             onTap: onTap,
             radius: 18,
+            ringColor: logo.isEmpty ? Colors.white : kAccent,
             child: Container(
               width: 150,
               height: 96,
