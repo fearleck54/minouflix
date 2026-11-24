@@ -1079,7 +1079,7 @@ class _AuroraPainter extends CustomPainter {
     final a = 2 * math.pi * t;
     final shift = page * 0.03 * w;
     void blob(Offset c, Color col, double op) {
-      final r = math.max(w, h * 1.6) * 0.9;      // téléphone (écran haut et étroit) : même couverture du dégradé que sur la télé
+      final r = math.sqrt(w * w + h * h) * 0.8;      // proportionnel à la diagonale : même rendu du fond sur téléphone, PC et télé (avant, le téléphone était beaucoup plus teinté)
       canvas.drawCircle(c, r, Paint()..shader = ui.Gradient.radial(c, r, [col.withOpacity(op * k), col.withOpacity(0)]));
     }
 
