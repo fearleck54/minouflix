@@ -314,7 +314,7 @@ const _genreRx = r'action|aventure|animation|anime|manga|comedie|humour|drame|ho
 
 String vodCatKind(String label) {
   final n = norm(label);
-  if (RegExp(r'original|netflix|disney|apple|prime|paramount|canal|tf1|hbo|amazon|ziggo|starz|marvel|ocs').hasMatch(n)) return 'studio';
+  if (RegExp(r'original|netflix|disney|apple|prime|paramount|canal|tf1|hbo|\bmax\b|amazon|ziggo|starz|marvel|\bocs\b|showtime|hulu|peacock|mgm|\bamc|crunchy|\badn\b|shudder|britbox|discovery|\barte\b|france ?tv|\bm6|salto|molotov|rakuten|mubi|filmo|pluto|tubi|youtube|bbc|iplayer|\bitv|\bsky\b|viaplay|hotstar|zee5|crave|tv5').hasMatch(n)) return 'studio';
   if (RegExp(r'(19|20)\d\d|recent|top|ultra|4k|saga').hasMatch(n)) return 'selection';
   // un « genre » est un vrai genre de cinéma ; « Afrique », « Maghreb »… vont dans « Autres »
   return RegExp(_genreRx).hasMatch(n) ? 'genre' : 'autre';
@@ -328,9 +328,67 @@ const platforms = [
   ('apple', 'Apple TV+', r'apple'),
   ('tf1', 'TF1+', r'tf1'),
   ('paramount', 'Paramount+', r'paramount'),
-  ('hbo', 'HBO Max', r'hbo|ocs'),
-  ('starz', 'Starz Play', r'starz'),
+  ('skyshowtime', 'SkyShowtime', r'sky ?showtime'),
+  ('max', 'Max', r'hbo|\bmax\b'),
+  ('ocs', 'OCS', r'\bocs\b'),
+  ('starz', 'Starz', r'starz'),
+  ('showtime', 'Showtime', r'showtime'),
+  ('hulu', 'Hulu', r'hulu'),
+  ('peacock', 'Peacock', r'peacock'),
+  ('mgm', 'MGM+', r'\bmgm'),
+  ('amc', 'AMC+', r'\bamc'),
+  ('crunchyroll', 'Crunchyroll', r'crunchy'),
+  ('adn', 'ADN', r'\badn\b|anime digital'),
+  ('shudder', 'Shudder', r'shudder'),
+  ('britbox', 'BritBox', r'britbox'),
+  ('discovery', 'Discovery+', r'discovery'),
+  ('arte', 'Arte', r'\barte\b'),
+  ('francetv', 'France.tv', r'france ?tv|francetv'),
+  ('m6', 'M6+', r'\bm6'),
+  ('salto', 'Salto', r'salto'),
+  ('molotov', 'Molotov', r'molotov'),
+  ('rakuten', 'Rakuten TV', r'rakuten'),
+  ('mubi', 'MUBI', r'mubi'),
+  ('filmo', 'Filmo', r'filmo'),
+  ('pluto', 'Pluto TV', r'pluto'),
+  ('tubi', 'Tubi', r'\btubi\b'),
+  ('youtube', 'YouTube', r'youtube'),
+  ('bbc', 'BBC iPlayer', r'bbc|iplayer'),
+  ('itv', 'ITVX', r'\bitv'),
+  ('sky', 'Sky', r'\bsky\b'),
+  ('now', 'NOW', r'\bnow\b'),
+  ('viaplay', 'Viaplay', r'viaplay'),
+  ('hotstar', 'JioHotstar', r'hotstar'),
+  ('zee5', 'ZEE5', r'zee5'),
+  ('crave', 'Crave', r'\bcrave'),
+  ('stan', 'Stan', r'\bstan\b'),
+  ('tv5', 'TV5Monde', r'tv5'),
 ];
+
+/// noms sous lesquels TMDB connaît ces plateformes (logos récupérés en ligne), quand ils diffèrent du nom affiché
+const platTmdb = {
+  'canal': ['canal+', 'mycanal'],
+  'prime': ['amazon prime video', 'prime video'],
+  'apple': ['apple tv', 'apple tv plus'],
+  'max': ['max', 'hbo max'],
+  'disney': ['disney plus'],
+  'paramount': ['paramount plus'],
+  'hotstar': ['jiohotstar', 'hotstar', 'disney plus hotstar'],
+  'tf1': ['tf1', 'tf1 plus'],
+  'francetv': ['france tv', 'francetv'],
+  'bbc': ['bbc iplayer'],
+  'itv': ['itvx', 'itv'],
+  'adn': ['adn', 'anime digital network'],
+  'mgm': ['mgm plus', 'mgm'],
+  'amc': ['amc plus', 'amc'],
+  'discovery': ['discovery plus'],
+  'm6': ['m6 plus', '6play'],
+  'youtube': ['youtube premium', 'youtube'],
+  'now': ['now', 'now tv'],
+  'tv5': ['tv5monde', 'tv5 monde'],
+  'showtime': ['showtime', 'paramount plus with showtime'],
+  'skyshowtime': ['skyshowtime'],
+};
 
 /// logos publics TMDB des plateformes (mêmes que l'appli web)
 const platLogos = {

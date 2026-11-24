@@ -713,7 +713,7 @@ class _SportTabState extends State<SportTab> {
           return r1.indexOf(sp);
         }
         if (Device.tv) {
-          Widget item(String label, IconData ic, bool on, VoidCallback f, {Color? tint}) => Padding(
+          Widget item(String label, IconData? ic, bool on, VoidCallback f, {Color? tint}) => Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: FocusCard(
                   radius: 14,
@@ -724,8 +724,7 @@ class _SportTabState extends State<SportTab> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                     decoration: BoxDecoration(color: on ? Colors.white.withOpacity(0.14) : Colors.transparent, borderRadius: BorderRadius.circular(14)),
                     child: Row(children: [
-                      Icon(ic, size: 24, color: tint ?? (on ? Colors.white : kMut)),
-                      const SizedBox(width: 14),
+                      if (ic != null) ...[Icon(ic, size: 24, color: tint ?? (on ? Colors.white : kMut)), const SizedBox(width: 14)] else if (tint != null) ...[Container(width: 8, height: 8, decoration: BoxDecoration(color: tint, shape: BoxShape.circle)), const SizedBox(width: 14)],
                       Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(19, w: on ? 750 : 550, color: on ? Colors.white : kText))),
                     ]),
                   ),
@@ -742,8 +741,8 @@ class _SportTabState extends State<SportTab> {
             for (final n in sports) ...[
               item(n, sportIcon(n), sp == n && !mine, () => pick(n, '', false)),
               if (sp == n && !mine && inSport.length > 1) ...[
-                Padding(padding: const EdgeInsets.only(left: 22), child: item('Toutes', Icons.chevron_right_rounded, lg.isEmpty, () => pick(n, '', false))),
-                for (final k in inSport) Padding(padding: const EdgeInsets.only(left: 22), child: item(k.n, Icons.chevron_right_rounded, lg == k.k, () => pick(n, k.k, false), tint: k.color)),
+                Padding(padding: const EdgeInsets.only(left: 22), child: item('Toutes', null, lg.isEmpty, () => pick(n, '', false))),
+                for (final k in inSport) Padding(padding: const EdgeInsets.only(left: 22), child: item(k.n, null, lg == k.k, () => pick(n, k.k, false), tint: k.color)),
               ],
             ],
             const SizedBox(height: 10),

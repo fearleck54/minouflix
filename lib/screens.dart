@@ -1719,7 +1719,7 @@ class LibTab extends StatelessWidget {
     Widget rail(String t, List<Item> l, {VoidCallback? more}) => Rail(title: t, height: ph, count: l.length, onMore: more, moreLabel: '', builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => onOpen(l[i])));
     // plateformes réelles (Marvel & co sont des studios : dans « Tout parcourir »)
     final gp = <String, Set<String>>{};
-    for (final c in lb.ofKind('studio')) {
+    for (final c in [...lb.ofKind('studio'), ...lb.ofKind('autre'), ...lb.ofKind('selection')]) {
       final k = platOf(c.label);
       if (k != null) gp.putIfAbsent(k, () => {}).add(c.id);
     }
@@ -1755,7 +1755,7 @@ class LibTab extends StatelessWidget {
           if (st.isEmpty) return const SizedBox.shrink();
           return Rail(
             title: 'Studios',
-            height: 260,
+            height: 140,
             count: st.length,
             builder: (_, i) => StudioTile(name: st[i].name, icon: st[i].items.first.icon, logo: kStore ? '' : tmImg(st[i].logo, 'w185'), onTap: () => _grid(context, st[i].name, st[i].items)),
           );
@@ -3135,9 +3135,18 @@ class _DetailScreenState extends State<DetailScreen> {
     final same = widget.lib == null ? <Item>[] : widget.lib!.rows.where((r) => r.catId == it.catId && r.p.key != it.p.key && r.icon.isNotEmpty).take(16).toList();
     final fav = '${it.kind.name}:${it.id}';
     final prs = Store.allProg().where((p) => !p.hidden && p.pos > 20000 && (p.dur == 0 || p.pos < p.dur * 0.95)).toList();
-    final old = it.kind == Kind.vod ? prs.where((p) => p.kind == 'vod' && p.id == cur.id).firstOrNull : null;
-    final lastProg = it.kind == Kind.series ? (prs.where((p) => p.kind == 'ep' && vs.any((v) => v.id == p.sid)).toList()..sort((a, b) => b.t.compareTo(a.t))).firstOrNull : null;
-    final lastEp = lastProg == null ? null : eps.where((e) => e.id == lastProg.id).firstOrNull;
+    // reprise = la plus récente de TOUTES les versions du titre : passer de 4K à HD reprend au même endroit
+    final oldAny = it.kind == Kind.vod ? (prs.where((p) => p.kind == 'vod' && vs.any((v) => v.id == p.id)).toList()..sort((a, b) => b.t.compareTo(a.t))).firstOrNull : null;
+    final old = oldAny == null ? null : (oldAny.id == cur.id ? oldAny : Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon, pos: oldAny.pos, dur: oldAny.dur, t: oldAny.t));
+    final lastProg0 = it.kind == Kind.series ? (prs.where((p) => p.kind == 'ep' && vs.any((v) => v.id == p.sid)).toList()..sort((a, b) => b.t.compareTo(a.t))).firstOrNull : null;
+    Episode? lastEp0 = lastProg0 == null ? null : eps.where((e) => e.id == lastProg0.id).firstOrNull;
+    if (lastEp0 == null && lastProg0 != null) {
+      // autre version de la série : même saison et même numéro d'épisode
+      final m = RegExp(r'^S(\d+) · É(\d+)').firstMatch(lastProg0.name);
+      if (m != null) lastEp0 = eps.where((e) => e.season == int.parse(m.group(1)!) && e.number == int.parse(m.group(2)!)).firstOrNull;
+    }
+    final lastEp = lastEp0;
+    final lastProg = (lastProg0 != null && lastEp != null && lastProg0.id != lastEp.id) ? Prog(kind: 'ep', id: lastEp.id, sid: _sid, ext: lastEp.ext, name: lastProg0.name, icon: lastProg0.icon, sname: lastProg0.sname, pos: lastProg0.pos, dur: lastProg0.dur, t: lastProg0.t) : lastProg0;
     final wide = Device.tv;     // fiche « salon » sur télé seulement
     // grand écran (télé) : fiche « cinéma » — grand visuel, titre, résumé et boutons compacts regroupés au même endroit
     String vodPath() => Downloads.get('${Store.pre}vod:${cur.id}')?.path ?? widget.x.vodUrl(cur.id, cur.ext);
@@ -4262,6 +4271,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           await (player.platform as dynamic).setProperty('start', '${startMs / 1000}');      // le flux démarre directement au temps enregistré (un déplacement demandé après coup était parfois ignoré)
         } catch (_) {}
       }
+      if (!_live) {
+        // piste audio de départ dans ta langue (évite de démarrer sur la piste Atmos / TrueHD en version originale, que le lecteur ne sait pas lire)
+        const codes = {'fr': 'fre,fra,fr', 'en': 'eng,en', 'es': 'spa,es', 'de': 'ger,deu,de', 'pt': 'por,pt'};
+        final pref = Store.str('pref_aud').isNotEmpty ? Store.str('pref_aud') : L.lang;
+        try {
+          await (player.platform as dynamic).setProperty('alang', codes[pref] ?? pref);
+        } catch (_) {}
+      }
       if (_aDelay != 0) {
         try {
           await (player.platform as dynamic).setProperty('audio-delay', '$_aDelay');
@@ -4571,10 +4588,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (down) _tvPlay.requestFocus();
           return KeyEventResult.handled;
         }
-        if (k == LogicalKeyboardKey.arrowUp) {
-          if (down) _tvHide();
-          return KeyEventResult.handled;
-        }
+        if (k == LogicalKeyboardKey.arrowUp) return KeyEventResult.handled;      // rien au-dessus : la barre reste (Retour ou le délai la ferment)
         if (k == LogicalKeyboardKey.select || k == LogicalKeyboardKey.enter || k == LogicalKeyboardKey.numpadEnter) {
           if (down) {
             player.playOrPause();
@@ -4595,11 +4609,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
       if (k == LogicalKeyboardKey.arrowUp) {
         if (down) {
-          if (!_live && _tvBar.canRequestFocus && _tvBar.context != null) {
-            _tvBar.requestFocus();      // ↑ depuis les boutons : on monte sur la barre d'avancement
-          } else {
-            _tvHide();
-          }
+          if (!_live && _tvBar.canRequestFocus && _tvBar.context != null) _tvBar.requestFocus();      // ↑ depuis les boutons : on monte sur la barre d'avancement ; direct : rien au-dessus, la barre et la sélection restent
         }
         return KeyEventResult.handled;
       }

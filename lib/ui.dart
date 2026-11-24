@@ -384,12 +384,21 @@ void _imgErr(String url, Object e) {
 }
 
 /// w : largeur de décodage en pixels (les images ne sont plus décodées à leur taille d'origine : moins de mémoire, défilement plus fluide)
-Widget netImage(String url, String title, {BoxFit fit = BoxFit.cover, Alignment alignment = Alignment.center, int w = 520}) => url.isEmpty
-    ? _placeholder(title)
+Widget netImage(String url, String title, {BoxFit fit = BoxFit.cover, Alignment alignment = Alignment.center, int w = 520, Item? item}) => url.isEmpty
+    ? (item == null ? _placeholder(title) : _tmdbPoster(item, title, fit, alignment))
     : CachedNetworkImage(imageUrl: url, fit: fit, alignment: alignment, memCacheWidth: Perf.img(w), fadeInDuration: Duration(milliseconds: Perf.lite ? 0 : 200), placeholder: (_, __) => _placeholder(''), errorWidget: (_, u, e) {
       _imgErr(u, e);
-      return _placeholder(title);
+      return item == null ? _placeholder(title) : _tmdbPoster(item, title, fit, alignment);      // affiche du fournisseur absente (404) : on prend celle de TMDB
     });
+
+Widget _tmdbPoster(Item item, String title, BoxFit fit, Alignment alignment) => FutureBuilder<Fiche?>(
+      future: Tmdb.fiche(item),
+      builder: (_, sn) {
+        final p = sn.data?.poster ?? '';
+        if (p.isEmpty) return _placeholder(title);
+        return CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w342$p', fit: fit, alignment: alignment, errorWidget: (_, __, ___) => _placeholder(title));
+      },
+    );
 
 /// précharge l'image de fond d'un titre (dès qu'on sait laquelle) pour qu'elle soit déjà là à l'ouverture
 void warmBackdrop(BuildContext context, Item it) {
@@ -490,7 +499,7 @@ class Poster extends StatelessWidget {
               child: AspectRatio(
                 aspectRatio: 2 / 3,
                 child: Stack(fit: StackFit.expand, children: [
-                  netImage(item.icon, item.title),
+                  netImage(item.icon, item.title, item: item),
                   if (badge != null) Positioned(bottom: 8, right: 8, child: badge!),
                   if (item.rating >= 1 && item.rating < 9.5) Positioned(top: 8, right: 8, child: RatingPill(item.rating)),
                   if (item.quality.isNotEmpty) Positioned(top: 8, left: 8, child: _Badge(item.quality)),
@@ -1153,6 +1162,9 @@ class PlatTile extends StatelessWidget {
   final VoidCallback onTap;
   const PlatTile({super.key, required this.keyName, required this.name, required this.onTap});
 
+  Widget _img(String path) => CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w185$path', fit: BoxFit.cover, width: 96, height: 96, errorWidget: (_, __, ___) => _label());
+  Widget _label() => Padding(padding: const EdgeInsets.all(8), child: Center(child: Text(name, textAlign: TextAlign.center, style: T(13, w: 700))));
+
   @override
   Widget build(BuildContext context) {
     final logo = platLogos[keyName];
@@ -1168,7 +1180,7 @@ class PlatTile extends StatelessWidget {
             decoration: BoxDecoration(color: kBg3, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0x14FFFFFF), width: 0.6)),
             clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
-            child: logo != null ? CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w185$logo', fit: BoxFit.cover, width: 96, height: 96, errorWidget: (_, __, ___) => Padding(padding: const EdgeInsets.all(8), child: Center(child: Text(name, textAlign: TextAlign.center, style: T(13, w: 700))))) : Padding(padding: const EdgeInsets.all(8), child: Text(name, textAlign: TextAlign.center, style: T(13, w: 700))),
+            child: logo != null ? _img(logo) : FutureBuilder<String?>(future: Providers.logoFor(keyName, name), builder: (_, sn) => sn.data != null ? _img(sn.data!) : _label()),
           ),
         ),
         const SizedBox(height: 7),
@@ -1314,7 +1326,7 @@ class ContinueCard extends StatelessWidget {
   }
 }
 
-/// studio : affiche du premier titre + nom sur plaque sombre
+/// studio : son logo sur une plaque claire, le nom dessous (si TMDB n'a pas de logo : le nom sur plaque sombre)
 class StudioTile extends StatelessWidget {
   final String name, icon, logo;
   final VoidCallback onTap;
@@ -1322,25 +1334,24 @@ class StudioTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 150,
-        child: FocusCard(
-          onTap: onTap,
-          radius: 18,
-          child: Container(
-          decoration: BoxDecoration(color: const Color(0xFF14161C), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x1FFFFFFF), width: 0.8)),
-          clipBehavior: Clip.antiAlias,
-          child: Column(children: [
-            Expanded(child: icon.isEmpty ? const SizedBox.expand() : CachedNetworkImage(imageUrl: icon, fit: BoxFit.cover, width: 150, errorWidget: (_, __, ___) => const SizedBox.expand())),
-            Container(
-              height: 54,
-              width: double.infinity,
+        child: Column(children: [
+          FocusCard(
+            onTap: onTap,
+            radius: 18,
+            child: Container(
+              width: 150,
+              height: 96,
+              padding: const EdgeInsets.all(16),
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: logo.isEmpty ? null : const Color(0xFFEDEEF2),
-              child: logo.isEmpty ? Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(15, w: 700)) : CachedNetworkImage(imageUrl: logo, fit: BoxFit.contain, errorWidget: (_, __, ___) => Text(name, maxLines: 1, style: T(14, w: 700, color: Colors.black))),
+              decoration: BoxDecoration(color: logo.isEmpty ? const Color(0xFF14161C) : const Color(0xFFEDEEF2), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0x1FFFFFFF), width: 0.8)),
+              child: logo.isEmpty
+                  ? Text(name, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: T(15, w: 700))
+                  : CachedNetworkImage(imageUrl: logo, fit: BoxFit.contain, errorWidget: (_, __, ___) => Text(name, maxLines: 2, textAlign: TextAlign.center, style: T(14, w: 700, color: const Color(0xFF14161C)))),
             ),
-          ]),
           ),
-        ),
+          const SizedBox(height: 7),
+          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12, w: 600, color: kMut)),
+        ]),
       );
 }
 

@@ -1,7 +1,12 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
-  ('Versions 207 et 208', [
+  ('Versions 207 à 209', [
+    'Films et séries : beaucoup plus de plateformes (Max, OCS, Crunchyroll, Hulu, Arte, France.tv, M6+…) avec leur logo, et des studios affichés par leur logo.',
+    'Changer de version (4K, HD…) reprend au même endroit.',
+    'Affiche absente chez le fournisseur : remplacée par celle de TMDB.',
+    'Direct (télé) : ↑ ne fait plus disparaître la sélection ni la barre.',
+    'Sport (télé) : plus de flèches devant les compétitions.',
     'Reprise de lecture corrigée : le film repart bien à l\'endroit enregistré, sans faux message « Lecture impossible » pendant le chargement.',
     'Fiche du film : « Depuis le début » à côté de « Reprendre », bouton Version plus compact.',
     'Tampon réglable directement depuis « Plus » dans le lecteur.',

@@ -21,13 +21,13 @@ class Cast {
 
 class Fiche {
   final int tmdbId;
-  final String trailer, logo, tagline, plot, bg, sagaName, title, cert;     // cert : classification française (U, 10, 12, 16, 18)
+  final String trailer, logo, tagline, plot, bg, sagaName, title, cert, poster;     // cert : classification française (U, 10, 12, 16, 18)
   final int runtime;
   final List<String> genres;
   final List<Cast> cast;
   final List<String> simTitles, sagaTitles;
   final List<(String, String)> providers;
-  const Fiche({this.tmdbId = 0, this.cert = '', this.title = '', this.runtime = 0, this.genres = const [], this.trailer = '', this.logo = '', this.tagline = '', this.plot = '', this.bg = '', this.sagaName = '', this.cast = const [], this.simTitles = const [], this.sagaTitles = const [], this.providers = const []});
+  const Fiche({this.poster = '', this.tmdbId = 0, this.cert = '', this.title = '', this.runtime = 0, this.genres = const [], this.trailer = '', this.logo = '', this.tagline = '', this.plot = '', this.bg = '', this.sagaName = '', this.cast = const [], this.simTitles = const [], this.sagaTitles = const [], this.providers = const []});
 }
 
 /// âge minimal d'après la classification française : 0 (tout public), 10, 12, 16, 18 ; -1 si inconnue
@@ -120,6 +120,7 @@ class Tmdb {
         if (r['iso_3166_1'] == 'FR' && '${r['rating']}'.isNotEmpty && cert.isEmpty) cert = '${r['rating']}';
       }
       return Fiche(
+        poster: '${x['poster_path'] ?? ''}',
         tmdbId: (hit['id'] as num?)?.toInt() ?? 0,
         cert: cert,
         title: '${x['title'] ?? x['name'] ?? ''}',
@@ -202,8 +203,57 @@ class StudioHit {
   const StudioHit(this.name, this.logo, this.items);
 }
 
-const _studiosFilm = ['Marvel Studios', 'Walt Disney Pictures', 'Pixar', 'Lucasfilm Ltd.', 'Columbia Pictures', '20th Century Studios', 'DreamWorks Animation', 'Warner Bros. Pictures', 'Universal Pictures', 'Paramount Pictures', 'Legendary Pictures', 'Blumhouse Productions', 'A24', 'Lionsgate', 'Illumination', 'Sony Pictures', 'New Line Cinema', 'Metro-Goldwyn-Mayer', 'Studio Ghibli', 'Focus Features', 'Amblin Entertainment', 'Netflix', 'Apple Studios', 'Gaumont', 'Pathé', 'StudioCanal', 'EuropaCorp'];
-const _studiosTv = ['HBO', 'Netflix', 'Amazon MGM Studios', 'Apple Studios', 'Warner Bros. Television', 'BBC Studios', 'FX Productions', 'AMC Studios', 'Showtime', 'Paramount Television Studios', 'Sony Pictures Television', 'Universal Television', '20th Television', 'Disney Television Studios', 'Marvel Television', 'Lionsgate Television', 'Legendary Television', 'Canal+', 'France Télévisions', 'TF1 Production', 'Hulu', 'Starz', 'Syfy', 'Hartswood Films', 'ITV Studios'];
+const _studiosFilm = ['Walt Disney Animation Studios', 'Warner Bros. Animation', 'DC Films', 'Marvel Entertainment', 'Sony Pictures Animation', 'Searchlight Pictures', 'TriStar Pictures', 'Touchstone Pictures', 'Miramax', 'Screen Gems', 'Summit Entertainment', 'Skydance', 'Working Title Films', 'Aardman', 'Laika', 'Neon', 'Toho', 'Amazon MGM Studios', 'Hammer Film Productions', 'Wild Bunch', 'Mars Films', 'UGC', 'Les Films du Losange', 'Nickelodeon Movies', 'Castle Rock Entertainment', 'Marvel Studios', 'Walt Disney Pictures', 'Pixar', 'Lucasfilm Ltd.', 'Columbia Pictures', '20th Century Studios', 'DreamWorks Animation', 'Warner Bros. Pictures', 'Universal Pictures', 'Paramount Pictures', 'Legendary Pictures', 'Blumhouse Productions', 'A24', 'Lionsgate', 'Illumination', 'Sony Pictures', 'New Line Cinema', 'Metro-Goldwyn-Mayer', 'Studio Ghibli', 'Focus Features', 'Amblin Entertainment', 'Netflix', 'Apple Studios', 'Gaumont', 'Pathé', 'StudioCanal', 'EuropaCorp'];
+const _studiosTv = ['Disney+', 'Hulu', 'CBS Studios', 'ABC Signature', 'Fox', 'NBC', 'Nickelodeon Animation Studio', 'Cartoon Network Studios', 'Bad Robot', 'Plan B Entertainment', 'Toei Animation', 'Madhouse', 'MAPPA', 'Studio Pierrot', 'A-1 Pictures', 'Ufotable', 'BBC', 'Channel 4', 'Sky Studios', 'Arte', 'Gaumont Télévision', 'Lionsgate Television', 'HBO', 'Netflix', 'Amazon MGM Studios', 'Apple Studios', 'Warner Bros. Television', 'BBC Studios', 'FX Productions', 'AMC Studios', 'Showtime', 'Paramount Television Studios', 'Sony Pictures Television', 'Universal Television', '20th Television', 'Disney Television Studios', 'Marvel Television', 'Lionsgate Television', 'Legendary Television', 'Canal+', 'France Télévisions', 'TF1 Production', 'Hulu', 'Starz', 'Syfy', 'Hartswood Films', 'ITV Studios'];
+
+/// logos des plateformes de streaming : liste officielle des fournisseurs TMDB (France, États-Unis, Royaume-Uni), gardée 30 jours
+class Providers {
+  static Future<Map<String, String>>? _m;
+  static Future<Map<String, String>> all() => _m ??= _load();
+
+  static String _n(String s) => norm(s.replaceAll('+', ' plus ')).replaceAll('+', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  static Future<Map<String, String>> _load() async {
+    final out = <String, String>{};
+    if (kTmdbKey.isEmpty) return out;
+    File? f;
+    if (!kIsWeb) {
+      try {
+        f = File('${(await getApplicationSupportDirectory()).path}/providers.json');
+        if (await f.exists() && DateTime.now().difference(await f.lastModified()) < const Duration(days: 30)) {
+          return (jsonDecode(await f.readAsString()) as Map).map((k, v) => MapEntry('$k', '$v'));
+        }
+      } catch (_) {}
+    }
+    for (final region in const ['FR', 'US', 'GB']) {
+      for (final ep in const ['movie', 'tv']) {
+        try {
+          final d = await Tmdb._get('/watch/providers/$ep', {'watch_region': region});
+          for (final r in (d['results'] as List? ?? const [])) {
+            if (r is Map && '${r['logo_path'] ?? ''}'.isNotEmpty) out.putIfAbsent(_n('${r['provider_name']}'), () => '${r['logo_path']}');
+          }
+        } catch (_) {}
+      }
+    }
+    if (f != null && out.isNotEmpty) {
+      try {
+        await f.writeAsString(jsonEncode(out));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  /// logo TMDB (chemin) d'une plateforme du catalogue, null si TMDB ne la connaît pas
+  static Future<String?> logoFor(String key, String name) async {
+    final m = await all();
+    for (final c in (platTmdb[key] ?? [name]).map(_n)) {
+      final v = m[c];
+      if (v != null) return v;
+    }
+    final n = _n(name);
+    return m[n];
+  }
+}
 
 class Studios {
   static final _mem = <Kind, Future<List<StudioHit>>>{};
@@ -226,7 +276,7 @@ class Studios {
           final out = <StudioHit>[];
           for (final s in jsonDecode(await f.readAsString()) as List) {
             final l = [for (final i in s['ids'] as List) if (byId[i as int] != null) byId[i]!];
-            if (l.length >= 4) out.add(StudioHit('${s['n']}', '${s['l']}', l));
+            if (l.length >= 3) out.add(StudioHit('${s['n']}', '${s['l']}', l));
           }
           if (out.isNotEmpty) return out;
         } catch (_) {}
