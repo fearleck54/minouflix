@@ -73,7 +73,30 @@ class MinouFlix extends StatelessWidget {
   /// minouflix://pair?c=CODE (QR de la télé) : une confirmation, puis le compte et les sources partent vers la télé
   static String _lastCode = '';
   static DateTime _lastAt = DateTime(2000);
+  static String _lastReset = '';
+  /// lien reçu par e-mail (minouflix://reset#access_token=…&type=recovery) : mot de passe oublié, ou confirmation du compte
+  static Future<void> _onReset(Uri u, [int tries = 0]) async {
+    final f = u.fragment.isNotEmpty ? u.fragment : u.query;
+    final p = f.isEmpty ? <String, String>{} : Uri.splitQueryString(f);
+    final ctx = navKey.currentContext;
+    if (ctx == null || !Boot.ready) {
+      if (tries < 30) Future.delayed(const Duration(milliseconds: 500), () => _onReset(u, tries + 1));
+      return;
+    }
+    final key = p['access_token'] ?? p['error_code'] ?? p['type'] ?? '';
+    if (key == _lastReset) return;      // le même lien arrive parfois deux fois
+    _lastReset = key;
+    if (p['error'] != null || p['error_description'] != null) {
+      await showDialog<void>(context: ctx, builder: (c) => AppDialog(title: Text('Lien expiré', style: T(18, w: 700)), content: const Text('Ce lien n\'est plus valable (une seule utilisation, une heure). Demande-en un nouveau avec « Mot de passe oublié ? ».'), actions: [TextButton(autofocus: true, onPressed: () => Navigator.pop(c), child: const Text('OK'))]));
+    } else if (p['type'] == 'recovery' && (p['access_token'] ?? '').isNotEmpty) {
+      await Navigator.push(ctx, softRoute((_) => NewPasswordScreen(token: p['access_token']!)));
+    } else if (p['type'] == 'signup' || p['type'] == 'email_change') {
+      await showDialog<void>(context: ctx, builder: (c) => AppDialog(title: Text('Adresse confirmée', style: T(18, w: 700)), content: const Text('Ton adresse e-mail est confirmée. Tu peux te connecter.'), actions: [TextButton(autofocus: true, onPressed: () => Navigator.pop(c), child: const Text('OK'))]));
+    }
+  }
+
   static Future<void> _onLink(Uri u, [int tries = 0]) async {
+    if (u.scheme == 'minouflix' && u.host == 'reset') return _onReset(u);
     if (u.scheme != 'minouflix' || u.host != 'pair') return;
     final code = Pairing.norm(u.queryParameters['c'] ?? '');
     if (code.length != 8) return;

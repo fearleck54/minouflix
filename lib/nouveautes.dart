@@ -2,7 +2,7 @@
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
   ('Version 215', [
-    'Compte : « Mot de passe oublié ? » sur l\'écran de connexion (lien reçu par e-mail, puis page pour choisir le nouveau mot de passe).',
+    'Compte : « Mot de passe oublié ? » sur l\'écran de connexion (lien reçu par e-mail : l\'appli s\'ouvre pour choisir le nouveau mot de passe).',
   ]),
   ('Version 213', [
     'Retirer un titre de « Continuer à regarder » se synchronise maintenant avec tes autres appareils.',

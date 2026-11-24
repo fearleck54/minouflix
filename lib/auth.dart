@@ -85,6 +85,16 @@ class Account {
     }
   }
 
+  /// nouveau mot de passe depuis le lien reçu par e-mail (jeton de récupération) ; null = enregistré
+  static Future<String?> setPasswordWithToken(String token, String newPw) async {
+    try {
+      final r = await http.put(Uri.parse('$kSbUrl/auth/v1/user'), headers: {..._h, 'Authorization': 'Bearer $token'}, body: jsonEncode({'password': newPw})).timeout(const Duration(seconds: 15));
+      return r.statusCode >= 300 ? (r.statusCode == 401 || r.statusCode == 403 ? 'Lien expiré : demande-en un nouveau.' : _err(r)) : null;
+    } catch (_) {
+      return 'Connexion impossible : vérifie ta connexion Internet.';
+    }
+  }
+
   static Future<void> _adopt(Map<String, dynamic> m, String pw) async {
     access = '${m['access_token']}';
     refresh = '${m['refresh_token']}';

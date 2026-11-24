@@ -31,6 +31,12 @@ Name: "desktopicon"; Description: "Créer un raccourci sur le bureau"; Flags: ch
 [Files]
 Source: "..\..\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
+[Registry]
+; liens minouflix:// (mot de passe oublié, connexion de la télé) : ouvrent l'appli
+Root: HKCU; Subkey: "Software\Classes\minouflix"; ValueType: string; ValueData: "URL:MinouFlix"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\minouflix"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\minouflix\shell\open\command"; ValueType: string; ValueData: """{app}\minouflix.exe"" ""%1"""
+
 [Icons]
 Name: "{autoprograms}\MinouFlix"; Filename: "{app}\minouflix.exe"
 Name: "{autodesktop}\MinouFlix"; Filename: "{app}\minouflix.exe"; Tasks: desktopicon

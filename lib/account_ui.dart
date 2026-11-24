@@ -354,7 +354,7 @@ class _ResetState extends State<ResetPasswordScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
-                  Text(sent ? 'Un e-mail vient d\'être envoyé à ${mail.text.trim()}. Ouvre le lien qu\'il contient (sur n\'importe quel appareil), choisis ton nouveau mot de passe, puis reviens te connecter ici. Pense à regarder dans les courriers indésirables.' : 'Saisis l\'e-mail de ton compte : tu recevras un lien pour choisir un nouveau mot de passe.', style: T(15, color: kMut, h: 1.4)),
+                  Text(sent ? 'Un e-mail vient d\'être envoyé à ${mail.text.trim()}. Ouvre le lien qu\'il contient sur cet appareil (celui où MinouFlix est installé) : l\'appli s\'ouvre et te laisse choisir ton nouveau mot de passe. Pense à regarder dans les courriers indésirables.' : 'Saisis l\'e-mail de ton compte : tu recevras un lien pour choisir un nouveau mot de passe.', style: T(15, color: kMut, h: 1.4)),
                   const SizedBox(height: 16),
                   if (!sent) AppField(controller: mail, keyboardType: TextInputType.emailAddress, autocorrect: false, autofillHints: const [AutofillHints.email], decoration: _dec('E-mail'), onSubmitted: (_) => _send()),
                   if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: const Color(0xFFFF6B7A)))),
@@ -367,6 +367,77 @@ class _ResetState extends State<ResetPasswordScreen> {
                   ],
                   const SizedBox(height: 14),
                   Text('Tes sources IPTV sont chiffrées avec ton mot de passe : après un changement de mot de passe, il faudra peut-être les ressaisir une fois.', style: T(12.5, color: kMut, h: 1.35)),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+
+/// ---------- nouveau mot de passe, après le lien reçu par e-mail (minouflix://reset#access_token=…&type=recovery) ----------
+class NewPasswordScreen extends StatefulWidget {
+  final String token;
+  const NewPasswordScreen({super.key, required this.token});
+  @override
+  State<NewPasswordScreen> createState() => _NewPwState();
+}
+
+class _NewPwState extends State<NewPasswordScreen> {
+  final a = TextEditingController(), b = TextEditingController();
+  bool busy = false, done = false;
+  String? msg;
+
+  InputDecoration _dec(String l) => InputDecoration(labelText: l, filled: true, fillColor: const Color(0x1AFFFFFF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none));
+
+  Future<void> _save() async {
+    if (busy) return;
+    if (a.text.length < 6) {
+      setState(() => msg = '6 caractères minimum.');
+      return;
+    }
+    if (a.text != b.text) {
+      setState(() => msg = 'Les deux mots de passe sont différents.');
+      return;
+    }
+    setState(() {
+      busy = true;
+      msg = null;
+    });
+    final e = await Account.setPasswordWithToken(widget.token, a.text);
+    if (!mounted) return;
+    setState(() {
+      busy = false;
+      done = e == null;
+      msg = e;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => DsBg(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(title: const Text('Nouveau mot de passe'), backgroundColor: Colors.transparent),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: ListView(shrinkWrap: true, padding: const EdgeInsets.all(24), children: [
+                  Text(done ? 'Mot de passe changé. Connecte-toi avec ton nouveau mot de passe.' : 'Choisis ton nouveau mot de passe (6 caractères minimum).', style: T(15, color: done ? const Color(0xFF30D158) : kMut, h: 1.4)),
+                  const SizedBox(height: 16),
+                  if (!done) ...[
+                    AppField(controller: a, obscureText: true, decoration: _dec('Nouveau mot de passe')),
+                    const SizedBox(height: 14),
+                    AppField(controller: b, obscureText: true, decoration: _dec('Confirme le mot de passe'), onSubmitted: (_) => _save()),
+                  ],
+                  if (msg != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(msg!, style: T(14, color: const Color(0xFFFF6B7A)))),
+                  const SizedBox(height: 22),
+                  PillButton(primary: true, height: 54, label: done ? 'Continuer' : (busy ? 'Un instant…' : 'Enregistrer'), onTap: () => done ? Navigator.pop(context) : _save()),
+                  if (!done) ...[
+                    const SizedBox(height: 14),
+                    Text('Tes sources IPTV sont chiffrées avec ton mot de passe : il faudra peut-être les ressaisir une fois.', style: T(12.5, color: kMut, h: 1.35)),
+                  ],
                 ]),
               ),
             ),
