@@ -3830,6 +3830,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  /// piste audio que le lecteur sait décoder (pas Dolby TrueHD / MLP)
+  bool _decodable(AudioTrack x) {
+    final c = '${x.codec ?? ''} ${x.title ?? ''}'.toLowerCase();
+    return !(c.contains('truehd') || c.contains('mlp'));
+  }
+
   /// langues préférées retenues d'une fois sur l'autre
   void _applyPrefs(Tracks t) {
     if (_trSet) return;
@@ -3838,9 +3844,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (a.isEmpty && s.isEmpty) return;
     _trSet = true;
     final pa = Store.str('pref_aud'), ps = Store.str('pref_sub');
-    if (pa.isNotEmpty) {
-      final m = a.where((x) => L.trackIs(x.language, pa)).firstOrNull;
-      if (m != null) player.setAudioTrack(m);
+    // le lecteur embarqué n'a pas de décodeur Dolby TrueHD / MLP (pistes Atmos des films 4K) : choisie par défaut, une telle piste = film SANS SON
+    // (journal : « Failed to initialize a decoder for codec 'truehd' »). On prend alors la meilleure piste lisible (même langue, sinon la première).
+    final bad = a.where((x) => !_decodable(x)).toList(), ok = a.where(_decodable).toList();
+    AudioTrack? pick;
+    if (pa.isNotEmpty) pick = (ok.isNotEmpty ? ok : a).where((x) => L.trackIs(x.language, pa)).firstOrNull;
+    if (pick == null && bad.isNotEmpty && ok.isNotEmpty) {
+      pick = ok.where((x) => x.language == bad.first.language).firstOrNull ?? ok.first;
+    }
+    if (pick != null) {
+      Journal.add('Son : piste choisie ${_lab(pick.language, pick.title, 0)} (${pick.codec ?? '?'})${bad.isNotEmpty ? ', pistes TrueHD ignorées' : ''}');
+      player.setAudioTrack(pick);
+    } else if (ok.isEmpty && bad.isNotEmpty && mounted) {
+      Journal.add('Son : seules des pistes TrueHD, non lisibles par le lecteur');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce film n\'a qu\'une piste Dolby TrueHD, que le lecteur ne sait pas lire : pas de son possible.')));
     }
     if (ps == 'no') {
       player.setSubtitleTrack(SubtitleTrack.no());
@@ -4324,7 +4341,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// reprise : on va au temps enregistré, puis on vérifie (le lecteur peut ignorer un déplacement demandé trop tôt) ; jusqu'à 4 essais
   Future<void> _resumeAt(int ms) async {
     try {
+      Journal.add('Reprise : départ demandé à ${ms ~/ 1000} s');
       await player.stream.duration.firstWhere((d) => d > Duration.zero);
+      Journal.add('Reprise : durée connue, position ${player.state.position.inSeconds} s');
       try {
         await (player.platform as dynamic).setProperty('start', 'none');      // ne s'applique pas aux fichiers suivants
       } catch (_) {}
@@ -4338,8 +4357,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
           await Future<void>.delayed(const Duration(milliseconds: 500));
         }
-        if (ok) break;
-        Journal.add('Reprise : le lecteur n\'a pas atteint le temps enregistré, nouvel essai');
+        if (ok) {
+          Journal.add('Reprise : position ${player.state.position.inSeconds} s, bon temps');
+          break;
+        }
+        Journal.add('Reprise : le lecteur n\'a pas atteint le temps enregistré (position ${player.state.position.inSeconds} s), nouvel essai');
         await player.seek(Duration(milliseconds: ms));
       }
     } catch (_) {}
