@@ -1,9 +1,0 @@
-/// numéro de version (mis à jour à chaque compilation) ; l'appli Android compare avec version.json du Pi
-const kBuild = 210;
-/// adresse des mises à jour hors store : fournie à la compilation (`--dart-define=UPDATE_URL=...`), vide = aucune
-const kUpdateBase = String.fromEnvironment('UPDATE_URL');
-/// version « store » (Play Store / App Store) : `--dart-define=STORE=true` à la compilation
-/// pas de mise à jour par APK, pas de plateformes ni de logos, pas de lancement de chaîne depuis un match
-const kStore = bool.fromEnvironment('STORE');
-/// adresse des retours des utilisateurs (Réglages › Aide › Envoyer un retour › e-mail) ; la boîte contact@ reste à créer côté Cloudflare
-const kContact = 'contact@fearleck.org';

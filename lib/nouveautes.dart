@@ -1,6 +1,12 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 211', [
+    'Direct (télé) : ↑ ne fait plus perdre la sélection (les commandes cachées du lecteur la volaient).',
+    'Sélection à deux tons (blanc et bleu) : visible sur les affiches et logos clairs.',
+    'Plateformes : plus de clignotement sur HBO Max et Starz ; « Tout voir » toujours présent.',
+    'Démarrage : le chat bouge (respire, cligne des yeux, remue la queue et l\'oreille).',
+  ]),
   ('Version 210', [
     'Télé : la sélection est maintenant visible sur les studios (logos clairs) et sur « Reprendre ».',
     'Studios : Marvel et DC toujours dans la liste rapide.',

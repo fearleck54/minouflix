@@ -359,9 +359,21 @@ class _FocusCardState extends State<FocusCard> {
             curve: Curves.easeOut,
             child: AnimatedContainer(
               duration: Duration(milliseconds: Perf.lite ? 0 : 150),
+              // anneau à deux tons (blanc + bleu) : visible aussi bien sur une affiche claire que sur un fond sombre
               foregroundDecoration: widget.ring && focused ? BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), border: Border.all(color: widget.ringColor, width: 3)) : null,
               decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius)),
-              child: ClipRRect(borderRadius: BorderRadius.circular(widget.radius), clipBehavior: Perf.lite ? Clip.hardEdge : Clip.antiAlias, child: RepaintBoundary(child: widget.child)),
+              child: Stack(fit: StackFit.passthrough, children: [
+                ClipRRect(borderRadius: BorderRadius.circular(widget.radius), clipBehavior: Perf.lite ? Clip.hardEdge : Clip.antiAlias, child: RepaintBoundary(child: widget.child)),
+                if (widget.ring && focused)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Padding(
+                        padding: const EdgeInsets.all(3),
+                        child: DecoratedBox(decoration: BoxDecoration(borderRadius: BorderRadius.circular((widget.radius - 3).clamp(0, 999).toDouble()), border: Border.all(color: widget.ringColor == Colors.white ? kAccent : Colors.white, width: 2.5))),
+                      ),
+                    ),
+                  ),
+              ]),
             ),
           ),
         ),
@@ -1159,22 +1171,29 @@ class NavPill extends StatelessWidget {
 }
 
 /// tuile de plateforme (rangée « Plateformes »)
-class PlatTile extends StatelessWidget {
+class PlatTile extends StatefulWidget {
   final String keyName, name;
   final VoidCallback onTap;
   const PlatTile({super.key, required this.keyName, required this.name, required this.onTap});
+  @override
+  State<PlatTile> createState() => _PlatTileState();
+}
+
+class _PlatTileState extends State<PlatTile> {
+  // le logo en ligne n'est demandé qu'une fois (un nouvel appel à chaque reconstruction, p. ex. au passage de la sélection, faisait clignoter la tuile)
+  late final Future<String?>? _logo = platLogos[widget.keyName] == null ? Providers.logoFor(widget.keyName, widget.name) : null;
 
   Widget _img(String path) => CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w185$path', fit: BoxFit.cover, width: 96, height: 96, errorWidget: (_, __, ___) => _label());
-  Widget _label() => Padding(padding: const EdgeInsets.all(8), child: Center(child: Text(name, textAlign: TextAlign.center, style: T(13, w: 700))));
+  Widget _label() => Padding(padding: const EdgeInsets.all(8), child: Center(child: Text(widget.name, textAlign: TextAlign.center, style: T(13, w: 700))));
 
   @override
   Widget build(BuildContext context) {
-    final logo = platLogos[keyName];
+    final logo = platLogos[widget.keyName];
     return SizedBox(
       width: 104,
       child: Column(children: [
         FocusCard(
-          onTap: onTap,
+          onTap: widget.onTap,
           radius: 22,
           child: Container(
             width: 96,
@@ -1182,11 +1201,11 @@ class PlatTile extends StatelessWidget {
             decoration: BoxDecoration(color: kBg3, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0x14FFFFFF), width: 0.6)),
             clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
-            child: logo != null ? _img(logo) : FutureBuilder<String?>(future: Providers.logoFor(keyName, name), builder: (_, sn) => sn.data != null ? _img(sn.data!) : _label()),
+            child: logo != null ? _img(logo) : FutureBuilder<String?>(future: _logo, builder: (_, sn) => sn.data != null ? _img(sn.data!) : _label()),
           ),
         ),
         const SizedBox(height: 7),
-        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12, w: 600, color: kMut)),
+        Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(12, w: 600, color: kMut)),
       ]),
     );
   }

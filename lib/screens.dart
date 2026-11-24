@@ -1771,7 +1771,7 @@ class LibTab extends StatelessWidget {
           title: 'Plateformes',
           height: 132,
           count: plats.length > 10 ? 10 : plats.length,
-          onMore: plats.length > 10
+          onMore: plats.isNotEmpty
               ? () => Navigator.push(context, softRoute((_) => AllTilesScreen(title: 'Plateformes', tiles: [for (final p in plats) PlatTile(keyName: p.$1, name: p.$2, onTap: () => _grid(context, p.$2, uniqueTitles(lb.inCats(gp[p.$1]!))))])))
               : null,
           builder: (_, i) => PlatTile(keyName: plats[i].$1, name: plats[i].$2, onTap: () => _grid(context, plats[i].$2, uniqueTitles(lb.inCats(gp[plats[i].$1]!)))),
@@ -1791,7 +1791,7 @@ class LibTab extends StatelessWidget {
             title: 'Studios',
             height: 140,
             count: st.length > 10 ? 10 : st.length,
-            onMore: st.length > 10
+            onMore: st.isNotEmpty
                 ? () => Navigator.push(context, softRoute((_) => AllTilesScreen(title: 'Studios', tiles: [for (final s in st) StudioTile(name: s.name, icon: s.items.first.icon, logo: kStore ? '' : tmImg(s.logo, 'w185'), onTap: () => _grid(context, s.name, s.items))])))
                 : null,
             builder: (_, i) => StudioTile(name: st[i].name, icon: st[i].items.first.icon, logo: kStore ? '' : tmImg(st[i].logo, 'w185'), onTap: () => _grid(context, st[i].name, st[i].items)),
@@ -4912,7 +4912,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
         body: Stack(children: [
-          Video(controller: controller, controls: _syncMode ? NoVideoControls : AdaptiveVideoControls),
+          Video(controller: controller, controls: _syncMode || Device.tv ? NoVideoControls : AdaptiveVideoControls),
           if (Device.tv && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
           if (_statsOn) _statsPanel(),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)
