@@ -70,5 +70,20 @@ void main() {
       ]);
       expect(l.length, 1);
     });
+    test('« Wonka » et « Wonka 4K » ne font qu\'un seul titre', () {
+      final l = uniqueTitles([
+        Item(1, 'Wonka (2023)', '', 'mkv', 'c1', Kind.vod),
+        Item(2, 'Wonka 4K', 'http://exemple.org/w.jpg', 'mkv', 'c2', Kind.vod),
+      ]);
+      expect(l.length, 1);
+      expect(l.first.id, 2);     // la version avec affiche
+      expect(parseTitle('Wonka 4K (2023)', Kind.vod).q, '4K');
+      expect(parseTitle('Wonka (2023) 4K', Kind.vod).title, 'Wonka');
+    });
+    test('langue annoncée', () {
+      expect(langTag('Wonka (2023) MULTI'), 'MULTI');
+      expect(langTag('FR - Wonka VOSTFR'), 'VOSTFR');
+      expect(langTag('Wonka'), '');
+    });
   });
 }

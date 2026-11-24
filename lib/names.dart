@@ -219,7 +219,7 @@ Parsed parseTitle(String raw, Kind kind) {
       q = (m.group(1) ?? '').toLowerCase() == '4k' || (m.group(1) ?? '').toLowerCase() == 'uhd' ? '4K' : '';
       s = s.substring(m.end);
     }
-    final m2 = RegExp(r'[\s\-(]+((?:19|20)\d\d)\)?\s*((?:VOST\w*|MULTI|VF\w*|FR)\s*)*$').firstMatch(s);
+    final m2 = RegExp(r'[\s\-(]+((?:19|20)\d\d)\)?\s*((?:VOST\w*|MULTI|VF\w*|FR|4K|UHD|FHD|HD)\s*)*$').firstMatch(s);
     if (m2 != null && m2.start > 0) {
       y = m2.group(1)!;
       final g0 = m2.group(0)!;
@@ -227,6 +227,7 @@ Parsed parseTitle(String raw, Kind kind) {
       s = s.substring(0, m2.start) + (t.isNotEmpty ? ' $t' : '');
     }
     s = _strip(s, ' -');
+    if (q.isEmpty && RegExp(r'(^|[\s\-|(\[])(4k|uhd)([\s\-|)\]]|$)', caseSensitive: false).hasMatch(s)) q = '4K';      // « Wonka 4K » : même film que « Wonka »
   } else if (kind == Kind.series) {
     final m = RegExp(r'\(((?:19|20)\d\d)\)').firstMatch(s);
     if (m != null) {
@@ -272,10 +273,33 @@ List<Item> dedupeItems(List<Item> l) {
   return best.values.toList()..sort((a, b) => b.added.compareTo(a.added));
 }
 
-/// un seul exemplaire par titre (toutes catégories)
+/// un seul exemplaire par titre (toutes catégories) ; « Wonka » et « Wonka 4K » (sans année) ne font qu'un, la version avec affiche est gardée
 List<Item> uniqueTitles(Iterable<Item> l) {
-  final seen = <String>{};
-  return [for (final i in l) if (seen.add('${i.p.key}|${i.year}')) i];
+  final list = l.toList();
+  final years = <String, Set<String>>{};
+  for (final i in list) {
+    if (i.year.isNotEmpty) years.putIfAbsent(i.p.key, () => {}).add(i.year);
+  }
+  final at = <String, int>{};
+  final out = <Item>[];
+  for (final i in list) {
+    final ys = years[i.p.key];
+    final k = '${i.p.key}|${i.year.isNotEmpty ? i.year : (ys != null && ys.length == 1 ? ys.first : '')}';
+    final j = at[k];
+    if (j == null) {
+      at[k] = out.length;
+      out.add(i);
+    } else if (out[j].icon.isEmpty && i.icon.isNotEmpty) {
+      out[j] = i;
+    }
+  }
+  return out;
+}
+
+/// langue annoncée dans le nom d'un film ou d'une série (VOSTFR, MULTI, VF…), vide si rien
+String langTag(String raw) {
+  final m = RegExp(r'(?:^|[\s\-|(\[_])(vostfr|vost|multi|vff|vfq|vf|vo|french|truefrench)(?=$|[\s\-|)\]_])', caseSensitive: false).firstMatch(raw);
+  return m == null ? '' : m.group(1)!.toUpperCase();
 }
 
 const _genreRx = r'action|aventure|animation|anime|manga|comedie|humour|drame|horreur|epouvante|thriller|policier|crime|enquete|suspense|romance|romantique|science|fantas|fiction|\bsf\b|guerre|western|famil|enfant|jeunesse|kids|documentaire|\bdoc\b|musique|musical|concert|histoire|histori|biograph|sport|spectacle|theatre|divers|classique|ancien|erotique|adulte|emotion|mystere';

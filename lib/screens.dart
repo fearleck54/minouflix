@@ -2035,8 +2035,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               focusNode: i == 0 && sec.$1 == (pl.isNotEmpty ? 'Avec $_pName' : (l.any((x) => x.kind == Kind.vod) ? 'Films' : 'Séries')) ? _firstNode : null,
                               onTap: () {
                                 Store.addRecentSearch(q);
-                                Navigator.pop(context);
-                                widget.onOpen(sec.$2[i]);
+                                widget.onOpen(sec.$2[i]);      // la fiche s'ouvre PAR-DESSUS la recherche : retour = résultats
                               },
                             ),
                             childCount: sec.$2.length,
@@ -2843,13 +2842,13 @@ class _DetailScreenState extends State<DetailScreen> {
   bool _fReady = false;      // TMDB a répondu (ou délai dépassé) : on peut choisir l'image et le titre définitifs
   List<Episode> eps = [];
   int season = 0, ver = 0;
-  bool _verSet = false;
   bool _more = false;      // résumé déplié
   String? error;
 
   @override
   void initState() {
     super.initState();
+    _initVer();
     _loadFiche();
     _load();
   }
@@ -2857,7 +2856,7 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _load() async {
     try {
       if (widget.item.kind == Kind.series) {
-        final r = await widget.x.seriesDetail(widget.item.id);
+        final r = await widget.x.seriesDetail(_sid);
         d = r.$1;
         eps = r.$2;
         season = eps.isEmpty ? 0 : eps.first.season;
@@ -2910,7 +2909,7 @@ class _DetailScreenState extends State<DetailScreen> {
     return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:${c.toString().padLeft(2, '0')}' : '$m:${c.toString().padLeft(2, '0')}';
   }
 
-  Prog _epProg(Episode x) => Prog(kind: 'ep', id: x.id, sid: widget.item.id, ext: x.ext, name: 'S${x.season} · É${x.number}${x.title.isEmpty ? '' : ' · ${x.title}'}', icon: widget.item.icon, sname: widget.item.title);
+  Prog _epProg(Episode x) => Prog(kind: 'ep', id: x.id, sid: _sid, ext: x.ext, name: 'S${x.season} · É${x.number}${x.title.isEmpty ? '' : ' · ${x.title}'}', icon: widget.item.icon, sname: widget.item.title);
 
   /// MinouFlix Connect : lance ce titre (à la position de reprise) sur la télé du même compte
   Future<void> _sendTv(Prog? p) async {
@@ -2932,9 +2931,54 @@ class _DetailScreenState extends State<DetailScreen> {
   List<Item> get versions {
     final it = widget.item;
     final l = widget.lib;
-    if (l == null || it.kind != Kind.vod) return [it];
-    final v = l.rows.where((r) => r.p.key == it.p.key && r.year == it.year).toList();
-    return v.isEmpty ? [it] : v;
+    if (l == null || it.kind == Kind.live) return [it];
+    final known = l.rows.where((r) => r.p.key == it.p.key && r.year.isNotEmpty).map((r) => r.year).toSet();
+    final y = it.year.isNotEmpty ? it.year : (known.length == 1 ? known.first : '');
+    final v = l.rows.where((r) => r.p.key == it.p.key && (r.year == y || r.year.isEmpty || y.isEmpty)).toList();
+    if (!v.any((r) => r.id == it.id)) v.insert(0, it);
+    // qualité la plus haute d'abord
+    const rank = {'4K': 0, 'FHD': 1, 'HD': 2, '': 2, 'SD': 3};
+    v.sort((a, b) => (rank[a.quality] ?? 2).compareTo(rank[b.quality] ?? 2));
+    return v;
+  }
+
+  /// libellé d'une version : qualité · langue · catégorie · format
+  String _verLabel(Item v) {
+    final cat = widget.lib?.cats[v.catId]?.label ?? '';
+    return [v.quality.isEmpty ? 'HD' : v.quality, langTag(v.name), if (cat.isNotEmpty) cat, v.ext].where((e) => e.isNotEmpty).join(' · ');
+  }
+
+  /// série : identifiant de la version choisie (les épisodes en dépendent)
+  int get _sid {
+    final vs = versions;
+    return vs[ver.clamp(0, vs.length - 1)].id;
+  }
+
+  void _pickVer(int i) {
+    if (i == ver) return;
+    setState(() => ver = i);
+    Store.setStr('ver:${widget.item.kind.name}:${widget.item.p.key}', versions[i].id.toString());      // choix retenu pour ce titre
+    if (widget.item.kind == Kind.series) {
+      setState(() {
+        d = null;
+        eps = [];
+        error = null;
+      });
+      _load();
+    }
+  }
+
+  /// version de départ : celle retenue pour ce titre, sinon la qualité par défaut des réglages
+  void _initVer() {
+    final vs = versions;
+    if (vs.length < 2) return;
+    final saved = int.tryParse(Store.str('ver:${widget.item.kind.name}:${widget.item.p.key}')) ?? 0;
+    var i = saved == 0 ? -1 : vs.indexWhere((v) => v.id == saved);
+    if (i < 0) {
+      final want4k = Store.quality == '4k';
+      i = vs.indexWhere((v) => (v.quality == '4K') == want4k);
+    }
+    if (i >= 0) ver = i;
   }
 
   @override
@@ -2951,13 +2995,6 @@ class _DetailScreenState extends State<DetailScreen> {
     final seasons = eps.map((e) => e.season).toSet().toList()..sort();
     final top = MediaQuery.paddingOf(context).top;
     final vs = versions;
-    if (!_verSet && vs.length > 1) {
-      // version choisie d'après la qualité par défaut des réglages
-      _verSet = true;
-      final want4k = Store.quality == '4k';
-      final i = vs.indexWhere((v) => (v.quality == '4K') == want4k);
-      if (i >= 0) ver = i;
-    }
     final cur = vs[ver.clamp(0, vs.length - 1)];
     final meta = [
       if (det != null && det.year.isNotEmpty) det.year else if (it.year.isNotEmpty) it.year,
@@ -2974,7 +3011,7 @@ class _DetailScreenState extends State<DetailScreen> {
     final fav = '${it.kind.name}:${it.id}';
     final prs = Store.allProg().where((p) => !p.hidden && p.pos > 20000 && (p.dur == 0 || p.pos < p.dur * 0.95)).toList();
     final old = it.kind == Kind.vod ? prs.where((p) => p.kind == 'vod' && p.id == cur.id).firstOrNull : null;
-    final lastProg = it.kind == Kind.series ? (prs.where((p) => p.kind == 'ep' && p.sid == it.id).toList()..sort((a, b) => b.t.compareTo(a.t))).firstOrNull : null;
+    final lastProg = it.kind == Kind.series ? (prs.where((p) => p.kind == 'ep' && vs.any((v) => v.id == p.sid)).toList()..sort((a, b) => b.t.compareTo(a.t))).firstOrNull : null;
     final lastEp = lastProg == null ? null : eps.where((e) => e.id == lastProg.id).firstOrNull;
     final wide = Device.tv;     // fiche « salon » sur télé seulement
     // grand écran (télé) : fiche « cinéma » — grand visuel, titre, résumé et boutons compacts regroupés au même endroit
@@ -3136,7 +3173,8 @@ class _DetailScreenState extends State<DetailScreen> {
             if (det.director.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 0), child: Text('${L.en ? 'By' : 'De'} ${det.director}', style: T(13.5, w: 400, color: kMut))),
             if (vs.length > 1) ...[
               const SizedBox(height: 6),
-              Chips(labels: [for (final v in vs) '${v.quality.isEmpty ? 'HD' : v.quality} · ${v.ext}'], selected: ver.clamp(0, vs.length - 1), onSelect: (i) => setState(() => ver = i)),
+              const SectionTitle('Versions'),
+              Chips(labels: [for (final v in vs) _verLabel(v)], selected: ver.clamp(0, vs.length - 1), onSelect: _pickVer),
             ],
             if (error != null) Padding(padding: const EdgeInsets.all(20), child: Text(error!, style: T(14, color: const Color(0xFFFF6B7A)))),
             if (it.kind == Kind.series && eps.isNotEmpty) ...[
@@ -3403,6 +3441,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok ? '${L.tr('Son')} : ${L.tr(_modeName(m))}' : L.tr('Filtre audio non pris en charge par le lecteur sur cet appareil.'))));
       }),
       (CupertinoIcons.timer, 'Synchro audio : $_syncTxt', _syncOpen),
+      (CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer les statistiques' : 'Statistiques de lecture (réseau, tampon)', _statsToggle),
       if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
     ];
@@ -3839,6 +3878,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _setDelay(double v) async {
     _aDelay = double.parse(v.clamp(-5.0, 5.0).toStringAsFixed(2));
+    Store.setStr('adelay', '$_aDelay');      // le calage reste pour tous les films suivants (même appareil)
     try {
       final dynamic n = player.platform;
       await n.setProperty('audio-delay', '$_aDelay');
@@ -4046,9 +4086,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.player.addListener(_remoteCtl);
     unawaited(_loadSegs());
     _vp = player.stream.videoParams.listen((_) => _matchFps());
-    (_live ? _bufferLive() : _bufferVod()).whenComplete(() {      // réglages du lecteur posés AVANT l'ouverture du flux
+    _aDelay = double.tryParse(Store.str('adelay')) ?? 0;
+    (_live ? _bufferLive() : _bufferVod()).whenComplete(() async {      // réglages du lecteur posés AVANT l'ouverture du flux
+      if (_aDelay != 0) {
+        try {
+          await (player.platform as dynamic).setProperty('audio-delay', '$_aDelay');
+        } catch (_) {}
+      }
       if (mounted) _open(widget.url);
     });
+    _enterFull();
     if (widget.next.isNotEmpty && Store.flag('autonext')) _done = player.stream.completed.listen((c) { if (c) _autoNext(); });
     final p = _prog;
     if (p != null) {
@@ -4061,6 +4108,98 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   bool _resumePending = false;
+
+  /// iPhone, iPad, téléphone Android : le lecteur démarre directement en plein écran (barre d'état masquée, téléphone en paysage)
+  void _enterFull() {
+    if (kIsWeb || Device.tv || !(Platform.isIOS || Platform.isAndroid)) return;
+    _full = true;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    final v = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+    if (v != null && v.physicalSize.shortestSide / v.devicePixelRatio < 600) {
+      SystemChrome.setPreferredOrientations(const [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    }
+  }
+
+  bool _full = false;
+
+  void _leaveFull() {
+    if (!_full) return;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+  }
+
+  // ---------- statistiques du lecteur (réseau, tampon, décodage) ----------
+  bool _statsOn = false;
+  Timer? _statsT;
+  Map<String, String> _st = const {};
+  int _bufEvents = 0;
+  StreamSubscription<bool>? _bufSub;
+
+  void _statsToggle() {
+    setState(() => _statsOn = !_statsOn);
+    _statsT?.cancel();
+    if (!_statsOn) return;
+    _bufSub ??= player.stream.buffering.listen((b) {
+      if (b) _bufEvents++;
+    });
+    _statsPoll();
+    _statsT = Timer.periodic(const Duration(seconds: 1), (_) => _statsPoll());
+  }
+
+  Future<void> _statsPoll() async {
+    final dynamic n = player.platform;
+    Future<String> g(String k) async {
+      try {
+        return '${await n.getProperty(k)}';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    String rate(String bits, {bool bytes = false}) {
+      final v = double.tryParse(bits);
+      if (v == null || v <= 0) return '–';
+      final mbit = (bytes ? v * 8 : v) / 1e6;
+      return mbit >= 1 ? '${mbit.toStringAsFixed(1)} Mb/s' : '${(mbit * 1000).round()} kb/s';
+    }
+
+    final st = player.state;
+    final ahead = (st.buffer - st.position).inSeconds.clamp(0, 99999);
+    final m = <String, String>{
+      'Image': '${st.width ?? 0}×${st.height ?? 0} · ${(await g('video-codec')).split(' ').first}',
+      'Débit vidéo': rate(await g('video-bitrate')),
+      'Débit audio': rate(await g('audio-bitrate')),
+      'Réseau (lecture)': rate(await g('cache-speed'), bytes: true),
+      'Tampon': '$ahead s${st.buffering ? ' · chargement…' : ''}',
+      'Coupures (tampon vide)': '$_bufEvents',
+      'Images perdues': '${await g('decoder-frame-drop-count')} décodeur · ${await g('frame-drop-count')} affichage',
+      'Cadence': '${(double.tryParse(await g('estimated-vf-fps')) ?? 0).toStringAsFixed(1)} i/s',
+      'Décalage son/image': '${(((double.tryParse(await g('avsync')) ?? 0) * 1000).round())} ms',
+      'Décodage': (await g('hwdec-current')).isEmpty ? '–' : await g('hwdec-current'),
+    };
+    if (mounted && _statsOn) setState(() => _st = m);
+  }
+
+  Widget _statsPanel() => Positioned(
+        top: MediaQuery.paddingOf(context).top + 62,
+        left: 14,
+        child: IgnorePointer(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(color: const Color(0xCC000000), borderRadius: BorderRadius.circular(14)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text('Statistiques', style: T(13, w: 750, color: kAccent)),
+              const SizedBox(height: 4),
+              if (_st.isEmpty) Text('Mesure en cours…', style: T(12.5, color: kMut)),
+              for (final e in _st.entries)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text('${e.key} : ${e.value}', style: T(12.5, w: 500, color: Colors.white)),
+                ),
+            ]),
+          ),
+        ),
+      );
 
   /// reprise : on va au temps enregistré, puis on vérifie (le lecteur peut ignorer un déplacement demandé trop tôt) ; jusqu'à 4 essais
   Future<void> _resumeAt(int ms) async {
@@ -4101,6 +4240,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _stableT?.cancel();
     _noteT?.cancel();
     _syncT?.cancel();
+    _statsT?.cancel();
+    _bufSub?.cancel();
+    _leaveFull();
     _ap?.cancel();
     _nextNode.dispose();
     _skipNode.dispose();
@@ -4412,8 +4554,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
         body: Stack(children: [
-          Video(controller: controller),
-          Positioned(left: 0, right: 0, bottom: 0, height: Device.tv && _tvUi ? 34 : 3, child: _bufBar()),
+          Video(controller: controller, controls: _syncMode ? NoVideoControls : null),
+          if (Device.tv && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
+          if (_statsOn) _statsPanel(),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)
           if (_alts.isEmpty)
             Positioned.fill(
@@ -4492,7 +4635,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       SizedBox(width: 130, child: Text(_syncTxt, textAlign: TextAlign.center, style: T(26, w: 750))),
                       IconButton(iconSize: 34, icon: const Icon(CupertinoIcons.plus_circle_fill), onPressed: () => _syncStep(1)),
                     ]),
-                    Text('← son plus tôt   ·   son plus tard →   ·   OK pour fermer', style: T(12.5, color: kMut)),
+                    if (Device.tv) Text('← son plus tôt   ·   son plus tard →   ·   OK pour fermer', style: T(12.5, color: kMut)) else TextButton(onPressed: _syncClose, child: Text('OK', style: T(16, w: 700, color: kAccent))),
                     if (_syncRead.isNotEmpty && (double.tryParse(_syncRead.replaceAll(',', '.')) ?? _aDelay) != _aDelay) Text('non appliqué par le lecteur ($_syncRead)', style: T(12, color: const Color(0xFFFFB86B))),
                   ]),
                 ),
@@ -4531,12 +4674,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           ),
           if (Device.tv && _tvUi) _tvOverlay(),
-          if (!Device.tv) Positioned(
+          if (!Device.tv && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
             child: _TopBtn(node: _first, icon: CupertinoIcons.chevron_back, tip: 'Retour', onTap: () => Navigator.maybePop(context)),
           ),
-          if (!Device.tv) Positioned(
+          if (!Device.tv && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 64,     // laisse la place au bouton Retour : la rangée défile au lieu de passer dessus
             right: 12,
@@ -4576,6 +4719,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ],
               const SizedBox(width: 8),
               _TopBtn(icon: CupertinoIcons.captions_bubble, tip: 'Audio et sous-titres', onTap: _tracks),
+              const SizedBox(width: 8),
+              _TopBtn(icon: CupertinoIcons.chart_bar_alt_fill, tip: 'Statistiques de lecture', onTap: _statsToggle),
               const SizedBox(width: 8),
               _TopBtn(icon: CupertinoIcons.ellipsis, tip: 'Plus d\'options', onTap: _moreMenu),
             ]),
