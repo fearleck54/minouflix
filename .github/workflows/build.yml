@@ -161,3 +161,33 @@ jobs:
           zip -qry MinouFlix.ipa Payload
       - uses: actions/upload-artifact@v4
         with: { name: minouflix-ipa, path: MinouFlix.ipa }
+
+  windows:
+    # à la demande (message de commit contenant [win] ou lancement manuel) : installateur .exe + zip portable
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[win]')
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Générer le projet Windows
+        run: flutter create --platforms=windows --org fr.maison --project-name minouflix .
+      - name: Titre de la fenêtre
+        run: sed -i 's/L"minouflix"/L"MinouFlix"/' windows/runner/main.cpp
+      - run: flutter pub get
+      - name: Icône (logo MinouFlix)
+        run: |
+          printf 'flutter_launcher_icons:\n  android: false\n  ios: false\n  image_path: "assets/icon.png"\n  windows:\n    generate: true\n    image_path: "assets/icon.png"\n    icon_size: 256\n' > icons-windows.yaml
+          dart run flutter_launcher_icons -f icons-windows.yaml
+      - run: flutter build windows --release --dart-define=UPDATE_URL=${{ secrets.UPDATE_URL }} --dart-define=TMDB_KEY=${{ secrets.TMDB_KEY }} --dart-define=SUBDL_KEY=${{ secrets.SUBDL_KEY }}
+      - name: Installateur (.exe) et zip portable
+        run: |
+          choco install innosetup -y --no-progress
+          V=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/DAppVersion=$V" tools/windows/minouflix.iss
+          cd build/windows/x64/runner/Release && 7z a -tzip ../../../../../dist/MinouFlix-portable.zip . > /dev/null
+      - uses: actions/upload-artifact@v4
+        with: { name: minouflix-windows, path: dist/ }

@@ -4877,6 +4877,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
           if (e is! KeyDownEvent) return KeyEventResult.ignored;
           final k = e.logicalKey;
           final onBar = FocusManager.instance.primaryFocus != node;
+          // Windows (clavier + souris) : espace = pause, ← → = ±10 s (films), Échap = retour
+          if (!kIsWeb && Platform.isWindows && !onBar && _fail == null) {
+            if (k == LogicalKeyboardKey.space) {
+              player.playOrPause();
+              return KeyEventResult.handled;
+            }
+            if (!_live && (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.arrowRight)) {
+              _seekBy(k == LogicalKeyboardKey.arrowLeft ? -10 : 10);
+              return KeyEventResult.handled;
+            }
+            if (k == LogicalKeyboardKey.escape) {
+              Navigator.maybePop(context);
+              return KeyEventResult.handled;
+            }
+          }
           // message d'échec affiché : les flèches circulent entre ses boutons (les touches chaîne zappent toujours)
           if (_fail != null && onBar && k != LogicalKeyboardKey.channelUp && k != LogicalKeyboardKey.channelDown) return KeyEventResult.ignored;
           // gauche / droite : on passe aux boutons du haut
