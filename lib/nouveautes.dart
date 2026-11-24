@@ -5,6 +5,7 @@ const kNews = <(String, List<String>)>[
     'Télé : la sélection est maintenant visible sur les studios (logos clairs) et sur « Reprendre ».',
     'Studios : Marvel et DC toujours dans la liste rapide.',
     'Direct (télé) : ↑ garde la sélection sur le lecteur.',
+    'Reprise : le lecteur surveille 25 s et replace la lecture au temps enregistré si le flux repart de zéro.',
     'Nouvel écran de démarrage : chat animé, barre de chargement et petites phrases.',
   ]),
   ('Versions 207 à 209', [

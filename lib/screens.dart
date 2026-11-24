@@ -4492,23 +4492,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
       for (var w = 0; w < 25 && !_trSet && mounted; w++) {
         await Future<void>.delayed(const Duration(milliseconds: 200));
       }
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
-      for (var i = 0; i < 5 && mounted; i++) {
-        // le démarrage au bon temps est déjà demandé ; on vérifie jusqu'à 6 s (flux lent), puis on force le déplacement
-        var ok = false;
-        for (var w = 0; w < 12 && mounted; w++) {
-          if ((player.state.position.inMilliseconds - ms).abs() < 15000) {
-            ok = true;
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      // la position annoncée au chargement peut être celle demandée (« start ») alors que le flux repart de zéro juste après :
+      // on surveille ~25 s et on ne conclut qu'après 3 s consécutives au bon temps ET lecture qui avance
+      var good = 0, seeks = 0, lastSeek = DateTime.fromMillisecondsSinceEpoch(0);
+      Duration? first;
+      for (var w = 0; w < 50 && mounted; w++) {
+        final pos = player.state.position;
+        if (pos.inMilliseconds > ms + 90000) break;      // déplacé à la main plus loin : on ne touche à rien
+        if ((pos.inMilliseconds - ms).abs() < 15000) {
+          first ??= pos;
+          good++;
+          if (good >= 6 && pos - first >= const Duration(seconds: 1)) {
+            Journal.add('Reprise : position ${pos.inSeconds} s, lecture confirmée au bon temps');
             break;
           }
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+        } else {
+          good = 0;
+          first = null;
+          if (seeks < 5 && DateTime.now().difference(lastSeek) > const Duration(milliseconds: 2500) && !player.state.buffering) {
+            seeks++;
+            lastSeek = DateTime.now();
+            Journal.add('Reprise : le lecteur est à ${pos.inSeconds} s au lieu de ${ms ~/ 1000} s, déplacement (essai $seeks)');
+            await player.seek(Duration(milliseconds: ms));
+          }
         }
-        if (ok) {
-          Journal.add('Reprise : position ${player.state.position.inSeconds} s, bon temps');
-          break;
-        }
-        Journal.add('Reprise : le lecteur n\'a pas atteint le temps enregistré (position ${player.state.position.inSeconds} s), nouvel essai');
-        await player.seek(Duration(milliseconds: ms));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
       }
     } catch (_) {}
     _resumePending = false;
