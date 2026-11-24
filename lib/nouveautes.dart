@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 212', [
+    'Télé : retirer un titre de « Continuer à regarder » place la sélection sur le titre suivant (plus de retour à l\'accueil).',
+    'Plateformes : fin du clignotement des logos (HBO Max, Starz).',
+  ]),
   ('Version 211', [
     'Direct (télé) : ↑ ne fait plus perdre la sélection (les commandes cachées du lecteur la volaient).',
     'Sélection à deux tons (blanc et noir, lisible même en cas de daltonisme) : visible sur les affiches et logos clairs.',

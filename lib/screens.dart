@@ -631,6 +631,14 @@ String etaLabel(int sec) {
 }
 
 /// ---------- 3. coque : en-tête, navigation, chargement du catalogue ----------
+final _contNodes = <FocusNode>[];
+FocusNode _contNode(int i) {
+  while (_contNodes.length <= i) {
+    _contNodes.add(FocusNode(debugLabel: 'continuer'));
+  }
+  return _contNodes[i];
+}
+
 class HomeScreen extends StatefulWidget {
   final Creds creds;
   final VoidCallback onReset, onChangeSelection;
@@ -1480,7 +1488,7 @@ class HomeTab extends StatelessWidget {
     final mylist = [...?vl?.rows.where((i) => favs.contains('vod:${i.id}')), ...?sl?.rows.where((i) => favs.contains('series:${i.id}'))];
     final secs = <String, Widget>{
       'hero': feat.isNotEmpty ? HeroBanner(items: feat.take(7).toList(), detailFor: detailFor, onPlay: onPlay, onInfo: onInfo) : SizedBox(height: pad.top + 70),
-      'continue': Builder(builder: (ctx) => Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
+      'continue': Builder(builder: (ctx) => Rail(title: 'Continuer à regarder', height: 150, count: cont.length, moreLabel: '', builder: (_, i) => ContinueCard(focusNode: _contNode(i), p: cont[i], onTap: () => onResume(cont[i]), onRemove: () async {
             // appui long : confirmation avant de retirer (la position de lecture est conservée côté fiche tant qu'on ne relance pas)
             final ok = await showDialog<bool>(
               context: ctx,
@@ -1496,6 +1504,15 @@ class HomeTab extends StatelessWidget {
             if (ok != true) return;
             await Store.hideProg(cont[i].key);
             onTab(0);
+            if (Device.tv && cont.length > 1) {      // la sélection va sur la carte d'après (la précédente si c'était la dernière), pas sur l'accueil
+              final j = i < cont.length - 1 ? i : cont.length - 2;
+              for (final ms in const [120, 350, 800]) {
+                Timer(Duration(milliseconds: ms), () {
+                  final n = _contNode(j);
+                  if (n.context != null && n.canRequestFocus && FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<ContinueCard>() == null) n.requestFocus();
+                });
+              }
+            }
           }))),
       'mylist': Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
       'soon': CachedFuture<List<Soon>>(

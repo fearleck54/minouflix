@@ -1181,9 +1181,10 @@ class PlatTile extends StatefulWidget {
 
 class _PlatTileState extends State<PlatTile> {
   // le logo en ligne n'est demandé qu'une fois (un nouvel appel à chaque reconstruction, p. ex. au passage de la sélection, faisait clignoter la tuile)
-  late final Future<String?>? _logo = platLogos[widget.keyName] == null ? Providers.logoFor(widget.keyName, widget.name) : null;
+  static final _res = <String, String?>{};      // logos déjà trouvés : affichés tout de suite, sans repasser par le libellé (clignotement sur Max, Starz…)
+  late final Future<String?>? _logo = platLogos[widget.keyName] == null && !_res.containsKey(widget.keyName) ? Providers.logoFor(widget.keyName, widget.name).then((v) => _res[widget.keyName] = v) : null;
 
-  Widget _img(String path) => CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w185$path', fit: BoxFit.cover, width: 96, height: 96, errorWidget: (_, __, ___) => _label());
+  Widget _img(String path) => CachedNetworkImage(imageUrl: 'https://image.tmdb.org/t/p/w185$path', fit: BoxFit.cover, width: 96, height: 96, fadeInDuration: const Duration(milliseconds: 100), fadeOutDuration: Duration.zero, placeholder: (_, __) => const SizedBox.shrink(), errorWidget: (_, __, ___) => _label());
   Widget _label() => Padding(padding: const EdgeInsets.all(8), child: Center(child: Text(widget.name, textAlign: TextAlign.center, style: T(13, w: 700))));
 
   @override
@@ -1201,7 +1202,13 @@ class _PlatTileState extends State<PlatTile> {
             decoration: BoxDecoration(color: kBg3, borderRadius: BorderRadius.circular(22), border: Border.all(color: const Color(0x14FFFFFF), width: 0.6)),
             clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
-            child: logo != null ? _img(logo) : FutureBuilder<String?>(future: _logo, builder: (_, sn) => sn.data != null ? _img(sn.data!) : _label()),
+            child: logo != null
+                ? _img(logo)
+                : FutureBuilder<String?>(
+                    future: _logo,
+                    initialData: _res[widget.keyName],
+                    builder: (_, sn) => sn.data != null ? _img(sn.data!) : (sn.connectionState == ConnectionState.done || _res.containsKey(widget.keyName) ? _label() : const SizedBox.shrink()),
+                  ),
           ),
         ),
         const SizedBox(height: 7),
@@ -1296,7 +1303,8 @@ class _FavButtonState extends State<FavButton> {
 class ContinueCard extends StatelessWidget {
   final Prog p;
   final VoidCallback onTap, onRemove;
-  const ContinueCard({super.key, required this.p, required this.onTap, required this.onRemove});
+  final FocusNode? focusNode;      // télé : après un retrait, la sélection va sur la carte suivante
+  const ContinueCard({super.key, required this.p, required this.onTap, required this.onRemove, this.focusNode});
 
   String _dur(int ms) {
     final m = ms ~/ 60000;
@@ -1309,6 +1317,7 @@ class ContinueCard extends StatelessWidget {
     return SizedBox(
       width: 300,
       child: FocusCard(
+        focusNode: focusNode,
         onTap: onTap,
         onLong: onRemove,
         radius: 20,
