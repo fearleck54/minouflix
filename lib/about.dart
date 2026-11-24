@@ -32,6 +32,19 @@ class _TextPageState extends State<TextPage> {
   final sc = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // journal : on arrive sur les lignes les plus récentes (en bas), pas sur celles d'il y a des jours
+    if (widget.mono.isNotEmpty) {
+      for (final ms in const [0, 250]) {
+        Future<void>.delayed(Duration(milliseconds: ms), () {
+          if (mounted && sc.hasClients) sc.jumpTo(sc.position.maxScrollExtent);
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
     sc.dispose();
     super.dispose();

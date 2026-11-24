@@ -3666,24 +3666,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         player.stream.error.listen((e) => Journal.add('Bande-annonce : erreur du lecteur', e)),
       ];
     }
-    // mode son ≠ Standard : on ouvre en pause, on laisse le lecteur annoncer ses voies audio, on pose le filtre (chaîne adaptée au nombre de voies), PUIS on lance
-    // (changer le filtre en pleine lecture pouvait couper le son)
-    final filtered = _mode != 'off';
-    Future<void>.value().then((_) => player.open(Media(url), play: !filtered)).then((_) async {
+    // le filtre du mode son est posé AVANT l'ouverture du flux
+    Future<void>.value().then((_) => _applyNight()).then((_) => player.open(Media(url))).then((_) async {
       final a = widget.audioUrl;
       if (a == null) return;
       try {
         await (player.platform as dynamic).command(['audio-add', a, 'select']);
       } catch (_) {}
-    }).then((_) async {
-      if (!filtered || !mounted) return;
-      try {
-        await player.stream.audioParams.firstWhere((p) => (p.channelCount ?? 0) > 0).timeout(const Duration(milliseconds: 2500));
-      } catch (_) {}
-      if (!mounted) return;
-      await _applyNight();
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      if (mounted) await player.play();
     });
   }
 
@@ -3950,41 +3939,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   static String _modeName(String m) => const {'off': 'Standard', 'cinema': 'Cinéma', 'night': 'Nuit', 'voice': 'Dialogues renforcés'}[m] ?? 'Standard';
 
-  /// filtres mpv (ffmpeg) de chaque mode, d'après ce que font les barres de son haut de gamme :
-  /// · Cinéma : dynamique d'origine, voie des basses (LFE) remise dans le mélange stéréo, un peu de grave et d'aigu
-  /// · Nuit (« Night Sound » Sonos) : forte compression de dynamique, grave réduit, limiteur
-  /// · Dialogues (« Speech Enhancement » Sonos, Dolby Dialogue Enhancer) : voie centrale poussée (5.1) ou centre du mélange poussé (stéréo),
-  ///   égaliseur de la voix (présence 2–3,5 kHz), le reste un peu compressé
+  /// filtres de chaque mode. Le lecteur embarqué (libmpv Android et iOS) est compilé SANS la plupart des filtres audio de ffmpeg
+  /// (--disable-filters, seuls « equalizer » et « overlay » restent) : pan, bass, treble, highpass, acompressor, alimiter n'existent pas et
+  /// faisaient échouer toute la chaîne (« Audio filter initialized failed ») = plus de son. On n'utilise donc que des « equalizer » (cloche paramétrique),
+  /// qui marchent quel que soit le nombre de voies.
+  /// · Cinéma : graves et aigus un peu plus présents
+  /// · Nuit : graves et explosions nettement atténués (pas de compresseur de dynamique disponible)
+  /// · Dialogues : grave coupé, présence de la voix (1,5–4 kHz) poussée
   String _filters(String mode, int ch) {
-    final sur = ch >= 8;      // 7.1 : voies latérales c6 c7 en plus
-    String down(double fl, double fc, double bl, double lfe, double sd) =>
-        'pan=stereo|c0=${fl}*c0+${fc}*c2+${bl}*c4+${lfe}*c3${sur ? '+${sd}*c6' : ''}|c1=${fl}*c1+${fc}*c2+${bl}*c5+${lfe}*c3${sur ? '+${sd}*c7' : ''}';
+    String eq(int f, double w, double g) => 'equalizer=f=$f:t=q:w=$w:g=$g';
     switch (mode) {
       case 'cinema':
-        return [
-          if (ch >= 6) down(0.55, 0.42, 0.32, 0.45, 0.3),
-          'bass=g=3:f=90',
-          'treble=g=2:f=7500',
-          'alimiter=limit=0.95',
-        ].join(',');
+        return [eq(70, 0.8, 4), eq(140, 1, 1.5), eq(7500, 0.6, 3)].join(',');
       case 'night':
-        return [
-          if (ch >= 6) down(0.5, 0.6, 0.3, 0, 0.25),
-          'highpass=f=70',
-          'bass=g=-4:f=130',
-          'acompressor=threshold=0.035:ratio=9:attack=6:release=280:makeup=7',
-          'alimiter=limit=0.75',
-        ].join(',');
+        return [eq(45, 0.7, -10), eq(90, 0.8, -7), eq(180, 1, -3), eq(6000, 0.8, -1.5)].join(',');
       case 'voice':
-        return [
-          if (ch >= 6) down(0.4, 2.0, 0.3, 0, 0.2) else if (ch == 2) 'pan=stereo|c0=0.85*c0+0.45*c1|c1=0.45*c0+0.85*c1',
-          'highpass=f=140',
-          'equalizer=f=250:t=q:w=0.7:g=-3',
-          'equalizer=f=2000:t=q:w=0.8:g=5',
-          'equalizer=f=3500:t=q:w=0.8:g=3',
-          'acompressor=threshold=0.08:ratio=3:attack=10:release=250:makeup=3',
-          'alimiter=limit=0.9',
-        ].join(',');
+        return [eq(60, 0.7, -8), eq(120, 0.8, -4), eq(250, 0.7, -3), eq(1800, 0.8, 5), eq(3200, 0.8, 4)].join(',');
     }
     return '';
   }
@@ -3993,9 +3963,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<bool> _applyNight() async {
     try {
       final dynamic n = player.platform;
-      final ch = player.state.audioParams.channelCount ?? 2;
-      _lastCh = ch;
-      final f = _filters(_mode, ch);
+      final f = _filters(_mode, 2);
       final af = f.isEmpty ? '' : 'lavfi=[$f]';
       if (af == _lastAf) return true;      // identique : on ne réinitialise pas la chaîne audio (cela peut perturber la position)
       _lastAf = af;
@@ -4172,9 +4140,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
             const SizedBox(height: 4),
             for (final (id, name, sub) in const [
               ('off', 'Standard', 'Son d\'origine, sans aucun traitement.'),
-              ('cinema', 'Mode Cinéma', 'Dynamique d\'origine, graves et aigus plus présents. Pour un film à volume normal.'),
-              ('night', 'Mode nuit', 'Explosions et combats atténués, grave réduit. Pour regarder à bas volume sans déranger.'),
-              ('voice', 'Dialogues renforcés', 'Voix plus nettes, musique et bruitages en retrait. Quand les dialogues sont difficiles à comprendre.'),
+              ('cinema', 'Mode Cinéma', 'Graves et aigus plus présents. Pour un film à volume normal.'),
+              ('night', 'Mode nuit', 'Graves et explosions nettement atténués. Pour regarder à bas volume sans déranger.'),
+              ('voice', 'Dialogues renforcés', 'Voix plus nettes (grave coupé, présence de la voix poussée). Quand les dialogues sont difficiles à comprendre.'),
             ])
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -4195,11 +4163,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (mounted) setState(() => _showTitle = false);
     });
     if (!kIsWeb && Platform.isAndroid && Device.touch) _pip.invokeMethod('arm', true).catchError((_) {});
-    _ap = player.stream.audioParams.listen((a) {
-      if ((a.channelCount ?? 2) == _lastCh) return;
-      _apT?.cancel();      // le démarrage envoie plusieurs changements d'affilée : on n'agit qu'une fois, quand ils sont finis (réinitialiser la chaîne audio en pleine ouverture peut couper le son)
-      _apT = Timer(const Duration(milliseconds: 500), _applyNight);
-    });
     _tr = player.stream.tracks.listen(_applyPrefs);
     _playSub = player.stream.playing.listen((_) {
       if (mounted && _tvUi) setState(() {});
@@ -4215,6 +4178,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _errSub = player.stream.error.listen((e) {
       Journal.add('Lecteur', e);
+      if (e.contains('Audio filter') && _lastAf != null && _lastAf!.isNotEmpty) {
+        // chaîne audio refusée par le lecteur : sans ce retrait, plus aucun son
+        _lastAf = '';
+        (player.platform as dynamic).setProperty('af', '');
+        Store.setStr('snd_mode', 'off');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(L.tr('Filtre audio non pris en charge par le lecteur sur cet appareil.'))));
+      }
       // certaines erreurs ne sont pas bloquantes : échec seulement si la lecture avait démarré et n'avance plus
       // (au démarrage, c'est la surveillance des 15 s qui tranche)
       final at = player.state.position;
