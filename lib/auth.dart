@@ -75,6 +75,31 @@ class Account {
     }
   }
 
+  /// mot de passe oublié, étape 1 : un e-mail avec un code à 6 chiffres est envoyé (null = envoyé, sinon message d'erreur)
+  static Future<String?> sendReset(String mail) async {
+    try {
+      final r = await http.post(Uri.parse('$kSbUrl/auth/v1/recover'), headers: _h, body: jsonEncode({'email': mail.trim()})).timeout(const Duration(seconds: 15));
+      return r.statusCode >= 300 ? _err(r) : null;
+    } catch (_) {
+      return 'Connexion impossible : vérifie ta connexion Internet.';
+    }
+  }
+
+  /// étape 2 : le code reçu ouvre une session, puis le nouveau mot de passe est enregistré (null = connecté avec le nouveau mot de passe)
+  static Future<String?> resetWithCode(String mail, String code, String newPw) async {
+    try {
+      final v = await http.post(Uri.parse('$kSbUrl/auth/v1/verify'), headers: _h, body: jsonEncode({'type': 'recovery', 'email': mail.trim(), 'token': code.trim()})).timeout(const Duration(seconds: 15));
+      if (v.statusCode >= 300) return 'Code incorrect ou expiré : demande-en un nouveau.';
+      final m = jsonDecode(v.body) as Map<String, dynamic>;
+      final r = await http.put(Uri.parse('$kSbUrl/auth/v1/user'), headers: {..._h, 'Authorization': 'Bearer ${m['access_token']}'}, body: jsonEncode({'password': newPw})).timeout(const Duration(seconds: 15));
+      if (r.statusCode >= 300) return _err(r);
+      await _adopt(m, newPw);
+      return null;
+    } catch (_) {
+      return 'Connexion impossible : vérifie ta connexion Internet.';
+    }
+  }
+
   static Future<void> _adopt(Map<String, dynamic> m, String pw) async {
     access = '${m['access_token']}';
     refresh = '${m['refresh_token']}';

@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 215', [
+    'Compte : « Mot de passe oublié ? » sur l\'écran de connexion (code reçu par e-mail, puis nouveau mot de passe).',
+  ]),
   ('Version 213', [
     'Retirer un titre de « Continuer à regarder » se synchronise maintenant avec tes autres appareils.',
     'Synchronisation : la liste, la reprise et les playlists de chaque profil et de chaque source suivent maintenant (avant, seul le profil d\'origine).',
