@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 240', [
+    'Synchro : les échecs ne sont plus silencieux (journal), et la liste des sources se met à jour d\'elle-même quand une source est retirée depuis un autre appareil.',
+  ]),
   ('Version 239', [
     'Sport : toucher un match ouvre toujours la liste des chaînes possibles (la meilleure en premier, avec l\'heure du programme) au lieu de lancer une chaîne d\'office.',
     'Sport : la puce « En direct » n\'affiche plus le nombre de matchs.',

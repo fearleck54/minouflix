@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'auth.dart';
+import 'journal.dart';
 import 'keys.dart';
 import 'store.dart';
 import 'xtream.dart';
@@ -79,7 +80,10 @@ class Sync {
       final h = await _h();
       if (h == null) return false;
       final d0 = await _pull(h);
-      if (d0 == null) return false;
+      if (d0 == null) {
+        Journal.add('Synchro : copie du compte introuvable (session ou réseau)');
+        return false;
+      }
       pulled = true;
       if (d0.isNotEmpty && !Store.flag('acct_known', false)) await Store.setFlag('acct_known', true);
       final d = <String, dynamic>{...d0};
@@ -145,6 +149,7 @@ class Sync {
         if (delT > 0 && delT > Store.credsT && await Store.credsOf('') != null) {
           await Store.removeSource('', at: delT);
           changed = true;
+          Journal.add('Synchro : source d\'origine supprimée sur un autre appareil, retirée ici');
         }
         if (delT > 0) d['creds_del_t'] = delT;
         if (rc is String && rt > lt(Store.credsT) && rt > delT) {
@@ -167,7 +172,10 @@ class Sync {
         }
         // sources supplémentaires : chiffrées aussi, ajoutées ou modifiées sur tes autres appareils (une suppression faite sur un appareil est retenue et suivie par les autres)
         final (dels, delChanged) = await Store.mergeDeletions(d['sources_del'] is Map ? (d['sources_del'] as Map).cast<String, dynamic>() : <String, dynamic>{});
-        if (delChanged) changed = true;
+        if (delChanged) {
+          changed = true;
+          Journal.add('Synchro : source supprimée sur un autre appareil, retirée ici');
+        }
         if (dels.isNotEmpty) d['sources_del'] = dels;
         final encX = await Account.open('${d['sources'] ?? ''}');
         if (encX != null && await Store.mergeSources(jsonDecode(encX) as List)) changed = true;
@@ -226,9 +234,11 @@ class Sync {
         d['feedback'] = [...(d['feedback'] is List ? d['feedback'] as List : const []), for (final e in fb) {...e}..remove('sent')];
       }
       final r = await http.post(Uri.parse('$kSbUrl/rest/v1/user_data'), headers: {...h, 'Prefer': 'resolution=merge-duplicates'}, body: jsonEncode({'user_id': Account.uid, 'data': d, 'updated_at': DateTime.now().toUtc().toIso8601String()})).timeout(const Duration(seconds: 12));
+      if (r.statusCode >= 300) Journal.add('Synchro : envoi refusé par le serveur (${r.statusCode})');
       if (r.statusCode < 300 && fb.isNotEmpty) await Store.markFeedbackSent([for (final e in fb) e['id']]);
       return changed;
-    } catch (_) {
+    } catch (e) {
+      Journal.add('Synchro : échec', e);
       return false;
     } finally {
       _busy = false;

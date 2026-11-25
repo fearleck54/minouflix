@@ -21,7 +21,14 @@ class _SourcesState extends State<SourcesScreen> {
   @override
   void initState() {
     super.initState();
+    Store.srcTick.addListener(_load);      // une source retirée par la synchro disparaît de la liste affichée
     _load();
+  }
+
+  @override
+  void dispose() {
+    Store.srcTick.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {

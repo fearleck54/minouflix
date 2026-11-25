@@ -131,6 +131,7 @@ class Store {
         changed = true;
       }
     }
+    if (changed) srcTick.value++;
     return (m, changed);
   }
 
@@ -772,6 +773,7 @@ class Store {
 
   /// change quand la barre du bas ou l'écran d'accueil sont personnalisés : l'accueil se redessine tout de suite
   static final persoTick = ValueNotifier<int>(0);
+  static final srcTick = ValueNotifier<int>(0);      // la liste des sources a changé (retrait venu d'un autre appareil)
 
   // ---- barre du bas : ordre des onglets, onglets cachés, onglet d'ouverture (0 Accueil, 1 Direct, 2 Films, 3 Séries, 4 Sport) — synchronisés
   static List<int> tabOrder() {
