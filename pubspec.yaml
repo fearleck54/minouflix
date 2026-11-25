@@ -30,6 +30,7 @@ dependencies:
   media_kit_libs_video: ^1.0.4
   youtube_explode_dart: ^3.1.0
   cast: ^2.1.0
+  bonsoir: ^5.1.11      # `cast` ne comprend pas la version 7 de bonsoir (interface changée)
 
 dev_dependencies:
   flutter_test:
