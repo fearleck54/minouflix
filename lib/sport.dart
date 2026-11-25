@@ -357,6 +357,24 @@ Future<List<Ev>> fetchSport(Iterable<String> keys) async {
   return f;
 }
 
+/// scores en direct : redemande seulement les compétitions qui ont un match en cours, puis met à jour l'affichage
+Future<void> refreshLive() async {
+  final ks = {for (final e in lastEvents) if (e.live) e.lg};
+  if (ks.isEmpty) return;
+  try {
+    final fresh = await Future.wait([for (final k in ks) fetchLeague(lgOf(k))]);
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final merged = [
+      ...lastEvents.where((e) => !ks.contains(e.lg)),
+      for (final f in fresh) ...f.where((e) => e.live || (e.ts > now - 86400 && e.ts < now + 75 * 86400)),
+    ]..sort((a, b) => a.live != b.live ? (a.live ? -1 : 1) : a.ts.compareTo(b.ts));
+    if (merged.isEmpty) return;
+    lastEvents = merged;
+    unawaited(_writeSportCache(_curKeys, merged));
+    sportFresh.value = merged;
+  } catch (_) {}
+}
+
 /// matchs en cours ou à venir (15 jours) + derniers résultats (24 h)
 Future<List<Ev>> _fetchSportNet(Iterable<String> keys) async {
   final all = await Future.wait([for (final k in knownLeagues(keys)) fetchLeague(lgOf(k))]);
@@ -456,7 +474,8 @@ class SportCard extends StatelessWidget {
   final double? width;
   final VoidCallback onTap;
   final bool noDay;
-  const SportCard({super.key, required this.e, required this.onTap, this.width, this.noDay = false});
+  final VoidCallback? onLong;      // appui long : suivre / ne plus suivre une des deux équipes
+  const SportCard({super.key, required this.e, required this.onTap, this.width, this.noDay = false, this.onLong});
 
   /// matchs terminés dont le score a été découvert en touchant la carte (mode sans spoil)
   static final revealed = <String>{};
@@ -515,6 +534,7 @@ class SportCard extends StatelessWidget {
                     }
                   : onTap,
               radius: 14,
+              onLong: hide ? null : onLong,
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
@@ -837,6 +857,69 @@ class SportTab extends StatefulWidget {
 }
 
 class _SportTabState extends State<SportTab> {
+  bool onlyLive = false;
+  String day = '';      // jour choisi dans le ruban (téléphone) ; vide = tous
+  Timer? _liveT;
+
+  @override
+  void initState() {
+    super.initState();
+    // scores en direct : mise à jour toutes les minutes, seulement des compétitions qui ont un match en cours
+    _liveT = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (mounted && lastEvents.any((e) => e.live)) unawaited(refreshLive());
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveT?.cancel();
+    super.dispose();
+  }
+
+  /// appui long sur un match : suivre ou ne plus suivre l'une des deux équipes
+  Future<void> _follow(Ev e) async {
+    if (e.f1) return;
+    final mineT = {...Store.sportTeams};
+    await appSheet<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Padding(padding: const EdgeInsets.fromLTRB(22, 18, 22, 8), child: Align(alignment: Alignment.centerLeft, child: Text('Suivre une équipe', style: T(20, w: 750)))),
+            for (final t in [e.h, e.a])
+              ListTile(
+                autofocus: t == e.h,
+                focusColor: kAccent.withOpacity(0.38),
+                leading: Icon(mineT.contains(t.name) ? Icons.star_rounded : Icons.star_outline_rounded, color: const Color(0xFFFFC857)),
+                title: Text(t.name),
+                onTap: () async {
+                  mineT.contains(t.name) ? mineT.remove(t.name) : mineT.add(t.name);
+                  await Store.setSportTeams(mineT.toList());
+                  set(() {});
+                  if (mounted) setState(() {});
+                },
+              ),
+            const SizedBox(height: 8),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _liveChip(int n) => FocusCard(
+        radius: 99,
+        onTap: () => setState(() => onlyLive = !onlyLive),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: onlyLive ? const Color(0x33E5484D) : const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(99)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const _PulseDot(color: Color(0xFFE5484D)),
+            const SizedBox(width: 3),
+            Text('En direct $n', style: T(13, w: 700, color: onlyLive ? const Color(0xFFFF8A8F) : kText)),
+          ]),
+        ),
+      );
+
   Future<void> _toggleScores() async {
     await Store.setFlag('sport_nospoil', !Store.flag('sport_nospoil', false));
     SportCard.tick.value++;
@@ -909,7 +992,15 @@ class _SportTabState extends State<SportTab> {
         final sports = [for (final n in sportOrder) if (keys.any((k) => sportName(k) == n)) n];
         final hasTeams = Store.sportTeams.isNotEmpty;
         final inSport = keys.where((k) => sp.isEmpty || sportName(k) == sp).toList();
-        final l = all.where((e) => (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e))).toList();
+        final liveCount = all.where((e) => e.live).length;
+        if (liveCount == 0 && onlyLive) onlyLive = false;
+        final days = <String>[];
+        for (final e in all.where((e) => !e.live && (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e)))) {
+          final d = dayTitle(e);
+          if (!days.contains(d)) days.add(d);
+        }
+        if (day.isNotEmpty && !days.contains(day)) day = '';
+        final l = all.where((e) => (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e)) && (!onlyLive || e.live) && (day.isEmpty || e.live || dayTitle(e) == day)).toList();
         final live = l.where((e) => e.live).toList();
         final next = l.where((e) => !e.live && !e.post).toList();
         // grande fiche : d'abord le match en cours de mes équipes, puis le leur qui commence dans moins de 2 h, sinon l'ordre habituel
@@ -966,10 +1057,11 @@ class _SportTabState extends State<SportTab> {
               ],
             ],
             const SizedBox(height: 10),
+            if (liveCount > 0) item('En direct $liveCount', Icons.fiber_manual_record_rounded, onlyLive, () => setState(() => onlyLive = !onlyLive), tint: const Color(0xFFE5484D)),
             item(Store.flag('sport_nospoil', false) ? 'Scores masqués' : 'Scores affichés', Store.flag('sport_nospoil', false) ? Icons.visibility_off_rounded : Icons.visibility_rounded, Store.flag('sport_nospoil', false), _toggleScores),
             item('Réglages', Icons.tune_rounded, false, () => _more(context)),
           ]);
-          Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 390, onTap: () => widget.onOpen(e))]);
+          Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 390, onLong: () => _follow(e), onTap: () => widget.onOpen(e))]);
           final main = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 60), children: [
             if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(20, color: kMut)))),
             if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),
@@ -992,7 +1084,7 @@ class _SportTabState extends State<SportTab> {
           );
         }
         return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
-          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Align(alignment: Alignment.centerRight, child: _scoreToggle())),
+          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [if (liveCount > 0) _liveChip(liveCount) else const SizedBox.shrink(), _scoreToggle()])),
           Chips(
             labels: r1,
             leading: [null, if (hasTeams) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFC857)), for (final n in sports) Icon(sportIcon(n), size: 18), const Icon(Icons.add, size: 18)],
@@ -1022,6 +1114,13 @@ class _SportTabState extends State<SportTab> {
               }
             },
           ),
+          // ruban de jours : saute directement à une date
+          if (days.length > 1)
+            Chips(
+              labels: ['Tout', ...days],
+              selected: day.isEmpty ? 0 : days.indexOf(day) + 1,
+              onSelect: (v) => setState(() => day = v == 0 ? '' : days[v - 1]),
+            ),
           // 2e ligne : compétitions du sport choisi
           if (sp.isNotEmpty && inSport.length > 1)
             Chips(
@@ -1036,14 +1135,14 @@ class _SportTabState extends State<SportTab> {
           if (hero != null) SportHero(e: hero, onTap: () => widget.onOpen(hero)),
           if (live.length > 1) ...[
             const SectionTitle('🔴 En direct'),
-            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: live.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: live[i], width: cw, onTap: () => widget.onOpen(live[i])))),
+            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: live.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: live[i], width: cw, onLong: () => _follow(live[i]), onTap: () => widget.onOpen(live[i])))),
           ],
           for (final g in groups.entries) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
               child: Row(children: [Expanded(child: Text(g.key, style: T(19, w: 700, ls: -0.02))), Text('${g.value.length} match${g.value.length > 1 ? 's' : ''}', style: T(14, w: 500, color: kMut))]),
             ),
-            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: g.value.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onTap: () => widget.onOpen(g.value[i])))),
+            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: g.value.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onLong: () => _follow(g.value[i]), onTap: () => widget.onOpen(g.value[i])))),
           ],
         ]);
       },

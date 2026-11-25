@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 238', [
+    'Sport : ruban de jours pour sauter à une date (téléphone), puce « En direct » (barre latérale sur la télé), scores en direct mis à jour chaque minute, appui long sur un match pour suivre une équipe.',
+    'Sport, détail d\'un match : halos aux couleurs des clubs, chronologie à deux côtés (domicile à gauche, extérieur à droite), statistiques en barres comparées, onglets Résumé / Statistiques.',
+  ]),
   ('Version 237', [
     'Sport : les matchs terminés n\'affichent plus « Terminé » ni la coche, le score suffit et les noms ont plus de place.',
     'Animation d\'ouverture : plus de soulignement jaune sous MinouFlix, et le chat est plus vivant (il tombe et rebondit, queue, yeux et oreille plus rapides) et fait un clin d\'œil.',
