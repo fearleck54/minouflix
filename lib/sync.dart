@@ -142,7 +142,7 @@ class Sync {
         final rt = (d['creds_t'] as num?)?.toInt() ?? 0, rc = d['creds'];
         // source d'origine supprimée sur un appareil : elle ne revient pas, et disparaît des autres
         final delT = math.max((d['creds_del_t'] as num?)?.toInt() ?? 0, Store.credsDelT);
-        if (delT > 0 && delT > lt(Store.credsT) && await Store.credsOf('') != null) {
+        if (delT > 0 && delT > Store.credsT && await Store.credsOf('') != null) {
           await Store.removeSource('', at: delT);
           changed = true;
         }
@@ -214,8 +214,10 @@ class Sync {
         }
         d['sel'] = out;
         if (origin) {
-          if (await Store.restoreProfiles(d['profs'] is List ? d['profs'] as List : const [])) changed = true;
+          final (pd, pch) = await Store.restoreProfiles(d['profs'] is List ? d['profs'] as List : const [], d['profs_del'] is Map ? (d['profs_del'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+          if (pch) changed = true;
           d['profs'] = Store.profilsSnap();
+          if (pd.isNotEmpty) d['profs_del'] = pd;
         }
       }
       // retours des utilisateurs : ajoutés à la copie du compte, marqués envoyés seulement si le serveur a accepté

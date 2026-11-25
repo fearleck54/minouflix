@@ -48,6 +48,7 @@ class Store {
   static Future<void> addProfile(String name) async {
     final l = profiles()..add((DateTime.now().millisecondsSinceEpoch.toRadixString(36), name.trim().isEmpty ? 'Profil' : name.trim()));
     await _saveProfs(l);
+    await _p.setInt('prof_nt_${l.last.$1}', DateTime.now().millisecondsSinceEpoch);
     await setProfile(l.last.$1);
   }
 
@@ -58,6 +59,7 @@ class Store {
       return;
     }
     await _saveProfs([for (final e in profiles()) e.$1 == id ? (id, name.trim().isEmpty ? e.$2 : name.trim()) : e]);
+    await _p.setInt('prof_nt_$id', DateTime.now().millisecondsSinceEpoch);
   }
 
   static Future<void> setProfile(String id) async {
@@ -66,8 +68,20 @@ class Store {
     onSourceChanged?.call();
   }
 
-  static Future<void> removeProfile(String id) async {
+  /// profils supprimés (id → date) : sans cette trace, la synchro les remettait depuis un autre appareil
+  static Map<String, int> profDel() {
+    try {
+      return {for (final e in (jsonDecode(_p.getString('profs_del') ?? '{}') as Map).entries) '${e.key}': (e.value as num).toInt()};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> removeProfile(String id, {int? at}) async {
     if (id.isEmpty) return;
+    final dm = profDel();
+    dm[id] = at ?? DateTime.now().millisecondsSinceEpoch;
+    await _p.setString('profs_del', jsonEncode(dm));
     final src = [''] + [for (final x in await _extras()) '${x['id']}_'];
     for (final p in src) {
       for (final k in ['favs', 'favs_t', 'prog', 'colls']) {
@@ -354,15 +368,44 @@ class Store {
   }
 
   // ---- profils (noms seulement) : un nouvel appareil retrouve la liste
-  static List<Map<String, String>> profilsSnap() => [for (final e in profiles().skip(1)) {'id': e.$1, 'name': e.$2}];
-  static Future<bool> restoreProfiles(List<dynamic> incoming) async {
-    if (profiles().length > 1 || incoming.isEmpty) return false;
-    final l = profiles();
-    for (final x in incoming) {
-      if (x is Map && '${x['id']}'.isNotEmpty) l.add(('${x['id']}', '${x['name']}'));
+  static List<Map<String, dynamic>> profilsSnap() => [for (final e in profiles().skip(1)) {'id': e.$1, 'name': e.$2, 't': _p.getInt('prof_nt_${e.$1}') ?? 0}];
+
+  /// profils du compte : ajoutés, renommés ou supprimés sur un autre appareil, suivis ici ; renvoie (suppressions à renvoyer, quelque chose a changé)
+  static Future<(Map<String, int>, bool)> restoreProfiles(List<dynamic> incoming, Map<String, dynamic> cloudDel) async {
+    final dm = profDel();
+    var changed = false;
+    for (final e in cloudDel.entries) {
+      final t = (e.value as num?)?.toInt() ?? 0;
+      if (t > (dm[e.key] ?? 0)) dm[e.key] = t;
     }
-    await _saveProfs(l);
-    return true;
+    await _p.setString('profs_del', jsonEncode(dm));
+    for (final e in profiles().skip(1)) {
+      if (dm.containsKey(e.$1)) {
+        await removeProfile(e.$1, at: dm[e.$1]);
+        changed = true;
+      }
+    }
+    var l = profiles();
+    var dirty = false;
+    for (final x in incoming) {
+      if (x is! Map || '${x['id']}'.isEmpty || dm.containsKey('${x['id']}')) continue;
+      final id = '${x['id']}', t = (x['t'] as num?)?.toInt() ?? 0, name = '${x['name']}';
+      final i = l.indexWhere((e) => e.$1 == id);
+      if (i < 0) {
+        l.add((id, name));
+        await _p.setInt('prof_nt_$id', t);
+        dirty = true;
+      } else if (t > (_p.getInt('prof_nt_$id') ?? 0) && l[i].$2 != name) {
+        l[i] = (id, name);
+        await _p.setInt('prof_nt_$id', t);
+        dirty = true;
+      }
+    }
+    if (dirty) {
+      await _saveProfs(l);
+      changed = true;
+    }
+    return (dm, changed);
   }
 
   static Future<void> _saveExtras(List<Map<String, dynamic>> l) => _sec.write(key: 'sources', value: jsonEncode(l));

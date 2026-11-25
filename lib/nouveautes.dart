@@ -3,6 +3,7 @@
 const kNews = <(String, List<String>)>[
   ('Version 227', [
     'Synchro : une source supprimée sur un appareil ne revient plus depuis le compte, et disparaît des autres appareils.',
+    'Synchro : profils ajoutés, renommés ou supprimés sur un appareil, suivis sur les autres (jusqu\'ici seulement à la première connexion).',
   ]),
   ('Version 226', [
     'Aide : conseil si la source est injoignable alors que la connexion marche (iPhone : désactiver le Relais privé iCloud et les VPN, qui font refuser la connexion par beaucoup de fournisseurs). Même conseil dans les messages d\'erreur.',
