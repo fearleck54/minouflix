@@ -232,11 +232,23 @@ Future<List<Ev>> fetchLeague(League l) async {
       }
     } else {
       // l'API n'accepte qu'un jour à la fois : hier jusqu'à +14 jours, puis plus loin si rien n'est prévu (pause du championnat)
+      var failed = 0;
       Future<void> scan(int from, int to) async {
-        final days = await Future.wait([
-          for (var i = from; i <= to; i++)
-            _json('https://site.api.espn.com/apis/site/v2/sports/${l.espn}/scoreboard?dates=${_d(now.add(Duration(days: i)))}').then<dynamic>((v) => v).catchError((_) => null),
-        ]);
+        // un jour qui échoue est redemandé une fois ; s'il échoue encore, on le signale pour garder les matchs déjà connus
+        Future<dynamic> day(int i) async {
+          final u = 'https://site.api.espn.com/apis/site/v2/sports/${l.espn}/scoreboard?dates=${_d(now.add(Duration(days: i)))}';
+          for (var t = 0; t < 2; t++) {
+            try {
+              return await _json(u);
+            } catch (_) {
+              if (t == 0) await Future<void>.delayed(const Duration(milliseconds: 700));
+            }
+          }
+          failed++;
+          return null;
+        }
+
+        final days = await Future.wait([for (var i = from; i <= to; i++) day(i)]);
         for (final d in days) {
           if (d == null) continue;
           for (final e in (d['events'] as List? ?? [])) {
@@ -261,10 +273,23 @@ Future<List<Ev>> fetchLeague(League l) async {
       await scan(-1, 8);
       final nowS = now.millisecondsSinceEpoch ~/ 1000;
       if (!out.any((e) => e.st != 'post' && e.ts > nowS - 10800)) await scan(9, 70);
+      // le serveur n'a pas répondu pour certains jours : on garde les matchs déjà connus de cette compétition plutôt que de les faire disparaître
+      final old = _lgCache[l.k];
+      if (failed > 0 && old != null) {
+        final have = {for (final e in out) e.id};
+        out.addAll(old.where((e) => !have.contains(e.id)));
+      }
+      if (failed == 0 || out.isNotEmpty) _lgCache[l.k] = List.of(out);
     }
-  } catch (_) {}
+  } catch (_) {
+    final old = _lgCache[l.k];
+    if (out.isEmpty && old != null) out.addAll(old);
+  }
   return out;
 }
+
+/// derniers matchs connus par compétition (secours si ESPN ne répond pas)
+final _lgCache = <String, List<Ev>>{};
 
 /// matchs en cours ou à venir (15 jours) + derniers résultats (24 h)
 Future<List<Ev>> fetchSport(Iterable<String> keys) async {

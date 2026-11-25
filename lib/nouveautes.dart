@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 233', [
+    'Sport : un match (Ligue des champions, etc.) ne disparaît plus quand le serveur de scores répond mal ; chaque jour est redemandé une fois et les matchs déjà connus sont gardés.',
+  ]),
   ('Version 232', [
     'Télé : la carte Sport de l\'accueil est de nouveau alignée avec son cadre de sélection.',
     'Réglages : « Envoyer un retour » s\'affiche en entier ; « Déconnexion » montre directement les choix de déconnexion et de suppression.',
