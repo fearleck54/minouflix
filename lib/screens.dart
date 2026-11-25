@@ -3811,6 +3811,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _cur = url;
     _soundCheck();
     _openedAt = DateTime.now();
+    final t0 = _openedAt;
+    player.stream.position.firstWhere((p) => p > Duration.zero).timeout(const Duration(seconds: 60)).then((_) => Journal.add('Lecture : démarrée en ${DateTime.now().difference(t0).inMilliseconds} ms (${_live ? 'direct' : 'film'}${(_prog?.pos ?? 0) > 20000 ? ', reprise' : ''})')).catchError((_) {});
     if (_fail != null) {
       setState(() => _fail = null);
       _main.requestFocus();
@@ -4492,7 +4494,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Widget _statsPanel() => Positioned(
         top: MediaQuery.paddingOf(context).top + 62,
-        left: 14,
+        left: MediaQuery.paddingOf(context).left + 14,
         child: IgnorePointer(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -4819,7 +4821,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Container(
-                  padding: EdgeInsets.fromLTRB(_touch ? 28 : 64, 70, _touch ? 28 : 64, _touch ? 20 : 36),
+                  padding: EdgeInsets.fromLTRB(math.max(_touch ? 28.0 : 64.0, MediaQuery.paddingOf(context).left + 20), 70, math.max(_touch ? 28.0 : 64.0, MediaQuery.paddingOf(context).right + 20), math.max(_touch ? 20.0 : 36.0, MediaQuery.paddingOf(context).bottom + 8)),
                   decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00000000), Color(0xE6000000)])),
                   child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(28, w: 750)),
@@ -5061,7 +5063,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           if (_nextIn > 0)
             Positioned(
-              right: 28,
+              right: MediaQuery.paddingOf(context).right + 28,
               bottom: 110,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
@@ -5074,11 +5076,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ]),
             ),
           if (_skipLabel != null && _fail == null && _nextIn == 0)
-            Positioned(right: 28, bottom: 110, child: _OvBtn(node: _skipNode, label: _skipLabel!, primary: true, onTap: _doSkip)),
+            Positioned(right: MediaQuery.paddingOf(context).right + 28, bottom: 110, child: _OvBtn(node: _skipNode, label: _skipLabel!, primary: true, onTap: _doSkip)),
           // titre, affiché quelques secondes au démarrage
           Positioned(
             top: MediaQuery.paddingOf(context).top + 10,
-            left: 64,
+            left: math.max(64.0, MediaQuery.paddingOf(context).left + 20),
             right: 150,
             child: IgnorePointer(
               child: AnimatedOpacity(
