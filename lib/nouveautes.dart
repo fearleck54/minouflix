@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 234', [
+    'Sport : l\'onglet s\'affiche tout de suite avec les derniers matchs connus (gardés sur l\'appareil), puis se met à jour tout seul dès que les nouveaux scores arrivent.',
+  ]),
   ('Version 233', [
     'Sport : un match (Ligue des champions, etc.) ne disparaît plus quand le serveur de scores répond mal ; chaque jour est redemandé une fois et les matchs déjà connus sont gardés.',
   ]),

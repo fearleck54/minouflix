@@ -1,6 +1,9 @@
 import 'store.dart';
 import 'onboarding.dart';
 import 'dart:ui' as ui;
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb, ValueNotifier;
+import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -291,8 +294,71 @@ Future<List<Ev>> fetchLeague(League l) async {
 /// derniers matchs connus par compétition (secours si ESPN ne répond pas)
 final _lgCache = <String, List<Ev>>{};
 
-/// matchs en cours ou à venir (15 jours) + derniers résultats (24 h)
+// ---- copie des derniers matchs sur l'appareil : l'onglet Sport s'affiche tout de suite, la mise à jour arrive ensuite
+final sportFresh = ValueNotifier<List<Ev>?>(null);
+String _curKeys = '';
+
+Map<String, dynamic> _sideJ(Side x) => {'n': x.name, 's': x.short, 'g': x.logo, 'c': x.score, 'k': x.color};
+Side _sideFrom(Map m) => Side('${m['n']}', '${m['s']}', '${m['g']}', m['c'] == null ? null : '${m['c']}', (m['k'] as num?)?.toInt());
+
+Future<File?> _sportFile() async {
+  if (kIsWeb) return null;
+  try {
+    return File('${(await getApplicationSupportDirectory()).path}/sport_cache.json');
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<List<Ev>> _readSportCache(String keys) async {
+  try {
+    final f = await _sportFile();
+    if (f == null || !await f.exists()) return [];
+    final m = jsonDecode(await f.readAsString()) as Map;
+    if (m['k'] != keys || DateTime.now().millisecondsSinceEpoch - ((m['at'] as num?)?.toInt() ?? 0) > 36 * 3600 * 1000) return [];
+    return [
+      for (final x in (m['ev'] as List).cast<Map>())
+        Ev('${x['i']}', '${x['l']}', (x['t'] as num).toInt(), '${x['s']}', '${x['d']}', _sideFrom((x['h'] as Map)), _sideFrom((x['a'] as Map)), '${x['p']}', x['f'] == true),
+    ];
+  } catch (_) {
+    return [];
+  }
+}
+
+Future<void> _writeSportCache(String keys, List<Ev> l) async {
+  try {
+    final f = await _sportFile();
+    if (f == null) return;
+    await f.writeAsString(jsonEncode({
+      'k': keys,
+      'at': DateTime.now().millisecondsSinceEpoch,
+      'ev': [for (final e in l.take(400)) {'i': e.id, 'l': e.lg, 't': e.ts, 's': e.st, 'd': e.det, 'p': e.lieu, 'f': e.f1, 'h': _sideJ(e.h), 'a': _sideJ(e.a)}],
+    }));
+  } catch (_) {}
+}
+
+/// affiche tout de suite les derniers matchs connus (si on en a), puis remplace par les matchs à jour dès qu'ils arrivent (`sportFresh`)
 Future<List<Ev>> fetchSport(Iterable<String> keys) async {
+  final ks = keys.toList()..sort();
+  final id = ks.join(',');
+  _curKeys = id;
+  final cached = await _readSportCache(id);
+  if (cached.isNotEmpty) {
+    lastEvents = cached;
+    unawaited(_fetchSportNet(keys).then((f) {
+      if (f.isEmpty) return;
+      unawaited(_writeSportCache(id, f));
+      if (_curKeys == id) sportFresh.value = f;
+    }));
+    return cached;
+  }
+  final f = await _fetchSportNet(keys);
+  if (f.isNotEmpty) unawaited(_writeSportCache(id, f));
+  return f;
+}
+
+/// matchs en cours ou à venir (15 jours) + derniers résultats (24 h)
+Future<List<Ev>> _fetchSportNet(Iterable<String> keys) async {
   final all = await Future.wait([for (final k in knownLeagues(keys)) fetchLeague(lgOf(k))]);
   final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
   final l = [for (final x in all) ...x].where((e) => e.live || (e.ts > now - 86400 && e.ts < now + 75 * 86400)).toList();

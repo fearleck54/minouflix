@@ -708,6 +708,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    sportFresh.addListener(_onSportFresh);
     Epg.src = x;
     unawaited(Connect.isTv().then((_) => Connect.start(_onRemote)));
     _loadAll();
@@ -780,8 +781,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  void _onSportFresh() {
+    final v = sportFresh.value;
+    if (v != null && mounted) setState(() => sport = Future.value(v));
+  }
+
   @override
   void dispose() {
+    sportFresh.removeListener(_onSportFresh);
     WidgetsBinding.instance.removeObserver(this);
     Store.persoTick.removeListener(_persoChanged);
     Connect.stop();
