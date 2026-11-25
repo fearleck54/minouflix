@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 239', [
+    'Sport : un match qui n\'a pas encore commencé ne lance plus d\'office une chaîne (elle pouvait encore diffuser autre chose) ; la liste des chaînes possibles s\'affiche avec l\'heure du programme. Un match commencé et confirmé par le guide s\'ouvre directement.',
+    'Sport : la puce « En direct » n\'affiche plus le nombre de matchs.',
+  ]),
   ('Version 238', [
     'Sport : ruban de jours pour sauter à une date (téléphone), puce « En direct » (barre latérale sur la télé), scores en direct mis à jour chaque minute, appui long sur un match pour suivre une équipe.',
     'Sport, détail d\'un match : halos aux couleurs des clubs, chronologie à deux côtés (domicile à gauche, extérieur à droite), statistiques en barres comparées, onglets Résumé / Statistiques.',

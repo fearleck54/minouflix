@@ -1083,8 +1083,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
     if (!mounted) return;
-    // match en cours ou imminent : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement
-    if (e.ts <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 900) {
+    // match commencé : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement. Avant le coup d'envoi on ne lance rien d'office :
+    // la chaîne annoncée peut encore diffuser autre chose (course, magazine…), donc la liste s'affiche avec l'heure de début de chaque programme
+    if (e.live || e.ts <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recherche de la chaîne du match…'), duration: Duration(seconds: 6)));
       List<WatchPick> found = const [];
       try {

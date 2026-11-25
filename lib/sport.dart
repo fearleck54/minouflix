@@ -915,7 +915,7 @@ class _SportTabState extends State<SportTab> {
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             const _PulseDot(color: Color(0xFFE5484D)),
             const SizedBox(width: 3),
-            Text('En direct $n', style: T(13, w: 700, color: onlyLive ? const Color(0xFFFF8A8F) : kText)),
+            Text('En direct', style: T(13, w: 700, color: onlyLive ? const Color(0xFFFF8A8F) : kText)),
           ]),
         ),
       );
@@ -1057,7 +1057,7 @@ class _SportTabState extends State<SportTab> {
               ],
             ],
             const SizedBox(height: 10),
-            if (liveCount > 0) item('En direct $liveCount', Icons.fiber_manual_record_rounded, onlyLive, () => setState(() => onlyLive = !onlyLive), tint: const Color(0xFFE5484D)),
+            if (liveCount > 0) item('En direct', Icons.fiber_manual_record_rounded, onlyLive, () => setState(() => onlyLive = !onlyLive), tint: const Color(0xFFE5484D)),
             item(Store.flag('sport_nospoil', false) ? 'Scores masqués' : 'Scores affichés', Store.flag('sport_nospoil', false) ? Icons.visibility_off_rounded : Icons.visibility_rounded, Store.flag('sport_nospoil', false), _toggleScores),
             item('Réglages', Icons.tune_rounded, false, () => _more(context)),
           ]);
