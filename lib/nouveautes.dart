@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 219', [
+    'Lecteur : commandes et statistiques décalées pour ne plus passer sous l\'encoche de l\'iPhone.',
+    'Le journal note le temps de démarrage de chaque lecture.',
+  ]),
   ('Version 218', [
     'Lecteur iPhone / iPad : mêmes commandes que sur la télé (toucher l\'écran pour les afficher, barre de progression tactile).',
     'Boutons « Sur la télé » retirés.',
