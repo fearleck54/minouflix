@@ -265,7 +265,7 @@ class _LaunchIntroState extends State<LaunchIntro> with SingleTickerProviderStat
           ignoring: out < 0.05,
           child: Opacity(
             opacity: out,
-            child: Container(
+            child: Material(
               color: kBg,
               child: Stack(children: [
                 Positioned.fill(
@@ -277,7 +277,10 @@ class _LaunchIntroState extends State<LaunchIntro> with SingleTickerProviderStat
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Opacity(
                       opacity: catOp,
-                      child: Transform.scale(scale: 0.72 + 0.28 * cat, child: CustomPaint(size: Size(h, h), painter: _CatPainter(v))),
+                      child: Transform.translate(
+                        offset: Offset(0, -70 * (1 - _seg(v, 0.0, 0.40, Curves.bounceOut))),      // le chat tombe et rebondit
+                        child: Transform.scale(scale: 0.72 + 0.28 * cat, child: CustomPaint(size: Size(h, h), painter: _CatPainter((v * 2.6) % 1.0))),
+                      ),
                     ),
                     const SizedBox(height: 18),
                     Opacity(opacity: word, child: Transform.translate(offset: Offset(0, 12 * (1 - word)), child: title)),

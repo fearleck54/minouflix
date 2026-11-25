@@ -539,12 +539,13 @@ class SportCard extends StatelessWidget {
                             : Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [row(e.h, w < 0), row(e.a, w > 0)]),
                       ),
                     ),
-                    Container(
-                      width: 78 * z,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      color: const Color(0x14000000),
-                      child: Center(child: right),
-                    ),
+                    if (!(e.post && !hide && !e.f1))      // match terminé avec score visible : pas de colonne « Terminé », le score suffit
+                      Container(
+                        width: 78 * z,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        color: const Color(0x14000000),
+                        child: Center(child: right),
+                      ),
                   ]),
                   ),
                   if (minute != null && total > 0) Positioned(left: 0, right: 0, bottom: 0, child: LinearProgressIndicator(value: (minute / total).clamp(0.0, 1.0), minHeight: 3, backgroundColor: const Color(0x14FFFFFF), color: const Color(0xFFE5484D))),
