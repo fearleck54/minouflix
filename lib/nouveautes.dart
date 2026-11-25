@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 225', [
+    'Quand le fournisseur coupe la connexion (abonnement utilisé ailleurs), l\'appli l\'explique en clair et propose de remplacer l\'autre appareil avant la lecture.',
+  ]),
   ('Version 224', [
     'Test de la source : quand le fournisseur ne répond pas, un test de connexion directe indique si le serveur coupe avant ou après la demande.',
   ]),

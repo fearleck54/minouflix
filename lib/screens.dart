@@ -3927,13 +3927,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// source à un seul écran déjà utilisée : on demande avant de lire, puis l'autre appareil est arrêté (true = on lit)
   Future<bool> _askTakeOver() async {
     final x = _xt;
-    if (x == null || widget.audioUrl != null || !widget.url.startsWith('http') || (x.info['max'] ?? '1') != '1') return true;      // seulement les sources à un écran (ou état pas encore connu)
+    final mx = x?.info['max'] ?? '';
+    if (x == null || widget.audioUrl != null || !widget.url.startsWith('http') || (mx.isNotEmpty && mx != '1')) return true;      // seulement les sources à un écran (ou état pas encore connu)
+    var busy = false;
     try {
-      await x.refreshInfo().timeout(const Duration(seconds: 3));
-    } catch (_) {
-      return true;
+      await x.refreshInfo().timeout(const Duration(seconds: 6));
+    } catch (e) {
+      busy = '$e'.contains('refuse la connexion');      // le fournisseur coupe même la simple vérification : l'abonnement est pris ailleurs
+      if (!busy) return true;
     }
-    if (!mounted || x.info['max'] != '1' || (int.tryParse(x.info['active'] ?? '') ?? 0) < 1) return true;
+    if (!mounted) return true;
+    if (!busy && (x.info['max'] != '1' || (int.tryParse(x.info['active'] ?? '') ?? 0) < 1)) return true;
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AppDialog(

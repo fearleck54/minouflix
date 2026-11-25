@@ -187,6 +187,9 @@ class Xtream {
     if (last is TimeoutException) throw XtreamError('Le serveur ne répond pas (délai dépassé) : vérifie l\'adresse, ta connexion, et qu\'aucun autre appareil n\'utilise déjà l\'abonnement.');
     final d = '$last'.replaceAll(RegExp(r'\s+'), ' ');
     Journal.add('Fournisseur injoignable', last);
+    if (last is http.ClientException && '$last'.contains('closed')) {
+      throw XtreamError('Le fournisseur refuse la connexion : ton abonnement est probablement utilisé sur un autre appareil (un seul écran à la fois). Arrête la lecture là-bas, puis réessaie.');
+    }
     throw XtreamError('Serveur injoignable (${last.runtimeType}${d.length > 8 ? ' : ${d.substring(0, d.length > 110 ? 110 : d.length)}' : ''}) : vérifie l\'adresse du serveur et ta connexion Internet.');
   }
 
