@@ -8,6 +8,8 @@ import 'package:flutter/material.dart' hide Text;
 import 'package:http/http.dart' as http;
 import 'names.dart';
 import 'osk.dart';
+import 'perf.dart';
+import 'package:flutter/scheduler.dart' show Ticker, TickerCallback;
 import 'ui.dart';
 
 /// Sport Center : matchs ESPN (public, sans clé), mêmes compétitions que l'appli web.
@@ -113,7 +115,8 @@ const _f1Lab = {'FP1': 'Essais libres 1', 'FP2': 'Essais libres 2', 'FP3': 'Essa
 class Side {
   final String name, short, logo;
   final String? score;
-  const Side(this.name, this.short, this.logo, this.score);
+  final int? color;      // couleur officielle du club (ESPN), 0xFFRRGGBB
+  const Side(this.name, this.short, this.logo, this.score, [this.color]);
 }
 
 class Ev {
@@ -147,6 +150,28 @@ String _clubLogo(String name, String logo) {
 
 /// accès partagé (écran de détail d'un événement terminé)
 Future<dynamic> espnJson(String url) => _json(url);
+
+int? _hex(Object? v) {
+  final t = '${v ?? ''}'.replaceAll('#', '');
+  final n = t.length == 6 ? int.tryParse(t, radix: 16) : null;
+  return n == null ? null : 0xFF000000 | n;
+}
+
+/// couleurs des deux équipes : couleur du club si elle est assez claire pour se voir sur fond noir, sinon celle de la compétition ; si elles se ressemblent, l'extérieur passe en clair
+(Color, Color) evColors(Ev e) {
+  final l = lgOf(e.lg);
+  Color pick(Side s) {
+    final c = s.color;
+    if (c == null) return l.color;
+    final col = Color(c);
+    return col.computeLuminance() < 0.035 ? l.color : col;
+  }
+  final a = pick(e.h);
+  var b = pick(e.a);
+  final d = (a.red - b.red).abs() + (a.green - b.green).abs() + (a.blue - b.blue).abs();
+  if (d < 110) b = Color.lerp(l.color, const Color(0xFFE9ECF3), 0.7)!;
+  return (a, b);
+}
 Widget evLogo(String u, {double s = 26}) => _logo(u, s: s);
 
 String _d(DateTime t) => '${t.year}${t.month.toString().padLeft(2, '0')}${t.day.toString().padLeft(2, '0')}';
@@ -221,7 +246,7 @@ Future<List<Ev>> fetchLeague(League l) async {
                 final nm = '${tm['displayName'] ?? tm['name'] ?? '?'}';
                 final lg0 = tm['logos'];
                 final logo = '${tm['logo'] ?? (lg0 is List && lg0.isNotEmpty ? lg0[0]['href'] : '')}';
-                t['${x['homeAway'] ?? (t.containsKey('home') ? 'away' : 'home')}'] = Side(nm, '${tm['shortDisplayName'] ?? nm}', _clubLogo(nm, logo), x['score'] == null ? null : '${x['score']}');
+                t['${x['homeAway'] ?? (t.containsKey('home') ? 'away' : 'home')}'] = Side(nm, '${tm['shortDisplayName'] ?? nm}', _clubLogo(nm, logo), x['score'] == null ? null : '${x['score']}', _hex(tm['color']));
               }
               out.add(Ev('${l.k}:${e['id']}', l.k, DateTime.parse('${e['date']}').millisecondsSinceEpoch ~/ 1000, '${st['state'] ?? 'pre'}', '${st['shortDetail'] ?? ''}',
                   t['home'] ?? const Side('?', '?', '', null), t['away'] ?? const Side('?', '?', '', null), '${c['venue']?['fullName'] ?? ''}', false));
@@ -270,6 +295,67 @@ Widget _logo(String u, {double s = 26}) {
   return netLogo(u, s);
 }
 
+class _PulseVsync implements TickerProvider {
+  const _PulseVsync();
+  @override
+  Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
+}
+
+/// une seule horloge pour toutes les pastilles « direct » : elle ne tourne que tant qu'au moins une est affichée
+class _PulseClock {
+  static AnimationController? _c;
+  static int _n = 0;
+  static AnimationController attach() {
+    _c ??= AnimationController(vsync: const _PulseVsync(), duration: const Duration(milliseconds: 1800));
+    if (_n++ == 0) _c!.repeat();
+    return _c!;
+  }
+
+  static void detach() {
+    if (--_n <= 0) {
+      _n = 0;
+      _c?.stop();
+    }
+  }
+}
+
+class _PulseDot extends StatefulWidget {
+  final Color color;
+  final double size;
+  const _PulseDot({required this.color, this.size = 7});
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot> {
+  AnimationController? _c;
+  @override
+  void initState() {
+    super.initState();
+    if (!Perf.lite) _c = _PulseClock.attach();
+  }
+
+  @override
+  void dispose() {
+    if (_c != null) _PulseClock.detach();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _c;
+    Widget dot(double t) => Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle, boxShadow: t == 0 ? null : [BoxShadow(color: widget.color.withOpacity(0.55 * (1 - t)), spreadRadius: 6 * t)]),
+        );
+    if (c == null) return dot(0);
+    return SizedBox(width: widget.size + 12, height: widget.size + 12, child: Center(child: AnimatedBuilder(animation: c, builder: (_, __) => dot(c.value))));
+  }
+}
+
+const _tab = [ui.FontFeature.tabularFigures()];
+
 /// carte de match COMPACTE (grille et rangée de l'accueil) : deux équipes, heure ou score, chaîne de couleur de la compétition ; équipes suivies en surbrillance, mode sans spoil
 class SportCard extends StatelessWidget {
   final Ev e;
@@ -299,14 +385,18 @@ class SportCard extends StatelessWidget {
                   const SizedBox(width: 9),
                   Expanded(child: Text(s.short, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14 * z, w: star.contains(s.name.toLowerCase()) ? 800 : 600, color: lost ? kMut : kText))),
                   if (star.contains(s.name.toLowerCase())) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFC857))),
-                  if (!e.f1 && e.st != 'pre' && s.score != null && !hide) Padding(padding: const EdgeInsets.only(left: 8), child: Text(s.score!, style: T(14.5 * z, w: 800, color: lost ? kMut : kText))),
+                  if (!e.f1 && e.st != 'pre' && s.score != null && !hide) Padding(padding: const EdgeInsets.only(left: 8), child: Text(s.score!, style: T(17 * z, w: 900, color: lost ? kMut : kText).copyWith(fontFeatures: _tab))),
                 ]),
               );
           final when = whenLabel(e, day: !noDay);
+          final mins = e.st == 'pre' ? ((e.ts * 1000 - DateTime.now().millisecondsSinceEpoch) / 60000).ceil() : 0;
+          final (c1, c2) = evColors(e);
+          final minute = e.live && !e.f1 ? int.tryParse(RegExp(r'\d+').firstMatch(e.det)?.group(0) ?? '') : null;
+          final total = l.espn.startsWith('rugby') ? 80 : (l.espn.startsWith('soccer') ? 90 : 0);
           final right = e.live
               ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFFE5484D), shape: BoxShape.circle)),
-                  const SizedBox(height: 4),
+                  const _PulseDot(color: Color(0xFFE5484D)),
+                  const SizedBox(height: 2),
                   Text('DIRECT', style: T(10 * z, w: 800, ls: 0.04, color: const Color(0xFFFF7A80))),
                 ])
               : e.post
@@ -315,7 +405,12 @@ class SportCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(hide ? 'Score\nmasqué' : 'Terminé', textAlign: TextAlign.center, style: T(10 * z, w: 600, color: kMut, h: 1.15)),
                     ])
-                  : FittedBox(fit: BoxFit.scaleDown, child: Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, softWrap: false, style: T(12.5 * z, w: 700, h: 1.25)));
+                  : (mins > 0 && mins <= 90)
+                      ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Text('dans', style: T(10 * z, w: 650, color: const Color(0xFF7DFFB0))),
+                          Text('$mins min', maxLines: 1, style: T(15 * z, w: 850, color: const Color(0xFF7DFFB0)).copyWith(fontFeatures: _tab)),
+                        ])
+                      : FittedBox(fit: BoxFit.scaleDown, child: Text(when.replaceFirst(' · ', '\n'), textAlign: TextAlign.center, softWrap: false, style: T(12.5 * z, w: 700, h: 1.25).copyWith(fontFeatures: _tab)));
           return SizedBox(
             width: width,
             child: FocusCard(
@@ -333,9 +428,10 @@ class SportCard extends StatelessWidget {
                   border: Border.all(color: e.live ? const Color(0xFFE5484D) : (mine ? const Color(0xFFFFC857).withOpacity(0.7) : l.color.withOpacity(0.38)), width: mine ? 1.2 : 0.8),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: IntrinsicHeight(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  IntrinsicHeight(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Container(width: 4, color: l.color),
+                    Container(width: 4, decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [c1, c2]))),
                     Container(width: 56 * z, alignment: Alignment.center, color: const Color(0x1F000000), child: LgIcon(e.lg, size: 34 * z)),      // logo de la compétition, à gauche et en grand
                     Expanded(
                       child: Padding(
@@ -356,7 +452,9 @@ class SportCard extends StatelessWidget {
                       child: Center(child: right),
                     ),
                   ]),
-                ),
+                  ),
+                  if (minute != null && total > 0) LinearProgressIndicator(value: (minute / total).clamp(0.0, 1.0), minHeight: 3, backgroundColor: const Color(0x14FFFFFF), color: const Color(0xFFE5484D)),
+                ]),
               ),
             ),
           );
@@ -457,8 +555,8 @@ Widget livePill(Ev e) => Container(
       padding: const EdgeInsets.fromLTRB(11, 5, 13, 5),
       decoration: BoxDecoration(color: const Color(0xFFE5484D), borderRadius: BorderRadius.circular(99)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 7, height: 7, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
-        const SizedBox(width: 7),
+        const _PulseDot(color: Colors.white),
+        const SizedBox(width: 4),
         Text('EN DIRECT', style: T(12, w: 850, ls: 0.06)),
         if (e.det.isNotEmpty && !e.f1 && e.det.length <= 10) ...[const SizedBox(width: 8), Text(e.det, style: T(12, w: 650))],
       ]),
@@ -491,7 +589,7 @@ class EvScoreboard extends StatelessWidget {
         ? Text('Score masqué', style: T(16, w: 650, color: kMut))
         : e.live || e.post
         ? Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('${e.h.score ?? 0}  –  ${e.a.score ?? 0}', style: T(scoreSize, w: 900, ls: -0.02)),
+            Text('${e.h.score ?? 0}  –  ${e.a.score ?? 0}', style: T(scoreSize, w: 900, ls: -0.02).copyWith(fontFeatures: _tab)),
             if (e.live && e.det.isNotEmpty) Text(e.det, style: T(15, w: 700, color: const Color(0xFFFF8A8F))),
           ])
         : Text('VS', style: T(scoreSize * 0.45, w: 800, color: kMut));
@@ -520,6 +618,7 @@ class _SportHeroState extends State<SportHero> {
     final e = widget.e;
     final l = lgOf(e.lg);
     final hidden = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !SportCard.revealed.contains(e.id);
+    final hc = evColors(e);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: FocusCard(
@@ -534,6 +633,8 @@ class _SportHeroState extends State<SportHero> {
           ),
           clipBehavior: Clip.antiAlias,
           child: Stack(children: [
+            Positioned.fill(child: IgnorePointer(child: RepaintBoundary(child: DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(center: const Alignment(-1.0, -0.1), radius: 0.95, colors: [hc.$1.withOpacity(Perf.lite ? 0.20 : 0.42), Colors.transparent])))))),
+            Positioned.fill(child: IgnorePointer(child: RepaintBoundary(child: DecoratedBox(decoration: BoxDecoration(gradient: RadialGradient(center: const Alignment(1.0, -0.1), radius: 0.95, colors: [hc.$2.withOpacity(Perf.lite ? 0.18 : 0.38), Colors.transparent])))))),
             Positioned.fill(child: IgnorePointer(child: RepaintBoundary(child: CustomPaint(painter: _Stadium(l, e.live))))),
             Column(mainAxisSize: MainAxisSize.min, children: [
               Align(
@@ -547,7 +648,7 @@ class _SportHeroState extends State<SportHero> {
                       ),
               ),
               const SizedBox(height: 12),
-              EvScoreboard(e: e, crest: 88, scoreSize: 56),
+              EvScoreboard(e: e, crest: 88, scoreSize: 62),
               const SizedBox(height: 14),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [LgIcon(e.lg, size: 18), const SizedBox(width: 7), Text(l.n, style: T(14, w: 700, color: Color.lerp(l.color, Colors.white, 0.75)!))]),
               if (l.espn.startsWith('racing')) const SizedBox(height: 18),

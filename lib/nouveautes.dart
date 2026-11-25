@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 230', [
+    'Sport : nouveau look des matchs. Bande et halos aux couleurs des deux clubs, scores plus grands en chiffres réguliers, pastille « direct » qui pulse, barre de progression du match, « dans 12 min » avant le coup d\'envoi.',
+    'Sport : les logos des clubs sont chargés plus légers (moins de mémoire, surtout sur les petites télés).',
+  ]),
   ('Version 229', [
     'Réglages : le pays des droits TV est dans Langues ; « Déconnexion et suppression » est tout en bas ; le doublon « Synchronisation » est retiré.',
     'Écran d\'accueil : l\'ordre choisi est enfin respecté pour toutes les rangées, Top 10 compris (il restait toujours en haut).',

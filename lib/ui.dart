@@ -548,7 +548,7 @@ class _Badge extends StatelessWidget {
       );
 }
 
-Widget netLogo(String u, double s) => CachedNetworkImage(imageUrl: u, width: s, height: s, fit: BoxFit.contain, errorWidget: (_, __, ___) => SizedBox(width: s, height: s));
+Widget netLogo(String u, double s) => CachedNetworkImage(imageUrl: u, width: s, height: s, memCacheWidth: Perf.img((s * 2.5).round()), fit: BoxFit.contain, errorWidget: (_, __, ___) => SizedBox(width: s, height: s));
 
 /// luminance d'un logo (même règle que l'appli web) : un logo sombre est posé sur une case claire
 final _darkCache = <String, bool>{};
