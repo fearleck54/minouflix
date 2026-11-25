@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 242', [
+    'Déjà vu : une rangée sur l\'accueil avec tous les films et séries terminés (90 % ou plus ; une série est vue quand son dernier épisode l\'est), et un bouton « Déjà vu » sur chaque fiche pour le marquer à la main. Synchronisé avec le compte.',
+    'Bandes-annonces : plus jamais d\'autre appli ouverte sur la télé (Downloader), un message à la place ; un relais de secours est essayé avant d\'abandonner.',
+  ]),
   ('Version 241', [
     'PC : tuiles Sport plus grandes, flèches gauche / droite sur chaque rangée (et glisser à la souris) pour ne plus voir la dernière carte coupée, fond fixe et rangées moins nombreuses en mémoire pour une application plus fluide.',
   ]),

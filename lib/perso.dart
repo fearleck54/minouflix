@@ -183,6 +183,7 @@ class _HomeState extends State<HomeSettings> {
     'affiche': ('À l\'affiche', 'Les sorties cinéma'),
     'sport': ('Sport', 'Matchs et événements à venir'),
     'chains': ('Mes chaînes', 'Masquée quand tu n\'as pas de favorite'),
+    'seen': ('Déjà vu', 'Les films et séries que tu as terminés'),
     'recoV': ('Vous aimerez peut-être', 'Films proposés d\'après ta liste'),
     'recoS': ('Séries pour vous', 'Séries proposées d\'après ta liste'),
     'recent': ('Derniers films ajoutés', 'Les nouveautés du catalogue'),

@@ -607,6 +607,43 @@ class Store {
   // ---- ma liste (favoris) : clés « vod:123 », « series:45 », « live:678 »
   /// change à chaque ajout / retrait de favori (les étoiles se redessinent toutes seules)
   static final favTick = ValueNotifier<int>(0);
+
+  // ---- déjà vu : titres terminés (90 % ou plus) ou marqués à la main. Clé « vod:ID » ou « series:ID » ; valeur = date en secondes, positive = vu, négative = retiré
+  static Map<String, int> get seenMap {
+    try {
+      return {for (final e in (jsonDecode(_p.getString('${ppre}seen') ?? '{}') as Map).entries) '${e.key}': (e.value as num).toInt()};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static bool isSeen(String k) => (seenMap[k] ?? 0) > 0;
+
+  static Future<void> setSeen(String k, bool v) async {
+    final m = seenMap;
+    m[k] = (v ? 1 : -1) * (DateTime.now().millisecondsSinceEpoch ~/ 1000);
+    await _p.setString('${ppre}seen', jsonEncode(m));
+    await _p.setInt('settings_t', DateTime.now().millisecondsSinceEpoch);
+    favTick.value++;
+  }
+
+  /// synchro du compte : la date la plus récente gagne pour chaque titre ; true si quelque chose a changé ici
+  static Future<bool> mergeSeen(Map<String, dynamic> remote) async {
+    final m = seenMap;
+    var ch = false;
+    for (final e in remote.entries) {
+      final t = (e.value as num?)?.toInt() ?? 0;
+      if (t.abs() > (m[e.key]?.abs() ?? 0)) {
+        m[e.key] = t;
+        ch = true;
+      }
+    }
+    if (ch) {
+      await _p.setString('${ppre}seen', jsonEncode(m));
+      favTick.value++;
+    }
+    return ch;
+  }
   static Set<String> get favs => (_p.getStringList('${ppre}favs') ?? []).toSet();
   static bool isFav(String key) => favs.contains(key);
   static Future<void> toggleFav(String key) async {
@@ -814,7 +851,7 @@ class Store {
   }
 
   // ---- écran d'accueil : sections affichées et leur ordre (synchronisés)
-  static const homeIds = ['hero', 'top10', 'continue', 'mylist', 'soon', 'playlists', 'downloads', 'affiche', 'sport', 'chains', 'recoV', 'recoS', 'recent', 'recentS'];
+  static const homeIds = ['hero', 'top10', 'continue', 'mylist', 'seen', 'soon', 'playlists', 'downloads', 'affiche', 'sport', 'chains', 'recoV', 'recoS', 'recent', 'recentS'];
   static List<String> homeOrder() {
     final l = [for (final x in _p.getStringList('home_order') ?? const <String>[]) if (homeIds.contains(x)) x].toSet().toList();
     for (final x in homeIds) {

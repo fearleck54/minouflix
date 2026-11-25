@@ -1513,6 +1513,23 @@ class HomeTab extends StatelessWidget {
               }
             }
           }))),
+      'seen': Builder(builder: (_) {
+        final sm = Store.seenMap;
+        final order = [for (final e in sm.entries) if (e.value > 0) e]..sort((a, b) => b.value.compareTo(a.value));
+        if (order.isEmpty) return const SizedBox.shrink();
+        final want = {for (final e in order.take(60)) e.key};
+        final found = <String, Item>{};
+        for (final i in vl?.rows ?? const <Item>[]) {
+          final k = 'vod:${i.id}';
+          if (want.contains(k)) found[k] = i;
+        }
+        for (final i in sl?.rows ?? const <Item>[]) {
+          final k = 'series:${i.id}';
+          if (want.contains(k)) found[k] = i;
+        }
+        final seenItems = [for (final e in order) if (found[e.key] != null) found[e.key]!];
+        return Rail(title: 'Déjà vu', height: ph, count: seenItems.length.clamp(0, 30), moreLabel: '', builder: (_, i) => Poster(item: seenItems[i], width: pw, onTap: () => onOpen(seenItems[i])));
+      }),
       'mylist': Rail(title: 'Ma liste', height: ph, count: mylist.length.clamp(0, 24), moreLabel: '', builder: (_, i) => Poster(item: mylist[i], width: pw, onTap: () => onOpen(mylist[i]))),
       'soon': CachedFuture<List<Soon>>(
         memKey: 'soon',
@@ -3110,13 +3127,26 @@ class _DetailScreenState extends State<DetailScreen> {
       });
 
   /// bande-annonce dans le lecteur de l'appli ; si YouTube ne donne pas le flux, la page web s'ouvre
+  bool _seenNow(Item it) => Store.isSeen('${it.kind.name}:${it.id}');
+
+  Future<void> _toggleSeen(Item it) async {
+    await Store.setSeen('${it.kind.name}:${it.id}', !_seenNow(it));
+    unawaited(Sync.run());
+    if (mounted) setState(() {});
+  }
+
   Future<void> _trailer(String id) async {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 2), content: Text('Chargement de la bande-annonce…')));
     final r = await Trailer.resolve(id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (r == null) {
-      launchUrl(Uri.parse('https://www.youtube.com/watch?v=$id'), mode: LaunchMode.externalApplication);
+      // télé : jamais d'autre appli (sans YouTube, Android ouvrait Downloader) ; téléphone et PC : la page YouTube en dernier recours
+      if (Device.tv) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bande-annonce indisponible pour l\'instant.')));
+      } else {
+        launchUrl(Uri.parse('https://www.youtube.com/watch?v=$id'), mode: LaunchMode.externalApplication);
+      }
       return;
     }
     Navigator.push(context, softRoute((_) => PlayerScreen(url: r.$1, audioUrl: r.$2, debug: true, title: '${widget.item.title} · Bande-annonce')));
@@ -3301,6 +3331,7 @@ class _DetailScreenState extends State<DetailScreen> {
       if (vs.length > 1) _verButton(vs, cur),
       PillButton(label: '+ Ajouter à…', height: 54, onTap: () => collectionSheet(context, fav)),
       if (fi != null && fi.trailer.isNotEmpty) PillButton(label: 'Bande-annonce', icon: 'play', height: 54, onTap: () => _trailer(fi.trailer)),
+      PillButton(label: _seenNow(it) ? 'Déjà vu ✓' : 'Déjà vu', icon: 'eye', height: 54, onTap: () => _toggleSeen(it)),
       if (it.kind == Kind.vod && !Device.tv)      // pas de téléchargement sur la télé
         ValueListenableBuilder<Map<String, double>>(
           valueListenable: Downloads.progress,
@@ -3392,6 +3423,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                   if (it.kind == Kind.vod && old != null) _ActIcon(icon: CupertinoIcons.gobackward, label: 'Depuis le début', onTap: () => _play(vodPath(), it.title, prog: Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))),
                   if (fi != null && fi.trailer.isNotEmpty) _ActIcon(icon: CupertinoIcons.film, label: 'Bande-annonce', onTap: () => _trailer(fi.trailer)),
+                  _ActIcon(icon: _seenNow(it) ? CupertinoIcons.eye_fill : CupertinoIcons.eye, label: _seenNow(it) ? 'Déjà vu ✓' : 'Déjà vu', onTap: () => _toggleSeen(it)),
                   if (it.kind == Kind.vod)
                     ValueListenableBuilder<Map<String, double>>(
                       valueListenable: Downloads.progress,
@@ -4650,6 +4682,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       p.t = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       p.hidden = false;
       Store.saveProg(p);
+      // film terminé, ou dernier épisode d'une série terminé : « Déjà vu »
+      if (dur > 0 && pos >= dur * 0.9) {
+        final k = p.kind == 'vod' ? 'vod:${p.id}' : (p.kind == 'ep' && widget.next.isEmpty && p.sid > 0 ? 'series:${p.sid}' : '');
+        if (k.isNotEmpty && (Store.seenMap[k] ?? 0) == 0) unawaited(Store.setSeen(k, true));
+      }
     }
   }
 

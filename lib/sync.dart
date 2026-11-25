@@ -127,6 +127,8 @@ class Sync {
         final all = loc.values.toList()..sort((a, b) => b.t.compareTo(a.t));
         if (changed) await Store.setAllProg(all);
         ctxMine['prog'] = [for (final p in all.take(40)) p.toJson()];
+        if (await Store.mergeSeen(ctxMine['seen'] is Map ? (ctxMine['seen'] as Map).cast<String, dynamic>() : <String, dynamic>{})) changed = true;
+        ctxMine['seen'] = Store.seenMap;
       }
       if (Store.profId.isNotEmpty && opt('favs')) {      // playlists d'un autre profil (celles du profil d'origine voyagent avec la sélection)
         final rt = (ctxMine['colls_t'] as num?)?.toInt() ?? 0;

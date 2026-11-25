@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import 'dart:io';
@@ -115,6 +116,29 @@ class Trailer {
       Journal.add('Bande-annonce : flux YouTube non obtenu', e);
     } finally {
       yt.close();
+    }
+    return _viaPiped(id);
+  }
+
+  /// secours : des relais publics (Piped) qui redonnent les flux YouTube ; essayés l'un après l'autre, 8 s chacun
+  static const _piped = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks', 'https://pipedapi.adminforge.de'];
+
+  static Future<(String, String?, String)?> _viaPiped(String id) async {
+    for (final base in _piped) {
+      try {
+        final r = await http.get(Uri.parse('$base/streams/$id')).timeout(const Duration(seconds: 8));
+        if (r.statusCode != 200) continue;
+        final d = jsonDecode(r.body) as Map;
+        final vs = ((d['videoStreams'] as List?) ?? const []).cast<Map>().where((s) => '${s['mimeType']}'.contains('mp4') && '${s['url']}'.startsWith('http')).toList()
+          ..sort((a, b) => ((a['height'] as num?) ?? 0).compareTo((b['height'] as num?) ?? 0));
+        final both = vs.where((s) => s['videoOnly'] == false).toList();
+        if (both.isNotEmpty) return ('${both.last['url']}', null, '');
+        final vo = vs.where((s) => s['videoOnly'] == true && ((s['height'] as num?) ?? 0) <= 1080).toList();
+        final au = ((d['audioStreams'] as List?) ?? const []).cast<Map>().where((s) => '${s['mimeType']}'.contains('mp4') && '${s['url']}'.startsWith('http')).toList();
+        if (vo.isNotEmpty && au.isNotEmpty) return ('${vo.last['url']}', '${au.first['url']}', '');
+      } catch (e) {
+        Journal.add('Bande-annonce : relais Piped', e);
+      }
     }
     return null;
   }
