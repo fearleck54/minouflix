@@ -369,6 +369,8 @@ Future<void> refreshLive() async {
       for (final f in fresh) ...f.where((e) => e.live || (e.ts > now - 86400 && e.ts < now + 75 * 86400)),
     ]..sort((a, b) => a.live != b.live ? (a.live ? -1 : 1) : a.ts.compareTo(b.ts));
     if (merged.isEmpty) return;
+    String sig(List<Ev> l) => l.map((e) => '${e.id}|${e.st}|${e.h.score}|${e.a.score}|${e.det}').join(',');
+    if (sig(merged) == sig(lastEvents)) return;      // rien n'a changé : on ne refait pas l'accueil pour rien
     lastEvents = merged;
     unawaited(_writeSportCache(_curKeys, merged));
     sportFresh.value = merged;

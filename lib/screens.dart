@@ -1083,22 +1083,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return;
     }
     if (!mounted) return;
-    // match commencé : si le guide prouve la chaîne (les deux équipes dans le titre), on la lance directement. Avant le coup d'envoi on ne lance rien d'office :
-    // la chaîne annoncée peut encore diffuser autre chose (course, magazine…), donc la liste s'affiche avec l'heure de début de chaque programme
-    if (e.live || e.ts <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recherche de la chaîne du match…'), duration: Duration(seconds: 6)));
-      List<WatchPick> found = const [];
-      try {
-        found = await whereToWatch(e, chans).timeout(const Duration(seconds: 6));
-      } catch (_) {}
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      if (found.isNotEmpty && found.first.score >= 6) {
-        playChan(found.first.c);
-        return;
-      }
-    }
-    // 2) sinon : la liste s'affiche tout de suite (chaînes habituelles), le guide la précise au fur et à mesure
+    // jamais de lancement d'office : la liste des chaînes possibles s'affiche toujours, la meilleure en premier, avec l'heure du programme
+    // la liste s'affiche tout de suite (chaînes habituelles), le guide la précise au fur et à mesure
     final live = ValueNotifier<List<WatchPick>>(quickPicks(e, chans));
     final busy = ValueNotifier<bool>(true);
     unawaited(whereToWatch(e, chans, progress: (l) => live.value = l).then((l) {

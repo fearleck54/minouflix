@@ -2,7 +2,7 @@
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
   ('Version 239', [
-    'Sport : un match qui n\'a pas encore commencé ne lance plus d\'office une chaîne (elle pouvait encore diffuser autre chose) ; la liste des chaînes possibles s\'affiche avec l\'heure du programme. Un match commencé et confirmé par le guide s\'ouvre directement.',
+    'Sport : toucher un match ouvre toujours la liste des chaînes possibles (la meilleure en premier, avec l\'heure du programme) au lieu de lancer une chaîne d\'office.',
     'Sport : la puce « En direct » n\'affiche plus le nombre de matchs.',
   ]),
   ('Version 238', [
