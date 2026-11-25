@@ -258,9 +258,9 @@ Future<List<Ev>> fetchLeague(League l) async {
         }
       }
 
-      await scan(-1, 14);
+      await scan(-1, 8);
       final nowS = now.millisecondsSinceEpoch ~/ 1000;
-      if (!out.any((e) => e.st != 'post' && e.ts > nowS - 10800)) await scan(15, 70);
+      if (!out.any((e) => e.st != 'post' && e.ts > nowS - 10800)) await scan(9, 70);
     }
   } catch (_) {}
   return out;
@@ -431,7 +431,7 @@ class SportCard extends StatelessWidget {
                   border: Border.all(color: e.live ? const Color(0xFFE5484D) : (mine ? const Color(0xFFFFC857).withOpacity(0.7) : l.color.withOpacity(0.38)), width: mine ? 1.2 : 0.8),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                child: Stack(fit: StackFit.passthrough, children: [
                   IntrinsicHeight(
                   child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     Container(width: 4, decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [c1, c2]))),
@@ -456,7 +456,7 @@ class SportCard extends StatelessWidget {
                     ),
                   ]),
                   ),
-                  if (minute != null && total > 0) LinearProgressIndicator(value: (minute / total).clamp(0.0, 1.0), minHeight: 3, backgroundColor: const Color(0x14FFFFFF), color: const Color(0xFFE5484D)),
+                  if (minute != null && total > 0) Positioned(left: 0, right: 0, bottom: 0, child: LinearProgressIndicator(value: (minute / total).clamp(0.0, 1.0), minHeight: 3, backgroundColor: const Color(0x14FFFFFF), color: const Color(0xFFE5484D))),
                 ]),
               ),
             ),

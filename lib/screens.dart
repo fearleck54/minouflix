@@ -2478,7 +2478,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// toutes les déconnexions et suppressions au même endroit, de la moins à la plus définitive
-  void _disconnectPage() => _page('Déconnexion et suppression', () => [
+  void _disconnectPage() => _page('Déconnexion et suppression', _disconnectItems);
+
+  List<Widget> _disconnectItems() => [
         if (Account.signedIn) ...[
           _foot('Connecté : ${Account.email}'),
           const SizedBox(height: 14),
@@ -2496,7 +2498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _box([_row(CupertinoIcons.person_crop_circle_badge_minus, const Color(0xFFFF453A), '4 · Supprimer mon compte', danger: true, onTap: _deleteAccount)]),
           _why('Ton compte et toutes les données synchronisées sont effacés du serveur et de cet appareil. Irréversible.', 'Rien.', 'Créer un nouveau compte : rien ne peut être récupéré.'),
         ],
-      ]);
+      ];
 
   Future<void> _logout() async {
     if (!await _confirm('Se déconnecter de l\'abonnement ?', 'Les identifiants IPTV de cet appareil seront effacés. Ton compte MinouFlix, ta liste et ta reprise sont conservés.', 'Se déconnecter')) return;
@@ -2666,7 +2668,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       ('Aide et dépannage', 'Aide et dépannage', CupertinoIcons.question_circle, [
         _row(CupertinoIcons.wifi, const Color(0xFF30D158), 'Tester ma source', chevron: true, onTap: () => testSource(context)),
-        _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', value: 'problème, idée, recommandation', chevron: true, onTap: _feedbackPage),
+        _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', chevron: true, onTap: _feedbackPage),
         _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
         if (!Device.tv) _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
         _row(CupertinoIcons.folder_fill, grey, 'Vider le cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
@@ -2687,7 +2689,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'Aide et dépannage': ['Source injoignable alors que ta connexion marche ? Vérifie qu\'aucun autre appareil ne lit ton abonnement. Sur iPhone, désactive aussi le Relais privé iCloud (Réglages › ton nom › iCloud) et tout VPN : ils font passer l\'appli par des adresses que beaucoup de fournisseurs refusent.', 'Le journal ne contient jamais tes identifiants. Déconnexion, effacement et suppression du compte : Réglages › Profil et compte.'],
       'À propos': ['MinouFlix est un lecteur : il ne fournit aucun contenu. Les chaînes, films et séries viennent de l\'abonnement que tu y connectes.', 'Affiches, résumés et logos : The Movie Database (TMDB). $kTmdbNotice'],
     };
-    Widget content(int i) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_box(groups[i].$4), for (final n in notes[groups[i].$1] ?? const <String>[]) Padding(padding: const EdgeInsets.fromLTRB(32, 10, 24, 0), child: Text(n, style: T(12.5, color: kMut, h: 1.4)))]);
+    Widget content(int i) => groups[i].$1 == 'Déconnexion' ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: _disconnectItems()) : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_box(groups[i].$4), for (final n in notes[groups[i].$1] ?? const <String>[]) Padding(padding: const EdgeInsets.fromLTRB(32, 10, 24, 0), child: Text(n, style: T(12.5, color: kMut, h: 1.4)))]);
     if (Device.tv) {
       final cur = _sec.clamp(0, groups.length - 1);
       return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
@@ -2925,7 +2927,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _foot('Source injoignable alors que ta connexion marche ? Vérifie qu\'aucun autre appareil ne lit ton abonnement. Sur iPhone, désactive aussi le Relais privé iCloud (Réglages › ton nom › iCloud) et tout VPN : ils font passer l\'appli par des adresses que beaucoup de fournisseurs refusent.'),
         _SubHead('Ton avis'),
         _box([
-          _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', value: 'problème, idée, recommandation', chevron: true, onTap: _feedbackPage),
+          _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', chevron: true, onTap: _feedbackPage),
         ]),
         _foot('Le journal ne contient jamais tes identifiants. Déconnexion, effacement et suppression du compte : Réglages › Compte.'),
       ]);

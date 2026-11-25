@@ -1,6 +1,11 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 232', [
+    'Télé : la carte Sport de l\'accueil est de nouveau alignée avec son cadre de sélection.',
+    'Réglages : « Envoyer un retour » s\'affiche en entier ; « Déconnexion » montre directement les choix de déconnexion et de suppression.',
+    'Sport : moins de matchs chargés d\'un coup (8 jours au lieu de 14), donc un onglet plus rapide à ouvrir, surtout sur la télé.',
+  ]),
   ('Version 231', [
     'Sport : bouton rapide « Scores affichés / masqués » en haut de l\'onglet (barre latérale sur la télé) pour éviter les spoils ; il cache aussi les scores des matchs en direct.',
   ]),
