@@ -1,5 +1,7 @@
 // traduções francês → português (gerado)
 const Map<String, String> kPt = {
+  'Scores masqués': 'Resultados ocultos',
+  'Scores affichés': 'Resultados visíveis',
   'Synchronisation': 'Sincronização',
   'Sur cette télé': 'Nesta TV',
   'Pays des droits TV': 'País dos direitos de TV',
@@ -610,7 +612,7 @@ const Map<String, String> kPt = {
   'Les équipes apparaissent quand les matchs sont chargés.': 'As equipas aparecem quando os jogos estão carregados.',
   'Aucune équipe suivie': 'Nenhuma equipa seguida',
   'Masquer les scores': 'Ocultar resultados',
-  'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir': 'Os jogos terminados aparecem sem resultado; toca no cartão para o ver',
+  'Les scores (matchs terminés et en direct) sont cachés ; touche un match terminé pour le voir': 'Os resultados (jogos terminados e em direto) estão ocultos; toca num jogo terminado para o ver',
   'Rangée Sport de l\'accueil': 'Fila de Desporto no início',
   'Mes équipes seulement': 'Só as minhas equipas',
   'Score masqué': 'Resultado oculto',

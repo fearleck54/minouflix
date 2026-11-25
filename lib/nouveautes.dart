@@ -2,6 +2,7 @@
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
   ('Version 230', [
+    'Sport : bouton rapide « Scores affichés / masqués » en haut de l\'onglet (barre latérale sur la télé) pour éviter les spoils ; il cache aussi les scores des matchs en direct.',
     'Sport : nouveau look des matchs. Bande et halos aux couleurs des deux clubs, scores plus grands en chiffres réguliers, pastille « direct » qui pulse, barre de progression du match, « dans 12 min » avant le coup d\'envoi.',
     'Sport : les logos des clubs sont chargés plus légers (moins de mémoire, surtout sur les petites télés).',
   ]),

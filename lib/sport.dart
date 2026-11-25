@@ -129,6 +129,9 @@ class Ev {
   bool get post => st == 'post';
 }
 
+/// scores cachés (Sport › « Scores masqués ») : matchs terminés et en direct ; toucher une carte terminée le dévoile
+bool spoilHide(Ev e) => Store.flag('sport_nospoil', false) && !e.f1 && (e.post || e.live) && !SportCard.revealed.contains(e.id);
+
 /// l'une des deux équipes est suivie (Réglages › Sport › Mes équipes)
 bool followed(Ev e) {
   if (e.f1) return false;
@@ -374,7 +377,7 @@ class SportCard extends StatelessWidget {
         builder: (_, __, ___) {
           final z = Device.tv ? 1.3 : 1.0;      // télé : textes plus grands (lisibles à 3 m)
           final l = lgOf(e.lg);
-          final hide = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !revealed.contains(e.id);
+          final hide = spoilHide(e);
           final mine = followed(e);
           final w = e.post && !e.f1 && !hide ? (int.tryParse(e.h.score ?? '') ?? 0).compareTo(int.tryParse(e.a.score ?? '') ?? 0) : 0;
           final star = Store.sportTeams.map((x) => x.toLowerCase()).toSet();
@@ -414,7 +417,7 @@ class SportCard extends StatelessWidget {
           return SizedBox(
             width: width,
             child: FocusCard(
-              onTap: hide
+              onTap: hide && e.post
                   ? () {
                       revealed.add(e.id);
                       tick.value++;
@@ -584,7 +587,7 @@ class EvScoreboard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(x.short, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: T(15, w: 750)),
         ]);
-    final hide = Store.flag('sport_nospoil', false) && e.post && !SportCard.revealed.contains(e.id);
+    final hide = spoilHide(e);
     final mid = hide
         ? Text('Score masqué', style: T(16, w: 650, color: kMut))
         : e.live || e.post
@@ -617,12 +620,12 @@ class _SportHeroState extends State<SportHero> {
   Widget build(BuildContext context) {
     final e = widget.e;
     final l = lgOf(e.lg);
-    final hidden = Store.flag('sport_nospoil', false) && e.post && !e.f1 && !SportCard.revealed.contains(e.id);
+    final hidden = spoilHide(e);
     final hc = evColors(e);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: FocusCard(
-        onTap: hidden ? () => setState(() => SportCard.revealed.add(e.id)) : widget.onTap,
+        onTap: hidden && e.post ? () => setState(() => SportCard.revealed.add(e.id)) : widget.onTap,
         radius: 26,
         child: Container(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -742,6 +745,30 @@ class SportTab extends StatefulWidget {
 }
 
 class _SportTabState extends State<SportTab> {
+  Future<void> _toggleScores() async {
+    await Store.setFlag('sport_nospoil', !Store.flag('sport_nospoil', false));
+    SportCard.tick.value++;
+    if (mounted) setState(() {});
+  }
+
+  /// bouton rapide : afficher ou cacher les scores (anti-spoil)
+  Widget _scoreToggle() {
+    final off = Store.flag('sport_nospoil', false);
+    return FocusCard(
+      radius: 99,
+      onTap: _toggleScores,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(color: off ? const Color(0x33FF9F0A) : const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(99)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(off ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18, color: off ? const Color(0xFFFFB86B) : kMut),
+          const SizedBox(width: 7),
+          Text(off ? 'Scores masqués' : 'Scores affichés', style: T(13, w: 650, color: off ? const Color(0xFFFFB86B) : kText)),
+        ]),
+      ),
+    );
+  }
+
   String sp = '';      // sport choisi (« Football »…), vide = tous
   String lg = '';      // compétition choisie, vide = toutes celles du sport
   bool mine = false;   // seulement mes équipes
@@ -847,6 +874,7 @@ class _SportTabState extends State<SportTab> {
               ],
             ],
             const SizedBox(height: 10),
+            item(Store.flag('sport_nospoil', false) ? 'Scores masqués' : 'Scores affichés', Store.flag('sport_nospoil', false) ? Icons.visibility_off_rounded : Icons.visibility_rounded, Store.flag('sport_nospoil', false), _toggleScores),
             item('Réglages', Icons.tune_rounded, false, () => _more(context)),
           ]);
           Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 390, onTap: () => widget.onOpen(e))]);
@@ -872,6 +900,7 @@ class _SportTabState extends State<SportTab> {
           );
         }
         return ListView(cacheExtent: Device.tv ? 1800 : null, padding: EdgeInsets.only(top: wide ? 8 : top, bottom: wide ? 40 : 110), children: [
+          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Align(alignment: Alignment.centerRight, child: _scoreToggle())),
           Chips(
             labels: r1,
             leading: [null, if (hasTeams) const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFFC857)), for (final n in sports) Icon(sportIcon(n), size: 18), const Icon(Icons.add, size: 18)],
@@ -1128,7 +1157,7 @@ class _SportSettingsState extends State<SportSettings> {
           ]),
           _head('Scores'),
           _card([
-            _row('Masquer les scores', 'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir', trailing: _sw(spoil), onTap: () async {
+            _row('Masquer les scores', 'Les scores (matchs terminés et en direct) sont cachés ; touche un match terminé pour le voir', trailing: _sw(spoil), onTap: () async {
               await Store.setFlag('sport_nospoil', !spoil);
               SportCard.tick.value++;
               if (mounted) setState(() {});

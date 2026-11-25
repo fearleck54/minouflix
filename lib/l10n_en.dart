@@ -1,5 +1,7 @@
 // traductions françaises → anglaises des textes de l'appli (généré ; les {} sont des valeurs variables)
 const Map<String, String> kEn = {
+  'Scores masqués': 'Scores hidden',
+  'Scores affichés': 'Scores shown',
   'Synchronisation': 'Sync',
   'Sur cette télé': 'On this TV',
   'Pays des droits TV': 'TV rights country',
@@ -610,7 +612,7 @@ const Map<String, String> kEn = {
   'Les équipes apparaissent quand les matchs sont chargés.': 'Teams appear once the matches are loaded.',
   'Aucune équipe suivie': 'No team followed',
   'Masquer les scores': 'Hide scores',
-  'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir': 'Finished matches show without a score; tap the card to reveal it',
+  'Les scores (matchs terminés et en direct) sont cachés ; touche un match terminé pour le voir': 'Scores (finished and live matches) are hidden; tap a finished match to reveal it',
   'Rangée Sport de l\'accueil': 'Sport row on Home',
   'Mes équipes seulement': 'My teams only',
   'Score masqué': 'Score hidden',

@@ -1,5 +1,7 @@
 // Übersetzungen Französisch → Deutsch (generiert)
 const Map<String, String> kDe = {
+  'Scores masqués': 'Ergebnisse verborgen',
+  'Scores affichés': 'Ergebnisse sichtbar',
   'Synchronisation': 'Synchronisierung',
   'Sur cette télé': 'Auf diesem Fernseher',
   'Pays des droits TV': 'Land der TV-Rechte',
@@ -610,7 +612,7 @@ const Map<String, String> kDe = {
   'Les équipes apparaissent quand les matchs sont chargés.': 'Teams erscheinen, sobald die Spiele geladen sind.',
   'Aucune équipe suivie': 'Keine Teams gefolgt',
   'Masquer les scores': 'Ergebnisse ausblenden',
-  'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir': 'Beendete Spiele werden ohne Ergebnis angezeigt; tippe auf die Karte, um es zu sehen',
+  'Les scores (matchs terminés et en direct) sont cachés ; touche un match terminé pour le voir': 'Ergebnisse (beendete und laufende Spiele) sind verborgen; tippe auf ein beendetes Spiel, um es zu sehen',
   'Rangée Sport de l\'accueil': 'Sport-Reihe auf der Startseite',
   'Mes équipes seulement': 'Nur meine Teams',
   'Score masqué': 'Ergebnis ausgeblendet',

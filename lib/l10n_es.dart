@@ -1,5 +1,7 @@
 // traducciones françaises → espagnol (généré)
 const Map<String, String> kEs = {
+  'Scores masqués': 'Marcadores ocultos',
+  'Scores affichés': 'Marcadores visibles',
   'Synchronisation': 'Sincronización',
   'Sur cette télé': 'En esta tele',
   'Pays des droits TV': 'País de los derechos de TV',
@@ -610,7 +612,7 @@ const Map<String, String> kEs = {
   'Les équipes apparaissent quand les matchs sont chargés.': 'Los equipos aparecen cuando se cargan los partidos.',
   'Aucune équipe suivie': 'Ningún equipo seguido',
   'Masquer les scores': 'Ocultar marcadores',
-  'Les matchs terminés s\'affichent sans score ; touche la carte pour le voir': 'Los partidos terminados se muestran sin marcador; toca la tarjeta para verlo',
+  'Les scores (matchs terminés et en direct) sont cachés ; touche un match terminé pour le voir': 'Los marcadores (partidos terminados y en directo) están ocultos; toca un partido terminado para verlo',
   'Rangée Sport de l\'accueil': 'Fila de Deportes en el inicio',
   'Mes équipes seulement': 'Solo mis equipos',
   'Score masqué': 'Marcador oculto',
