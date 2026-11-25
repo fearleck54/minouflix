@@ -1,6 +1,11 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 217', [
+    'Réglages › Contenu : « Actualisation automatique » (12 h, 1 jour, 3 jours, 1 semaine, ou à la main). Le catalogue en cache s\'affiche tout de suite, la mise à jour n\'a lieu que passé ce délai.',
+    'Appareils à peu de mémoire : l\'appli adapte seule son niveau (léger, très léger) et réduit ses caches.',
+    'Le journal note maintenant la fluidité et la mémoire (Aide › Voir le journal) pour repérer les lenteurs.',
+  ]),
   ('Version 216', [
     'Fond d\'écran : même rendu sur iPhone, Android et PC.',
   ]),

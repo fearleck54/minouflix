@@ -15,6 +15,7 @@ import 'about.dart';
 import 'epg.dart';
 import 'extras.dart';
 import 'journal.dart';
+import 'perf_log.dart';
 import 'names.dart';
 import 'tmdb.dart';
 import 'sport.dart';
@@ -856,14 +857,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (force) _tries = 0;
     final missing = <Kind, List<String>>{}, stale = <Kind, List<String>>{};
     final now = DateTime.now().millisecondsSinceEpoch;
+    final sw = Stopwatch()..start();
+    final refreshMs = Store.catRefreshMs;
     for (final k in Kind.values) {
       final ids = Store.selection(k) ?? [];
       final have = await Store.cachedCats(k, ids);
       _cats[k] = {for (final id in ids) if (have.containsKey(id)) id: have[id]!.$2};
       if (have.isNotEmpty) _derive(k);
       missing[k] = _byPriority(k, [for (final id in ids) if (!have.containsKey(id)) id]);
-      stale[k] = _byPriority(k, [for (final id in ids) if (have.containsKey(id) && (force || now - have[id]!.$1 > 12 * 3600 * 1000)) id]);
+      stale[k] = _byPriority(k, [for (final id in ids) if (have.containsKey(id) && (force || (refreshMs > 0 && now - have[id]!.$1 > refreshMs))) id]);
     }
+    Journal.add('Catalogue : cache lu et classé en ${sw.elapsedMilliseconds} ms, mémoire ${PerfLog.rssMb} Mo, ${_cats.values.fold<int>(0, (a, m) => a + m.length)} catégories');
     List<(Kind, String)> mix(Map<Kind, List<String>> m) {
       final out = <(Kind, String)>[];
       for (var i = 0; m.values.any((l) => i < l.length); i++) {
@@ -2658,6 +2662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }),
         _row(CupertinoIcons.eye_slash_fill, grey, 'Chaînes masquées', value: Store.hidden.isEmpty ? 'Aucune' : '${Store.hidden.length}', chevron: Store.hidden.isNotEmpty, onTap: Store.hidden.isEmpty ? null : _hiddenPage),
         if (!Device.tv) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF0A84FF), 'Téléchargements', value: dls.isEmpty ? 'Aucun' : '${dls.length} · ${sizeLabel(dlTotal)}', chevron: true, onTap: _dlPage),
+        _row(CupertinoIcons.clock_fill, grey, 'Actualisation automatique', value: _refreshLabel(), chevron: true, onTap: () => _pickPage('Actualisation automatique', const [('12', 'Toutes les 12 h'), ('24', 'Tous les jours'), ('72', 'Tous les 3 jours'), ('168', 'Toutes les semaines'), ('0', 'Seulement à la main')], () => '${Store.catRefreshMs ~/ 3600000}', (v) => Store.setStr('cat_refresh_h', v), foot: 'Au lancement, l\'appli affiche tout de suite le catalogue gardé en mémoire, puis le met à jour seulement s\'il est plus ancien que ce délai. « Actualiser » le met à jour à la demande.')),
         _row(CupertinoIcons.folder_fill, grey, 'Cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
         ValueListenableBuilder<(int, int)>(
           valueListenable: widget.progress,
@@ -2868,6 +2873,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
   /// choix dans une liste à coche (qualité, langues)
+  String _refreshLabel() {
+    final h = Store.catRefreshMs ~/ 3600000;
+    return h == 0 ? 'À la main' : (h < 24 ? '$h h' : (h == 24 ? '1 jour' : (h == 168 ? '1 semaine' : '${h ~/ 24} jours')));
+  }
+
   void _pickPage(String title, List<(String, String)> opts, String Function() cur, Future<void> Function(String) pick, {String foot = '', bool flags = false}) => _page(title, () => [
         ChoiceGrid(
           flags: flags,

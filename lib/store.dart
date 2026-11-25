@@ -164,6 +164,12 @@ class Store {
   // ---- réglages synchronisés avec le compte (qualité, audio, sous-titres, lecture auto)
   static const _setStrKeys = ['pref_q', 'pref_aud', 'pref_sub', 'lang', 'country', 'onb_tastes', 'onb_ver', 'snd_mode', 'bg_style', 'buf_s', 'home_sport', 'home_sport_n'];      // les réglages propres à l'appareil (décodage, calage du son, fréquence de l'écran) restent locaux
   static const _setFlagKeys = ['autonext', 'skipauto', 'sport_nospoil', 'onb_done', 'snd_night', 'snd_voice'];
+  /// actualisation automatique du catalogue (en ms ; 0 = seulement à la main) : choisie dans Réglages › Contenu, 1 jour par défaut
+  static int get catRefreshMs {
+    final h = int.tryParse(str('cat_refresh_h')) ?? 24;
+    return h <= 0 ? 0 : h * 3600 * 1000;
+  }
+
   static int get settingsT => _p.getInt('settings_t') ?? 0;
   static Map<String, dynamic> settingsSnap() => {
         if (_p.getStringList('tab_order') != null) 'tab_order': _p.getStringList('tab_order'),

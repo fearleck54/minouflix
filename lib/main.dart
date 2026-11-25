@@ -14,6 +14,7 @@ import 'epg.dart';
 import 'ui.dart';
 import 'extras.dart';
 import 'journal.dart';
+import 'perf_log.dart';
 import 'screens.dart';
 import 'sync.dart';
 import 'tmdb.dart';
@@ -36,14 +37,17 @@ void main() {
     };
     if (!kIsWeb) MediaKit.ensureInitialized();
     await Store.init();
+    await Perf.detect();
+    PerfLog.start();
     unawaited(Rights.load());
     L.init();
     Device.tv = await Connect.isTv() || (kIsWeb && Uri.base.queryParameters['tv'] == '1');     // télé Android : mode léger (sans flou, sans défilement automatique) et mises en page de salon
     if (Perf.lite) {
       PaintingBinding.instance.imageCache
-        ..maximumSizeBytes = 36 << 20     // 36 Mo d'images décodées au lieu de 100
-        ..maximumSize = 120;
+        ..maximumSizeBytes = (Perf.tight ? 20 : 36) << 20     // 36 Mo d'images décodées au lieu de 100 (20 Mo si moins de 1,3 Go de mémoire)
+        ..maximumSize = Perf.tight ? 70 : 120;
     }
+    Journal.add('Appareil : ${Perf.ramMb} Mo de mémoire, mode ${Perf.tight ? 'très léger' : (Perf.lite ? 'léger' : 'complet')}');
     Store.onSettingsApplied = () => Aurora.tick.value++;
     Store.onSourceChanged = () {
       Tmdb.reset();
