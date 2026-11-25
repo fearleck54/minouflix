@@ -1,6 +1,12 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 228', [
+    'Réglages réorganisés en 7 rubriques : Profil et compte (synchro, Trakt, connecter une télé, déconnexion), Lecture, Langues, Contenu, Personnaliser, Aide et dépannage, À propos.',
+    'Le pays des droits TV est avec le sport ; le cache et « Refaire la configuration » sont dans Aide et dépannage ; Nouveautés est directement dans À propos.',
+    'Réglages télé : l\'image du direct annonce bien « Matériel (recommandé) » ; le tampon propose 8 choix au lieu de 19 ; « Chaînes masquées » n\'apparaît que s\'il y en a.',
+    'Trakt de nouveau accessible (Profil et compte).',
+  ]),
   ('Version 227', [
     'Synchro : une source supprimée sur un appareil ne revient plus depuis le compte, et disparaît des autres appareils.',
     'Synchro : profils ajoutés, renommés ou supprimés sur un appareil, suivis sur les autres (jusqu\'ici seulement à la première connexion).',
@@ -26,7 +32,7 @@ const kNews = <(String, List<String>)>[
     'Si le serveur refuse l\'ouverture d\'un flux, l\'appli réessaie aussitôt avec une autre identité de lecteur IPTV.',
   ]),
   ('Version 221', [
-    'Réglages › Refaire la configuration : une flèche de retour permet de quitter sans rien changer.',
+    'Aide et dépannage › Refaire la configuration : une flèche de retour permet de quitter sans rien changer.',
     'Fournisseur : si le serveur coupe la connexion, l\'appli réessaie seule avec une autre identité de lecteur IPTV et retient celle qui marche.',
   ]),
   ('Version 220', [

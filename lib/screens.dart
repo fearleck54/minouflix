@@ -2612,9 +2612,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
     // (nom dans la liste, titre de section, icône, lignes) : même arbre sur téléphone, tablette et télé
     final groups = <(String, String, IconData, List<Widget>)>[
-      ('Compte', '', CupertinoIcons.person_crop_circle, [
+      ('Profil et compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
+        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Synchronisation', value: Account.signedIn ? (Account.expired ? 'Expirée' : 'Activée') : 'Compte requis', chevron: true, onTap: () => Account.signedIn ? _account() : Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
+        _row(CupertinoIcons.film_fill, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Lié' : 'Non lié', chevron: true, onTap: () async {
+          await traktSheet(context, () {});
+          if (mounted) setState(() {});
+        }),
+        if (!Connect.tvNow) _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
+        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF453A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
       ('Langues', 'Langues', CupertinoIcons.globe, [
         _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
@@ -2623,19 +2630,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }, flags: true, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), flags: true, foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), flags: true, foot: 'Appliqués au lancement de la lecture.')),
-        _row(CupertinoIcons.flag_fill, const Color(0xFF30D158), 'Pays (chaînes de sport)', value: Rights.countries.firstWhere((c) => c.$1 == Rights.country, orElse: () => ('', '—')).$2, chevron: true, onTap: () => _pickPage('Pays', [for (final c in Rights.countries) (c.$1, c.$2)], () => Rights.country, (v) => Store.setStr('country', v), foot: 'Sert à trouver la chaîne qui diffuse un match, selon les droits TV de ton pays.')),
       ]),
       ('Lecture', 'Lecture', CupertinoIcons.play_circle, [
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
-        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Matériel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Logiciel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
-        _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in [1, ...List.generate(18, (i) => (i + 1) * 5)]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
-        if (Device.tv) sw('Lecture directe (plus fluide)', CupertinoIcons.bolt_fill, const Color(0xFFFFD60A), 'vo_embed', true),
-        if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
         sw('Passer l\'intro', CupertinoIcons.forward_fill, const Color(0xFFFF375F), 'skipauto', false),
         sw('Épisode suivant', CupertinoIcons.forward_end_fill, const Color(0xFF64D2FF), 'autonext', true),
+        _row(CupertinoIcons.speedometer, const Color(0xFF30D158), 'Tampon de lecture', value: '${_PlayerScreenState.bufSecs} s', chevron: true, onTap: () => _pickPage('Tampon de lecture', [for (final v in const [1, 5, 10, 20, 30, 45, 60, 90]) ('$v', '$v s')], () => '${_PlayerScreenState.bufSecs}', (v) => Store.setStr('buf_s', v), foot: 'Secondes de vidéo gardées d\'avance. Plus c\'est grand, moins il y a de coupures (au prix d\'un démarrage un peu plus long).')),
+        if (Device.tv) const _SubHead('Sur cette télé'),
+        if (Device.tv) _row(CupertinoIcons.film, const Color(0xFFFF9F0A), 'Image du direct', value: q('dec_live', [('', Device.tv ? 'Matériel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')]), chevron: true, onTap: () => _pickPage('Image du direct', [('', Device.tv ? 'Matériel (recommandé)' : 'Automatique'), ('di', 'Désentrelacée'), ('sw', 'Logiciel'), ('swdi', 'Logiciel + désentrelacée')], () => Store.str('dec_live'), (v) => Store.setStr('dec_live', v), foot: 'Si l\'image des chaînes TNT est hachée ou déchirée : essaie « Désentrelacée », puis « Logiciel ».')),
+        if (Device.tv) sw('Lecture directe (plus fluide)', CupertinoIcons.bolt_fill, const Color(0xFFFFD60A), 'vo_embed', true),
+        if (Device.tv) sw('Adapter la fréquence de l\'écran', CupertinoIcons.tv, const Color(0xFF64D2FF), 'fpsmatch', false),
       ]),
       ('Personnaliser', 'Personnaliser', CupertinoIcons.slider_horizontal_3, [
-        _row(CupertinoIcons.wand_stars, const Color(0xFF5B8CFF), 'Refaire la configuration', value: '', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => OnboardingFlow(redo: true, onDone: () => Navigator.of(context).pop())))),
         _row(CupertinoIcons.paintbrush_fill, const Color(0xFFFF375F), 'Fond de l\'appli', value: Aurora.current.$2.split(' (').first, chevron: true, onTap: () => _pickPage('Fond de l\'appli', [for (final e in Aurora.styles) (e.$1, e.$2)], () => Aurora.currentId, (v) async {
               await Store.setStr('bg_style', v);
               Aurora.tick.value++;
@@ -2645,6 +2651,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await Store.saveSportKeys(k);
               Store.persoTick.value++;
             })))),
+        if (!kid) _row(CupertinoIcons.flag_fill, const Color(0xFF30D158), 'Pays des droits TV', value: Rights.countries.firstWhere((c) => c.$1 == Rights.country, orElse: () => ('', '—')).$2, chevron: true, onTap: () => _pickPage('Pays', [for (final c in Rights.countries) (c.$1, c.$2)], () => Rights.country, (v) => Store.setStr('country', v), foot: 'Sert à trouver la chaîne qui diffuse un match, selon les droits TV de ton pays.')),
         _row(CupertinoIcons.square_grid_2x2_fill, const Color(0xFF30B0C7), 'Écran d\'accueil', value: '${Store.homeIds.length - Store.homeHidden().length} sections', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const HomeSettings()))),
       ]),
       ('Contenu', 'Contenu', CupertinoIcons.square_stack, [
@@ -2660,10 +2667,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.of(context).popUntil((r) => r.isFirst);
           widget.onSelection();
         }),
-        _row(CupertinoIcons.eye_slash_fill, grey, 'Chaînes masquées', value: Store.hidden.isEmpty ? 'Aucune' : '${Store.hidden.length}', chevron: Store.hidden.isNotEmpty, onTap: Store.hidden.isEmpty ? null : _hiddenPage),
+        if (Store.hidden.isNotEmpty) _row(CupertinoIcons.eye_slash_fill, grey, 'Chaînes masquées', value: Store.hidden.isEmpty ? 'Aucune' : '${Store.hidden.length}', chevron: Store.hidden.isNotEmpty, onTap: Store.hidden.isEmpty ? null : _hiddenPage),
         if (!Device.tv) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF0A84FF), 'Téléchargements', value: dls.isEmpty ? 'Aucun' : '${dls.length} · ${sizeLabel(dlTotal)}', chevron: true, onTap: _dlPage),
         _row(CupertinoIcons.clock_fill, grey, 'Actualisation automatique', value: _refreshLabel(), chevron: true, onTap: () => _pickPage('Actualisation automatique', const [('12', 'Toutes les 12 h'), ('24', 'Tous les jours'), ('72', 'Tous les 3 jours'), ('168', 'Toutes les semaines'), ('0', 'Seulement à la main')], () => '${Store.catRefreshMs ~/ 3600000}', (v) => Store.setStr('cat_refresh_h', v), foot: 'Au lancement, l\'appli affiche tout de suite le catalogue gardé en mémoire, puis le met à jour seulement s\'il est plus ancien que ce délai. « Actualiser » le met à jour à la demande.')),
-        _row(CupertinoIcons.folder_fill, grey, 'Cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
         ValueListenableBuilder<(int, int)>(
           valueListenable: widget.progress,
           builder: (_, p, __) => _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Actualiser', value: p.$2 > 0 ? '${p.$1}/${p.$2}' : _ago(Store.catT), trailing: p.$2 > 0 ? const SizedBox(width: 18, height: 18, child: Spinner(strokeWidth: 2)) : null, onTap: () {
@@ -2673,20 +2679,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }),
         ),
       ]),
-      if (!Connect.tvNow)
-        ('Appareils', 'Appareils', CupertinoIcons.tv, [
-          _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
-        ]),
-      ('Aide', '', CupertinoIcons.question_circle, [
-        _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Aide et dépannage', chevron: true, onTap: _aidePage),
-        _row(CupertinoIcons.info_circle_fill, grey, 'À propos', value: 'Version $kBuild', chevron: true, onTap: _aboutPage),
+      ('Aide et dépannage', 'Aide et dépannage', CupertinoIcons.question_circle, [
+        _row(CupertinoIcons.wifi, const Color(0xFF30D158), 'Tester ma source', chevron: true, onTap: () => testSource(context)),
+        _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', value: 'problème, idée, recommandation', chevron: true, onTap: _feedbackPage),
+        _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
+        if (!Device.tv) _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
+        _row(CupertinoIcons.folder_fill, grey, 'Vider le cache', value: _imgBytes < 0 || _catBytes < 0 ? '' : sizeLabel(_imgBytes + _catBytes), chevron: true, onTap: _stockPage),
+        _row(CupertinoIcons.wrench_fill, const Color(0xFFFF9F0A), 'Réparer l\'application', chevron: true, onTap: _repair),
+        if (!kid) _row(CupertinoIcons.wand_stars, const Color(0xFF5B8CFF), 'Refaire la configuration', value: '', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => OnboardingFlow(redo: true, onDone: () => Navigator.of(context).pop())))),
       ]),
-      ('Déconnexion', '', CupertinoIcons.person_crop_circle_badge_xmark, [
-        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF9F0A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
+      ('À propos', 'À propos', CupertinoIcons.info_circle, [
+        _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Nouveautés', value: 'Version $kBuild', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => TextPage(title: 'Nouveautés', sections: [for (final n in kNews) (n.$1, [for (final l in n.$2) '• $l'].join('\n'))])))),
+        if (!kStore && !kIsWeb && Platform.isAndroid) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF30D158), 'Rechercher une mise à jour', chevron: true, onTap: _update),
+        _row(CupertinoIcons.lock_shield_fill, const Color(0xFF32ADE6), 'Confidentialité', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TextPage(title: 'Confidentialité', sections: kPrivacy)))),
       ]),
     ];
     _groups = groups;
-    Widget content(int i) => _box(groups[i].$4);
+    final notes = <String, List<String>>{
+      'Aide et dépannage': ['Source injoignable alors que ta connexion marche ? Vérifie qu\'aucun autre appareil ne lit ton abonnement. Sur iPhone, désactive aussi le Relais privé iCloud (Réglages › ton nom › iCloud) et tout VPN : ils font passer l\'appli par des adresses que beaucoup de fournisseurs refusent.', 'Le journal ne contient jamais tes identifiants. Déconnexion, effacement et suppression du compte : Réglages › Profil et compte.'],
+      'À propos': ['MinouFlix est un lecteur : il ne fournit aucun contenu. Les chaînes, films et séries viennent de l\'abonnement que tu y connectes.', 'Affiches, résumés et logos : The Movie Database (TMDB). $kTmdbNotice'],
+    };
+    Widget content(int i) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_box(groups[i].$4), for (final n in notes[groups[i].$1] ?? const <String>[]) Padding(padding: const EdgeInsets.fromLTRB(32, 10, 24, 0), child: Text(n, style: T(12.5, color: kMut, h: 1.4)))]);
     if (Device.tv) {
       final cur = _sec.clamp(0, groups.length - 1);
       return DsBg(child: Scaffold(backgroundColor: Colors.transparent, 
