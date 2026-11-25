@@ -151,7 +151,7 @@ class Xtream {
   /// `rapide` : connexion et liste des catégories (l'utilisateur attend devant un écran de chargement) : 25 s et 2 essais au lieu de 90 s et 6
   Future<Uint8List> _bytes(Uri u, {bool rapide = false}) async {
     Object? last;
-    final essais = rapide ? 4 : 6, delai = Duration(seconds: rapide ? 25 : 90);
+    final essais = rapide ? 2 : 6, delai = Duration(seconds: rapide ? 25 : 90);
     for (var attempt = 0; attempt < essais; attempt++) {
       try {
         final r = await _gate(() => http.get(u, headers: {'User-Agent': kIptvUa}).timeout(delai));
@@ -188,7 +188,7 @@ class Xtream {
     final d = '$last'.replaceAll(RegExp(r'\s+'), ' ');
     Journal.add('Fournisseur injoignable', last);
     if (last is http.ClientException && '$last'.contains('closed')) {
-      throw XtreamError('Le fournisseur refuse la connexion : ton abonnement est probablement utilisé sur un autre appareil (un seul écran à la fois). Arrête la lecture là-bas, puis réessaie.');
+      throw XtreamError('Le fournisseur refuse la connexion : ton abonnement est probablement utilisé sur un autre appareil (un seul écran à la fois). Arrête la lecture là-bas, puis réessaie. Si aucun autre appareil ne lit : sur iPhone, désactive le Relais privé iCloud (Réglages › ton nom › iCloud) et tout VPN.');
     }
     throw XtreamError('Serveur injoignable (${last.runtimeType}${d.length > 8 ? ' : ${d.substring(0, d.length > 110 ? 110 : d.length)}' : ''}) : vérifie l\'adresse du serveur et ta connexion Internet.');
   }

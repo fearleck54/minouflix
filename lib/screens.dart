@@ -2921,6 +2921,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _row(CupertinoIcons.doc_text_fill, const Color(0xFF8E8E93), 'Voir le journal', chevron: true, onTap: _journal),
           if (!Device.tv) _row(CupertinoIcons.doc_on_doc_fill, const Color(0xFF8E8E93), 'Copier le journal', onTap: _copyJournal),
         ]),
+        _foot('Source injoignable alors que ta connexion marche ? Vérifie qu\'aucun autre appareil ne lit ton abonnement. Sur iPhone, désactive aussi le Relais privé iCloud (Réglages › ton nom › iCloud) et tout VPN : ils font passer l\'appli par des adresses que beaucoup de fournisseurs refusent.'),
         _SubHead('Ton avis'),
         _box([
           _row(CupertinoIcons.chat_bubble_text_fill, const Color(0xFF5B8CFF), 'Envoyer un retour', value: 'problème, idée, recommandation', chevron: true, onTap: _feedbackPage),
@@ -3943,7 +3944,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       builder: (ctx) => AppDialog(
         backgroundColor: kBg2,
         title: Text('Attention', style: T(18, w: 700)),
-        content: Text('Un autre appareil est en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Veux-tu le remplacer et lire ici ?', style: T(15, color: kMut)),
+        content: Text('Un autre appareil est en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Veux-tu le remplacer et lire ici ?${!kIsWeb && Platform.isIOS ? ' (Si aucun autre appareil ne lit, désactive le Relais privé iCloud et tout VPN dans les Réglages de l\'iPhone.)' : ''}', style: T(15, color: kMut)),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))],
       ),
     );
@@ -4417,14 +4418,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     _errSub = player.stream.error.listen((e) {
       Journal.add('Lecteur', e);
-      if (e.contains('Failed to open') && _openFails < 6 && widget.audioUrl == null && !widget.debug) {
+      if (e.contains('Failed to open') && _openFails < 3 && widget.audioUrl == null && !widget.debug) {
         // le serveur refuse ou coupe : on réessaie seul (autre identité de lecteur IPTV, puis pauses plus longues pour laisser le serveur libérer l'ancienne connexion)
         _openFails++;
         if (_uaTries < kIptvUas.length - 1) {
           _uaTries++;
           uaNext();
         }
-        Future<void>.delayed(Duration(seconds: _openFails <= 3 ? 1 : 5), () async {
+        Future<void>.delayed(Duration(seconds: _openFails <= 1 ? 1 : 5), () async {
           if (!mounted || _fail != null) return;
           try {
             await (player.platform as dynamic).setProperty('user-agent', kIptvUa);

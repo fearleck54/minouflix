@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 226', [
+    'Aide : conseil si la source est injoignable alors que la connexion marche (iPhone : désactiver le Relais privé iCloud et les VPN, qui font refuser la connexion par beaucoup de fournisseurs). Même conseil dans les messages d\'erreur.',
+    'Moins de tentatives en rafale quand le fournisseur coupe la connexion.',
+  ]),
   ('Version 225', [
     'Quand le fournisseur coupe la connexion (abonnement utilisé ailleurs), l\'appli l\'explique en clair et propose de remplacer l\'autre appareil avant la lecture.',
   ]),
