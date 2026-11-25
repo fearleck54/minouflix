@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart' hide Text;
 import 'package:flutter/services.dart';
 import 'journal.dart';
@@ -83,7 +86,45 @@ Future<List<(bool, String)>> _lines(Creds c) async {
     Journal.add('Test de la source', e);
     final m = '$e'.replaceFirst('XtreamError: ', '');
     out.add((false, m));
+    out.addAll(await _raw(c));
     out.add((false, m.contains('refusés') ? 'Vérifie l\'identifiant, le mot de passe et l\'adresse du serveur dans Sources IPTV.' : 'Vérifie ta connexion Internet ; si elle marche, le fournisseur est peut-être en panne ou t\'a bloqué (trop de requêtes).'));
+  }
+  return out;
+}
+
+/// test « à la main » (connexion brute, sans le client HTTP de l'appli) : dit si le blocage est avant ou après l'envoi de la demande
+Future<List<(bool, String)>> _raw(Creds c) async {
+  final out = <(bool, String)>[];
+  try {
+    final u = Uri.parse(c.base);
+    final tls = u.scheme == 'https';
+    final port = u.hasPort ? u.port : (tls ? 443 : 80);
+    final t0 = DateTime.now();
+    final addrs = await InternetAddress.lookup(u.host).timeout(const Duration(seconds: 8));
+    out.add((true, 'Adresse du serveur trouvée (${addrs.map((a) => a.type == InternetAddressType.IPv6 ? 'IPv6' : 'IPv4').toSet().join(' + ')}).'));
+    for (final ua in ['VLC/3.0.20 LibVLC/3.0.20', 'Dart']) {
+      final t1 = DateTime.now();
+      Socket? so;
+      try {
+        so = tls ? await SecureSocket.connect(u.host, port, timeout: const Duration(seconds: 8)) : await Socket.connect(u.host, port, timeout: const Duration(seconds: 8));
+        final ms = DateTime.now().difference(t1).inMilliseconds;
+        so.write('GET /player_api.php?username=${Uri.encodeQueryComponent(c.user)}&password=${Uri.encodeQueryComponent(c.pass)} HTTP/1.1\r\nHost: ${u.host}\r\nUser-Agent: $ua\r\nAccept: */*\r\nConnection: close\r\n\r\n');
+        await so.flush();
+        final buf = <int>[];
+        await so.timeout(const Duration(seconds: 10), onTimeout: (sink) => sink.close()).forEach((d) {
+          if (buf.length < 600) buf.addAll(d);
+        });
+        final first = utf8.decode(buf, allowMalformed: true).split('\r\n').first;
+        out.add((buf.isNotEmpty, buf.isEmpty ? 'Connexion brute ($ua) : connectée en $ms ms, puis fermée par le serveur sans réponse.' : 'Connexion brute ($ua) : $ms ms, réponse « ${first.length > 40 ? first.substring(0, 40) : first} ».'));
+      } catch (e) {
+        out.add((false, 'Connexion brute ($ua) : ${e.runtimeType}.'));
+      } finally {
+        so?.destroy();
+      }
+    }
+    Journal.add('Test brut du fournisseur : ${out.map((e) => e.$2).join(' | ')} (${DateTime.now().difference(t0).inMilliseconds} ms)');
+  } catch (e) {
+    out.add((false, 'Test brut impossible : ${e.runtimeType}.'));
   }
   return out;
 }
