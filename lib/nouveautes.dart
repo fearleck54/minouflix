@@ -2,7 +2,7 @@
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
   ('Version 236', [
-    'Démarrage : l\'écran du chat reste affiché pendant que l\'accueil se prépare derrière (0,7 à 2,2 s), puis l\'accueil apparaît d\'un coup au lieu de se remplir à vue d\'œil.',
+    'Démarrage : animation d\'ouverture de 2,8 secondes (le chat apparaît, MinouFlix se révèle, un reflet passe) pendant que l\'accueil se prépare derrière ; il apparaît ensuite d\'un coup.',
   ]),
   ('Version 235', [
     'Accueil : au démarrage, des rangées grisées de la bonne taille tiennent la place du Top 10, de À l\'affiche, du Sport et des derniers ajouts. Le contenu arrive dedans sans que la page saute.',

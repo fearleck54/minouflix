@@ -301,9 +301,6 @@ class _BootState extends State<Boot> {
     final home = HomeScreen(
       key: ValueKey('h${Store.activeId}_${Store.profId}'),
       creds: creds!,
-      onReady: () {
-        if (mounted && !_splashDone) setState(() => _splashDone = true);
-      },
       onSwitch: _switched,
       onReset: () => setState(() => creds = null),
       onChangeSelection: () => setState(() => pick = true),
@@ -312,10 +309,10 @@ class _BootState extends State<Boot> {
         authed = _authed();
       }),
     );
-    // le chat reste affiché par-dessus pendant que l'accueil se prépare derrière : l'accueil apparaît d'un coup, sans se remplir à vue d'œil
+    // animation d'ouverture à durée fixe par-dessus l'accueil, qui se prépare derrière : il apparaît d'un coup, sans se remplir à vue d'œil
     return Stack(fit: StackFit.expand, children: [
       home,
-      IgnorePointer(ignoring: _splashDone, child: AnimatedSwitcher(duration: Duration(milliseconds: Perf.lite ? 0 : 300), child: _splashDone ? const SizedBox.shrink() : const BrandIntro(key: ValueKey('intro')))),
+      if (!_splashDone) LaunchIntro(onDone: () => mounted ? setState(() => _splashDone = true) : null),
     ]);
   }
 }

@@ -643,8 +643,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onReset, onChangeSelection;
   final VoidCallback? onWipe;
   final VoidCallback? onSwitch;      // source ajoutée, activée ou supprimée : on repart de zéro
-  final VoidCallback? onReady;      // l'accueil a de quoi s'afficher : l'écran de chargement peut partir
-  const HomeScreen({super.key, required this.creds, required this.onReset, required this.onChangeSelection, this.onWipe, this.onSwitch, this.onReady});
+  const HomeScreen({super.key, required this.creds, required this.onReset, required this.onChangeSelection, this.onWipe, this.onSwitch});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -668,7 +667,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final busy = <Kind>{for (final k in Kind.values) if ((Store.selection(k) ?? []).isNotEmpty) k};     // jusqu'à la lecture du cache
   final _details = <String, Future<Detail?>>{};
   late Future<List<Ev>> sport = fetchSport(Store.sportKeys);
-  Timer? _readyT;
   DateTime _sportAt = DateTime.now();
   int tab = Store.initialTab(kid: Store.kid);
   int _lastSaved = -1;
@@ -711,15 +709,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     sportFresh.addListener(_onSportFresh);
-    // écran de chargement (chat) tenu jusqu'à ce que le catalogue en cache soit lu, 0,7 s au moins pour éviter un flash, 2,2 s au plus
-    final t0 = DateTime.now();
-    _readyT = Timer.periodic(const Duration(milliseconds: 120), (t) {
-      final ms = DateTime.now().difference(t0).inMilliseconds;
-      if ((busy.isEmpty && ms > 700) || ms > 2200) {
-        t.cancel();
-        widget.onReady?.call();
-      }
-    });
     Epg.src = x;
     unawaited(Connect.isTv().then((_) => Connect.start(_onRemote)));
     _loadAll();
@@ -799,7 +788,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _readyT?.cancel();
     sportFresh.removeListener(_onSportFresh);
     WidgetsBinding.instance.removeObserver(this);
     Store.persoTick.removeListener(_persoChanged);

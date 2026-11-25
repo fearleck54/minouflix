@@ -208,3 +208,86 @@ class _CatPainter extends CustomPainter {
   @override
   bool shouldRepaint(_CatPainter o) => o.t != t;
 }
+
+
+/// animation de lancement à durée fixe (comme un logo d'ouverture) : le chat apparaît en grossissant, son nom se révèle, un reflet le traverse, puis le tout s'efface sur l'accueil
+/// qui s'est préparé derrière. 2,8 s, une seule fois par démarrage ; en mode léger, pas de reflet ni de halo animé
+class LaunchIntro extends StatefulWidget {
+  final VoidCallback onDone;
+  const LaunchIntro({super.key, required this.onDone});
+  @override
+  State<LaunchIntro> createState() => _LaunchIntroState();
+}
+
+class _LaunchIntroState extends State<LaunchIntro> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted) widget.onDone();
+    });
+    _c.forward();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  static double _seg(double v, double a, double b, [Curve k = Curves.easeOutCubic]) => k.transform(((v - a) / (b - a)).clamp(0.0, 1.0));
+
+  @override
+  Widget build(BuildContext context) {
+    final h = Device.tv ? 190.0 : 130.0;
+    final lite = Perf.lite;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final v = _c.value;
+        final cat = _seg(v, 0.0, 0.30, Curves.easeOutBack);
+        final catOp = _seg(v, 0.0, 0.18);
+        final glow = _seg(v, 0.05, 0.45);
+        final word = _seg(v, 0.26, 0.58);
+        final sweep = _seg(v, 0.58, 0.84, Curves.easeInOut);
+        final out = 1 - _seg(v, 0.88, 1.0, Curves.easeIn);
+        Widget title = Text('MinouFlix', style: T(Device.tv ? 52 : 40, w: 850, ls: 0.01 + 0.18 * (1 - word)));
+        if (!lite && sweep > 0 && sweep < 1) {
+          title = ShaderMask(
+            blendMode: BlendMode.srcATop,
+            shaderCallback: (r) => LinearGradient(begin: Alignment(-1.6 + 3.2 * sweep, 0), end: Alignment(-0.6 + 3.2 * sweep, 0), colors: const [Color(0x00FFFFFF), Color(0xCCFFFFFF), Color(0x00FFFFFF)]).createShader(r),
+            child: title,
+          );
+        }
+        return IgnorePointer(
+          ignoring: out < 0.05,
+          child: Opacity(
+            opacity: out,
+            child: Container(
+              color: kBg,
+              child: Stack(children: [
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: RadialGradient(center: const Alignment(0, -0.1), radius: 0.4 + 0.9 * glow, colors: [Color.fromRGBO(229, 72, 77, 0.30 * glow), const Color(0x00E5484D)])),
+                  ),
+                ),
+                Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Opacity(
+                      opacity: catOp,
+                      child: Transform.scale(scale: 0.72 + 0.28 * cat, child: CustomPaint(size: Size(h, h), painter: _CatPainter(v))),
+                    ),
+                    const SizedBox(height: 18),
+                    Opacity(opacity: word, child: Transform.translate(offset: Offset(0, 12 * (1 - word)), child: title)),
+                  ]),
+                ),
+              ]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
