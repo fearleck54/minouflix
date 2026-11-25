@@ -3644,6 +3644,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   static int get bufSecs => (int.tryParse(Store.str('buf_s')) ?? 20).clamp(1, 90);
 
   Future<void> _bufferSecs(dynamic n) async {
+    await n.setProperty('user-agent', kIptvUa);
     await n.setProperty('demuxer-readahead-secs', '$bufSecs');
     await n.setProperty('cache-secs', '$bufSecs');
     await n.setProperty('cache-pause-wait', '$bufSecs');

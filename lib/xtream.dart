@@ -10,6 +10,9 @@ import 'names.dart';
 import 'perf.dart';
 import 'version.dart';
 
+/// identité d'un lecteur IPTV courant : certains fournisseurs coupent les connexions des clients inconnus (« Dart », « libmpv »)
+const kIptvUa = 'VLC/3.0.20 LibVLC/3.0.20';
+
 enum Kind { live, vod, series }
 
 extension KindX on Kind {
@@ -132,7 +135,7 @@ class Xtream {
     final essais = rapide ? 2 : 6, delai = Duration(seconds: rapide ? 25 : 90);
     for (var attempt = 0; attempt < essais; attempt++) {
       try {
-        final r = await _gate(() => http.get(u).timeout(delai));
+        final r = await _gate(() => http.get(u, headers: const {'User-Agent': kIptvUa}).timeout(delai));
         if (r.statusCode == 429 || r.statusCode == 503 || r.statusCode == 502) {
           _cap = 2;
           _minGap = 400;
@@ -265,7 +268,7 @@ class Xtream {
     final u = Uri.parse('${c.base}/xmltv.php').replace(queryParameters: {'username': c.user, 'password': c.pass});
     final cl = http.Client();
     try {
-      final r = await _gate(() => cl.send(http.Request('GET', u)).timeout(const Duration(seconds: 120)));
+      final r = await _gate(() => cl.send(http.Request('GET', u)..headers['User-Agent'] = kIptvUa).timeout(const Duration(seconds: 120)));
       if (r.statusCode != 200) throw XtreamError('guide ${r.statusCode}');
       // petite télé : un guide trop gros (des dizaines de Mo à décoder) ferait manquer de mémoire ; on s'en passe plutôt que de planter
       final max = Perf.lite ? 14 * 1024 * 1024 : 120 * 1024 * 1024;
@@ -316,7 +319,7 @@ class Xtream {
     if (c.isM3u || _bulkKo.contains(k) || want.isEmpty) return null;
     final cl = http.Client();
     try {
-      final resp = await _gate(() => cl.send(http.Request('GET', _api(k.listAction))).timeout(const Duration(seconds: 60)));
+      final resp = await _gate(() => cl.send(http.Request('GET', _api(k.listAction))..headers['User-Agent'] = kIptvUa).timeout(const Duration(seconds: 60)));
       if (resp.statusCode == 200) {
         // pas de limite de taille : la réponse est décodée par morceaux d'environ 1 Mo (mémoire bornée, utile surtout sur petite télé)
         final by = <String, List<Item>>{};
