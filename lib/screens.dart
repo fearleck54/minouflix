@@ -1605,7 +1605,7 @@ class HomeTab extends StatelessWidget {
         memKey: 'top10',
         future: Tmdb.trending(),
         builder: (_, s) {
-          if (!s.hasData && s.connectionState != ConnectionState.done) return SizedBox(height: ph + 120);     // pas de liste provisoire qui change une seconde plus tard
+          if (!s.hasData && s.connectionState != ConnectionState.done) return HomeSkel(w: pw, h: ph, n: 7);     // trame grisée : pas de liste provisoire qui change une seconde plus tard
           final tr = trendTop(s.data ?? const [], vl, sl);
           final l = tr.isNotEmpty ? tr : top;
           return Rail(title: 'Top 10 cette semaine', height: ph, count: l.length, moreLabel: '', builder: (_, i) => Top10Card(rank: i + 1, item: l[i], width: pw, onTap: () => onOpen(l[i])));
@@ -1615,6 +1615,7 @@ class HomeTab extends StatelessWidget {
         memKey: 'affiche',
         future: Tmdb.nowPlaying(),
         builder: (_, s) {
+          if (!s.hasData && s.connectionState != ConnectionState.done && vl != null) return HomeSkel(w: pw, h: ph, n: 7);
           final seen = <int>{};
           final l = <Item>[];
           for (final f in s.data ?? const <Map>[]) {
@@ -1630,6 +1631,7 @@ class HomeTab extends StatelessWidget {
         memKey: 'sport',
         future: sport,
         builder: (_, s) {
+          if (!s.hasData && s.connectionState != ConnectionState.done) return HomeSkel(w: sw, h: Device.tv ? 104 : 78, n: 3);
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
           if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
@@ -1640,8 +1642,8 @@ class HomeTab extends StatelessWidget {
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
       'recoV': recoV.isNotEmpty ? rail('Vous aimerez peut-être', recoV) : const SizedBox.shrink(),
       'recoS': recoS.isNotEmpty ? rail('Séries pour vous', recoS) : const SizedBox.shrink(),
-      'recent': rail('Derniers films ajoutés', rv, tab: 2),
-      'recentS': rail('Séries mises à jour', rs, tab: 3),
+      'recent': rv.isEmpty && busy.contains(Kind.vod) ? HomeSkel(w: pw, h: ph, n: 7) : rail('Derniers films ajoutés', rv, tab: 2),
+      'recentS': rs.isEmpty && busy.contains(Kind.series) ? HomeSkel(w: pw, h: ph, n: 7) : rail('Séries mises à jour', rs, tab: 3),
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();

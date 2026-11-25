@@ -2005,3 +2005,33 @@ class CachedFuture<T> extends StatelessWidget {
         },
       );
 }
+
+
+/// rangée provisoire de l'accueil : titre et cartes grisées de la bonne taille, pour que le contenu arrive sans faire bouger la page (fixe, sans animation : léger pour les petites télés)
+class HomeSkel extends StatelessWidget {
+  final double w, h;
+  final int n;
+  const HomeSkel({super.key, required this.w, required this.h, this.n = 8});
+
+  @override
+  Widget build(BuildContext context) => ExcludeFocus(
+        child: IgnorePointer(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 18, bottom: 40),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(padding: const EdgeInsets.fromLTRB(20, 4, 20, 14), child: Container(width: 160, height: 18, decoration: BoxDecoration(color: const Color(0x1AFFFFFF), borderRadius: BorderRadius.circular(9)))),
+              SizedBox(
+                height: h,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: n,
+                  itemBuilder: (_, i) => Padding(padding: const EdgeInsets.only(right: 12), child: Container(width: w, decoration: BoxDecoration(color: const Color(0x12FFFFFF), borderRadius: BorderRadius.circular(14)))),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      );
+}
