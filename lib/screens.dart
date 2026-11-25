@@ -3917,6 +3917,35 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   bool _kicked = false;
 
+  /// source à un seul écran déjà utilisée : on demande avant de lire, puis l'autre appareil est arrêté (true = on lit)
+  Future<bool> _askTakeOver() async {
+    final x = widget.x;
+    if (x == null || !_oneScreen || widget.audioUrl != null) return true;
+    try {
+      await x.refreshInfo().timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return true;
+    }
+    if (!mounted || (int.tryParse(x.info['active'] ?? '') ?? 0) < 1) return true;
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppDialog(
+        backgroundColor: kBg2,
+        title: Text('Attention', style: T(18, w: 700)),
+        content: Text('Un autre appareil est en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Veux-tu le remplacer et lire ici ?', style: T(15, color: kMut)),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))],
+      ),
+    );
+    if (go != true) return false;
+    _kicked = true;
+    if (Connect.canSend) {
+      await Connect.kick();
+      Journal.add('Source à un écran : demande d\'arrêt envoyée aux autres appareils');
+      await Future<void>.delayed(const Duration(seconds: 4));
+    }
+    return true;
+  }
+
   /// source à un seul écran : on demande à l'autre appareil de lâcher la source, puis on relance
   Future<void> _takeOver() async {
     _kicked = true;
@@ -4422,6 +4451,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         try {
           await (player.platform as dynamic).setProperty('audio-delay', '$_aDelay');
         } catch (_) {}
+      }
+      if (!mounted) return;
+      if (!await _askTakeOver()) {
+        if (mounted) Navigator.maybePop(context);
+        return;
       }
       if (mounted) _open(widget.url);
     });

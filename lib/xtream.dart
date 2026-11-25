@@ -191,6 +191,16 @@ class Xtream {
   int _srvOff = 0;
   Map<String, String> info = const {};      // état du compte chez le fournisseur (statut, connexions)
   String _authMsg = '';
+  /// relit l'état des connexions (statut, écrans utilisés) sans toucher au reste
+  Future<void> refreshInfo() async {
+    if (c.isM3u) return;
+    final d = await _get(_api(null), rapide: true);
+    if (d is Map && d['user_info'] is Map) {
+      final ui = d['user_info'] as Map;
+      info = {'status': '${ui['status'] ?? ''}', 'max': '${ui['max_connections'] ?? ''}', 'active': '${ui['active_cons'] ?? ''}'};
+    }
+  }
+
   Future<String> authenticate() async {
     if (_authed) return _authMsg;
     if (c.isM3u) {

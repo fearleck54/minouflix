@@ -4,7 +4,7 @@ const kNews = <(String, List<String>)>[
   ('Version 219', [
     'Lecteur : commandes et statistiques décalées pour ne plus passer sous l\'encoche de l\'iPhone.',
     'Le journal note le temps de démarrage de chaque lecture.',
-    'Source à un seul écran : l\'appareil qui veut lire fait arrêter la lecture de l\'autre appareil du compte, puis démarre.',
+    'Source à un seul écran : si un autre appareil est déjà en lecture, un message demande de confirmer avant de lancer ; une fois validé, l\'autre s\'arrête.',
   ]),
   ('Version 218', [
     'Lecteur iPhone / iPad : mêmes commandes que sur la télé (toucher l\'écran pour les afficher, barre de progression tactile).',
