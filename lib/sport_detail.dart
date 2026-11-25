@@ -48,7 +48,8 @@ class _EvDetailState extends State<EvDetailScreen> {
               ),
             ),
           ),
-        );
+        ),
+      );
 
   /// statistique comparée : valeurs aux deux bouts, barre coupée en deux aux couleurs des clubs
   Widget _stat(String lab, String va, String vb, Color c1, Color c2) {
