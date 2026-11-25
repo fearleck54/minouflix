@@ -8,10 +8,29 @@ import 'journal.dart';
 import 'l10n.dart';
 import 'names.dart';
 import 'perf.dart';
+import 'store.dart';
 import 'version.dart';
 
 /// identité d'un lecteur IPTV courant : certains fournisseurs coupent les connexions des clients inconnus (« Dart », « libmpv »)
-const kIptvUa = 'VLC/3.0.20 LibVLC/3.0.20';
+const kIptvUas = ['VLC/3.0.20 LibVLC/3.0.20', 'okhttp/4.12.0', 'IPTVSmartersPro', 'Lavf/60.3.100'];
+int _uaIdx = -1;
+
+/// identité utilisée ; si le serveur coupe la connexion, on passe à la suivante (et on retient celle qui marche)
+String get kIptvUa {
+  if (_uaIdx < 0) _uaIdx = (int.tryParse(Store.str('ua_idx')) ?? 0).clamp(0, kIptvUas.length - 1);
+  return kIptvUas[_uaIdx];
+}
+
+void _uaNext() {
+  kIptvUa;
+  _uaIdx = (_uaIdx + 1) % kIptvUas.length;
+  Journal.add('Fournisseur : connexion coupée, nouvelle tentative en tant que « ${kIptvUas[_uaIdx]} »');
+}
+
+void _uaOk() {
+  kIptvUa;
+  if (Store.str('ua_idx') != '$_uaIdx') unawaited(Store.setStr('ua_idx', '$_uaIdx'));
+}
 
 enum Kind { live, vod, series }
 
@@ -132,10 +151,10 @@ class Xtream {
   /// `rapide` : connexion et liste des catégories (l'utilisateur attend devant un écran de chargement) : 25 s et 2 essais au lieu de 90 s et 6
   Future<Uint8List> _bytes(Uri u, {bool rapide = false}) async {
     Object? last;
-    final essais = rapide ? 2 : 6, delai = Duration(seconds: rapide ? 25 : 90);
+    final essais = rapide ? 4 : 6, delai = Duration(seconds: rapide ? 25 : 90);
     for (var attempt = 0; attempt < essais; attempt++) {
       try {
-        final r = await _gate(() => http.get(u, headers: const {'User-Agent': kIptvUa}).timeout(delai));
+        final r = await _gate(() => http.get(u, headers: {'User-Agent': kIptvUa}).timeout(delai));
         if (r.statusCode == 429 || r.statusCode == 503 || r.statusCode == 502) {
           _cap = 2;
           _minGap = 400;
@@ -150,12 +169,18 @@ class Xtream {
         if (r.statusCode == 509) throw XtreamError('Trop de connexions en même temps sur ton abonnement : ferme la lecture sur un autre appareil.');
         if (r.statusCode != 200) throw XtreamError('Le serveur répond ${r.statusCode}.');
         if (_gapMs > _minGap) _gapMs = _gapMs - 100 < _minGap ? _minGap : _gapMs - 100;
+        _uaOk();
         return r.bodyBytes;
       } on XtreamError {
         rethrow;
       } catch (e) {
         last = e;
-        await Future<void>.delayed(Duration(seconds: 2 * (attempt + 1)));
+        if (e is http.ClientException) {
+          _uaNext();
+          await Future<void>.delayed(const Duration(seconds: 1));
+        } else {
+          await Future<void>.delayed(Duration(seconds: 2 * (attempt + 1)));
+        }
       }
     }
     if (last is XtreamError) throw last;

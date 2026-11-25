@@ -3,6 +3,7 @@
 const kNews = <(String, List<String>)>[
   ('Version 221', [
     'Réglages › Refaire la configuration : une flèche de retour permet de quitter sans rien changer.',
+    'Fournisseur : si le serveur coupe la connexion, l\'appli réessaie seule avec une autre identité de lecteur IPTV et retient celle qui marche.',
   ]),
   ('Version 220', [
     'Connexion au fournisseur : l\'appli se présente comme un lecteur IPTV courant (certains serveurs refusent les clients inconnus).',
