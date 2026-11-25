@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'auth.dart';
 import 'keys.dart';
@@ -139,22 +140,35 @@ class Sync {
       if (opt('creds')) {
         // source d'origine : la copie la plus récente gagne (modifiable sur n'importe quel appareil)
         final rt = (d['creds_t'] as num?)?.toInt() ?? 0, rc = d['creds'];
-        if (rc is String && rt > lt(Store.credsT)) {
+        // source d'origine supprimée sur un appareil : elle ne revient pas, et disparaît des autres
+        final delT = math.max((d['creds_del_t'] as num?)?.toInt() ?? 0, Store.credsDelT);
+        if (delT > 0 && delT > lt(Store.credsT) && await Store.credsOf('') != null) {
+          await Store.removeSource('', at: delT);
+          changed = true;
+        }
+        if (delT > 0) d['creds_del_t'] = delT;
+        if (rc is String && rt > lt(Store.credsT) && rt > delT) {
           final txt = await Account.open(rc);
           final nc = txt == null ? null : Creds.fromJson(jsonDecode(txt) as Map<String, dynamic>);
           if (nc != null) {
             await Store.setCredsFromCloud(nc, rt);
             changed = true;
           }
-        } else {
+        } else if (await Store.credsOf('') != null) {
           final c = await Store.credsOf('');
           final enc = c == null ? null : await Account.seal(jsonEncode(c.toJson()));
           if (enc != null) {
             d['creds'] = enc;
             d['creds_t'] = Store.credsT;
           }
+        } else if (rc is String && delT > 0 && rt <= delT) {
+          d.remove('creds');      // supprimée : plus rien d'elle dans le compte
+          d.remove('creds_t');
         }
-        // sources supplémentaires : chiffrées aussi, ajoutées ou modifiées sur tes autres appareils (jamais supprimées à distance)
+        // sources supplémentaires : chiffrées aussi, ajoutées ou modifiées sur tes autres appareils (une suppression faite sur un appareil est retenue et suivie par les autres)
+        final (dels, delChanged) = await Store.mergeDeletions(d['sources_del'] is Map ? (d['sources_del'] as Map).cast<String, dynamic>() : <String, dynamic>{});
+        if (delChanged) changed = true;
+        if (dels.isNotEmpty) d['sources_del'] = dels;
         final encX = await Account.open('${d['sources'] ?? ''}');
         if (encX != null && await Store.mergeSources(jsonDecode(encX) as List)) changed = true;
         final ex = await Store.extraSources();

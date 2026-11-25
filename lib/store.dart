@@ -90,12 +90,44 @@ class Store {
 
   /// synchro du compte : sources supplémentaires (identifiants compris) à envoyer, et sources reçues d'un autre appareil à ajouter
   static Future<List<Map<String, dynamic>>> extraSources() => _extras();
+  /// sources supprimées (id → date de suppression) : sans cette trace, la synchro les remettait depuis un autre appareil
+  static Map<String, int> srcDel() {
+    try {
+      return {for (final e in (jsonDecode(_p.getString('src_del') ?? '{}') as Map).entries) '${e.key}': (e.value as num).toInt()};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static int get credsDelT => _p.getInt('creds_del_t') ?? 0;
+
+  /// fusionne les suppressions reçues du compte avec les nôtres ; supprime ici les sources supprimées ailleurs ; renvoie (suppressions à renvoyer, quelque chose a changé)
+  static Future<(Map<String, int>, bool)> mergeDeletions(Map<String, dynamic> cloud) async {
+    final m = srcDel();
+    var changed = false;
+    for (final e in cloud.entries) {
+      final t = (e.value as num?)?.toInt() ?? 0;
+      if (t > (m[e.key] ?? 0)) m[e.key] = t;
+    }
+    await _p.setString('src_del', jsonEncode(m));
+    for (final x in await _extras()) {
+      final id = '${x['id']}', d = m[id];
+      if (d != null && d >= ((x['t'] as num?)?.toInt() ?? 0)) {
+        await removeSource(id, at: d);
+        changed = true;
+      }
+    }
+    return (m, changed);
+  }
+
   static Future<bool> mergeSources(List<dynamic> incoming) async {
     final l = await _extras();
     final have = {for (final x in l) '${x['id']}'};
+    final del = srcDel();
     var added = false;
     for (final x in incoming) {
       if (x is! Map || '${x['id']}'.isEmpty) continue;
+      if ((del['${x['id']}'] ?? -1) >= ((x['t'] as num?)?.toInt() ?? 0)) continue;      // supprimée depuis
       if (have.contains('${x['id']}')) {
         // source déjà connue : la copie la plus récente (modifiée sur un autre appareil) gagne
         for (final y in l) {
@@ -375,13 +407,18 @@ class Store {
   }
 
   /// supprime une source et SES données (catalogue, sélection, favoris, reprise) ; les autres restent
-  static Future<void> removeSource(String id) async {
+  static Future<void> removeSource(String id, {int? at}) async {
+    final t = at ?? DateTime.now().millisecondsSinceEpoch;
     await _purge(id);
     if (id.isEmpty) {
       await _sec.delete(key: 'creds');
       await _p.remove('src_name');
+      await _p.setInt('creds_del_t', t);
     } else {
       await _saveExtras([for (final x in await _extras()) if (x['id'] != id) x]);
+      final m = srcDel();
+      m[id] = t;
+      await _p.setString('src_del', jsonEncode(m));
     }
     if (_active == id) {
       final left = await sources();
