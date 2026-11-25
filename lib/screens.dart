@@ -3408,14 +3408,6 @@ class _DetailScreenState extends State<DetailScreen> {
                         return _ActIcon(icon: CupertinoIcons.arrow_down_circle, label: 'Télécharger', onTap: () => Downloads.start(key, widget.x.vodUrl(cur.id, cur.ext), it.title, it.icon, cur.ext));
                       },
                     ),
-                  if (Connect.canSend && !Connect.tvNow)
-                    _ActIcon(
-                      icon: CupertinoIcons.tv,
-                      label: 'Sur la télé',
-                      onTap: () => _sendTv(it.kind == Kind.vod
-                          ? (old ?? Prog(kind: 'vod', id: cur.id, ext: cur.ext, name: it.title, icon: it.icon))
-                          : (lastProg ?? (eps.isEmpty ? null : _epProg(([...eps]..sort((a, b) => a.season != b.season ? a.season.compareTo(b.season) : a.number.compareTo(b.number))).first)))),
-                    ),
                 ]),
               ),
             ],
@@ -3718,7 +3710,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }),
       (CupertinoIcons.cloud_download, '${L.tr('Tampon de lecture')} : $bufSecs s', _bufMenu),
       (CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer les statistiques' : 'Statistiques de lecture (réseau, tampon)', _statsToggle),
-      if (Connect.canSend && !Connect.tvNow) (CupertinoIcons.tv, 'Continuer sur la télé', _toTv),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
     ];
     final i = await appSheet<int>(
@@ -4624,6 +4615,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // ---------- télécommande : barre de lecture façon télé (OK = pause, ← → = saut, ↑ ↓ = chaîne ou commandes) ----------
   bool _tvUi = false;
+  bool get _oneScreen => widget.x?.info['max'] == '1';
+  bool get _touch => !Device.tv && !kIsWeb && (Platform.isIOS || Platform.isAndroid);      // téléphone / tablette : même barre de commandes que la télé, au toucher
   Timer? _tvT;
   final FocusNode _tvPlay = FocusNode(debugLabel: 'lecture');
   final FocusNode _tvBar = FocusNode(debugLabel: 'barre d\'avancement');
@@ -4650,6 +4643,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (_tvUi) setState(() => _tvUi = false);
     _main.requestFocus();
+  }
+
+  void _seekTo(Duration t) {
+    _seekAt = DateTime.now();
+    _seekTgt = t;
+    player.seek(t);
+    _tvShow();
+    if (mounted) setState(() {});
   }
 
   void _tvSeek(int dir) {
@@ -4818,7 +4819,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(64, 70, 64, 36),
+                  padding: EdgeInsets.fromLTRB(_touch ? 28 : 64, 70, _touch ? 28 : 64, _touch ? 20 : 36),
                   decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00000000), Color(0xE6000000)])),
                   child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(28, w: 750)),
@@ -4846,13 +4847,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 SizedBox(width: 84, child: Text(_clock(p), style: T(on ? 21 : 18, w: 700))),
                                 Expanded(
                                   child: LayoutBuilder(
-                                    builder: (_, c) => SizedBox(
+                                    builder: (_, c) => GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTapDown: !_touch || d.inMilliseconds <= 0 ? null : (t) => _seekTo(d * (t.localPosition.dx / c.maxWidth).clamp(0.0, 1.0)),
+                                      onHorizontalDragUpdate: !_touch || d.inMilliseconds <= 0 ? null : (t) => _seekTo(d * (t.localPosition.dx / c.maxWidth).clamp(0.0, 1.0)),
+                                      child: SizedBox(
                                       height: 30,
                                       child: Stack(alignment: Alignment.centerLeft, clipBehavior: Clip.none, children: [
                                         AnimatedContainer(duration: const Duration(milliseconds: 120), height: on ? 14 : 8, decoration: BoxDecoration(color: const Color(0x40FFFFFF), borderRadius: BorderRadius.circular(8))),
                                         AnimatedContainer(duration: const Duration(milliseconds: 120), width: c.maxWidth * v, height: on ? 14 : 8, decoration: BoxDecoration(color: on ? kAccent : Colors.white, borderRadius: BorderRadius.circular(8))),
                                         if (on) Positioned(left: (c.maxWidth * v - 14).clamp(0.0, c.maxWidth - 28), child: Container(width: 28, height: 28, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Color(0x99000000), blurRadius: 8)]))),
                                       ]),
+                                    ),
                                     ),
                                   ),
                                 ),
@@ -4864,7 +4870,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                     const SizedBox(height: 16),
                     Center(
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      child: FittedBox(fit: BoxFit.scaleDown, child: Row(mainAxisSize: MainAxisSize.min, children: [
                         _tvBtn(CupertinoIcons.chevron_back, 'Retour', () => Navigator.pop(context)),      // pop et non maybePop : la barre est affichée, donc la touche Retour de la télécommande ne ferait que la masquer
                         _tvBtn(player.state.playing ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill, player.state.playing ? 'Pause' : 'Lecture', player.playOrPause, node: _tvPlay, big: true),
                         if (!_live) _tvBtn(CupertinoIcons.gobackward_10, '-10 s', () => _tvSeek(-1)),
@@ -4874,7 +4880,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         if (_alts.length > 1) _tvBtn(CupertinoIcons.square_stack_3d_up, 'Qualité ${_alts[_alt].$1}', _qualityMenu),
                         _tvBtn(CupertinoIcons.speaker_2_fill, 'Son', _tracks),
                         _tvBtn(CupertinoIcons.ellipsis, 'Plus', _moreMenu),
-                      ]),
+                      ])),
                     ),
                   ]),
                 ),
@@ -4952,7 +4958,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           final double posV = !_live && dur.inMilliseconds > 0 ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0) : 0.0;
           return IgnorePointer(
             child: Stack(alignment: Alignment.bottomLeft, children: [
-              if (Device.tv && _tvUi) Align(alignment: Alignment.bottomRight, child: Padding(padding: const EdgeInsets.only(right: 18, bottom: 8), child: Text('${L.tr('Tampon')} : $ahead s', style: T(13, w: 650, color: const Color(0xCCFFFFFF))))),
+              if ((Device.tv || _touch) && _tvUi) Align(alignment: Alignment.bottomRight, child: Padding(padding: const EdgeInsets.only(right: 18, bottom: 8), child: Text('${L.tr('Tampon')} : $ahead s', style: T(13, w: 650, color: const Color(0xCCFFFFFF))))),
               SizedBox(height: 3, width: double.infinity, child: Stack(children: [
                 const Positioned.fill(child: ColoredBox(color: Color(0x26FFFFFF))),
                 FractionallySizedBox(widthFactor: bufV, child: const ColoredBox(color: Color(0x99FFC857), child: SizedBox.expand())),
@@ -4966,8 +4972,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _scaffold(BuildContext context) => Scaffold(
         backgroundColor: Colors.black,
         body: Stack(children: [
-          Video(controller: controller, controls: _syncMode || Device.tv ? NoVideoControls : AdaptiveVideoControls),
-          if (Device.tv && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
+          Video(controller: controller, controls: _syncMode || Device.tv || _touch ? NoVideoControls : AdaptiveVideoControls),
+          if ((Device.tv || _touch) && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
           if (_statsOn) _statsPanel(),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)
           if (_alts.isEmpty)
@@ -5010,11 +5016,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const SizedBox(height: 6),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 460),
-                    child: Text('${_fail!} Vérifie ta connexion ; le serveur peut aussi être saturé.', textAlign: TextAlign.center, style: T(15, color: kMut, h: 1.4)),
+                    child: Text(_oneScreen ? 'Attention : un autre appareil est peut-être en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Veux-tu le remplacer et lire ici ? Si ça ne marche pas, ferme MinouFlix sur l\'autre appareil.' : '${_fail!} Vérifie ta connexion ; le serveur peut aussi être saturé.', textAlign: TextAlign.center, style: T(15, color: kMut, h: 1.4)),
                   ),
                   const SizedBox(height: 20),
                   Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                    _OvBtn(node: _retryNode, label: 'Réessayer', primary: true, onTap: _retryNow),
+                    _OvBtn(node: _retryNode, label: _oneScreen ? 'Remplacer et lire ici' : 'Réessayer', primary: true, onTap: _retryNow),
                     if (_alts.length > 1) _OvBtn(node: _failNodes[0], label: 'Autre qualité', onTap: _otherQuality),
                     _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.pop(context)),
                   ]),
@@ -5085,13 +5091,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ),
           ),
-          if (Device.tv && _tvUi && !_syncMode) _tvOverlay(),
-          if (!Device.tv && !_syncMode) Positioned(
+          if (_touch) Positioned.fill(child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => _tvUi ? _tvHide() : _tvShow())),
+          if ((Device.tv || _touch) && _tvUi && !_syncMode) _tvOverlay(),
+          if (!Device.tv && !_touch && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
             child: _TopBtn(node: _first, icon: CupertinoIcons.chevron_back, tip: 'Retour', onTap: () => Navigator.maybePop(context)),
           ),
-          if (!Device.tv && !_syncMode) Positioned(
+          if (!Device.tv && !_touch && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
             left: 64,     // laisse la place au bouton Retour : la rangée défile au lieu de passer dessus
             right: 12,
