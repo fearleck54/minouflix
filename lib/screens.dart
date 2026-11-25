@@ -3527,7 +3527,7 @@ class Zap {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   static const _pip = MethodChannel('minou/pip');
-  late final Player player = Player(configuration: PlayerConfiguration(bufferSize: Perf.lite ? 16 * 1024 * 1024 : 32 * 1024 * 1024));
+  late final Player player = Player(configuration: PlayerConfiguration(bufferSize: Perf.lite ? 16 * 1024 * 1024 : 32 * 1024 * 1024, logLevel: MPVLogLevel.warn));
   late final VideoController controller = Device.tv && Store.flag('vo_embed', true) ? VideoController(player, configuration: const VideoControllerConfiguration(vo: 'mediacodec_embed', hwdec: 'mediacodec')) : VideoController(player);
   Timer? _t;
   int _alt = 0;
@@ -3557,6 +3557,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // fiabilité : message lisible au lieu d'un écran noir, une reconnexion silencieuse du direct
   StreamSubscription<String>? _errSub;
+  StreamSubscription<PlayerLog>? _logSub;
+  final List<String> _mpvLog = [];      // derniers messages du lecteur, versés au journal quand la lecture échoue
+  Xtream? get _xt => widget.x ?? Epg.src;
   StreamSubscription<bool>? _endSub;
   Timer? _watch;
   String? _fail;
@@ -3910,6 +3913,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       return;
     }
     Journal.add('Lecture impossible : $why');
+    if (_mpvLog.isNotEmpty) Journal.add('Détail du lecteur', _mpvLog.join(' | '));
     setState(() => _fail = why);
     if (_oneScreen && !_kicked && Connect.canSend) unawaited(_takeOver());
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3922,14 +3926,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   /// source à un seul écran déjà utilisée : on demande avant de lire, puis l'autre appareil est arrêté (true = on lit)
   Future<bool> _askTakeOver() async {
-    final x = widget.x;
-    if (x == null || !_oneScreen || widget.audioUrl != null) return true;
+    final x = _xt;
+    if (x == null || widget.audioUrl != null || !widget.url.startsWith('http') || (x.info['max'] ?? '1') != '1') return true;      // seulement les sources à un écran (ou état pas encore connu)
     try {
       await x.refreshInfo().timeout(const Duration(seconds: 3));
     } catch (_) {
       return true;
     }
-    if (!mounted || (int.tryParse(x.info['active'] ?? '') ?? 0) < 1) return true;
+    if (!mounted || x.info['max'] != '1' || (int.tryParse(x.info['active'] ?? '') ?? 0) < 1) return true;
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AppDialog(
@@ -4402,6 +4406,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (mounted && n != null) setState(() => _epgLine = '${n.title} · encore ${n.leftMin} min');
       });
     }
+    _logSub = player.stream.log.listen((l) {
+      _mpvLog.add('${l.prefix}: ${l.text.trim()}');
+      if (_mpvLog.length > 8) _mpvLog.removeAt(0);
+    });
     _errSub = player.stream.error.listen((e) {
       Journal.add('Lecteur', e);
       if (e.contains('Failed to open') && _uaTries < kIptvUas.length - 1 && widget.audioUrl == null && !widget.debug) {
@@ -4663,6 +4671,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _t?.cancel();
     _done?.cancel();
     _errSub?.cancel();
+    _logSub?.cancel();
     _endSub?.cancel();
     _watch?.cancel();
     _retryNode.dispose();
@@ -4687,7 +4696,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // ---------- télécommande : barre de lecture façon télé (OK = pause, ← → = saut, ↑ ↓ = chaîne ou commandes) ----------
   bool _tvUi = false;
-  bool get _oneScreen => widget.x?.info['max'] == '1';
+  bool get _oneScreen => _xt?.info['max'] == '1' && widget.url.startsWith('http');
   bool get _touch => !Device.tv && !kIsWeb && (Platform.isIOS || Platform.isAndroid);      // téléphone / tablette : même barre de commandes que la télé, au toucher
   Timer? _tvT;
   final FocusNode _tvPlay = FocusNode(debugLabel: 'lecture');

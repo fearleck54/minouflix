@@ -1,6 +1,10 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 223', [
+    'Source à un seul écran : le message « un autre appareil est en cours de lecture » s\'affiche aussi pour les films et séries (il manquait).',
+    'Quand une lecture échoue, le journal garde le détail donné par le lecteur.',
+  ]),
   ('Version 222', [
     'Lecteur iPhone : les boutons de l\'écran d\'erreur et du lecteur répondent de nouveau (le toucher de l\'écran ne les recouvre plus).',
     'Plus de faux message « Son relancé » quand le serveur n\'envoie rien.',
