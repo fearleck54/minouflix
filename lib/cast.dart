@@ -109,7 +109,8 @@ class CastCtl {
     state.value = null;
     if (s == null) return;
     try {
-      s.sendMessage(CastSession.kNamespaceReceiver, {'type': 'STOP', 'requestId': ++_req});
+      if (_mediaId != 0) s.sendMessage(CastSession.kNamespaceMedia, {'type': 'STOP', 'mediaSessionId': _mediaId, 'requestId': ++_req});      // la vidéo s'arrête sur la Chromecast
+      _mediaId = 0;
       await s.flush();
       await CastSessionManager().endSession(s.sessionId);
     } catch (_) {}
