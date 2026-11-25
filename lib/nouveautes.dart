@@ -1,6 +1,11 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 229', [
+    'Réglages : le pays des droits TV est dans Langues ; « Déconnexion et suppression » est tout en bas ; le doublon « Synchronisation » est retiré.',
+    'Écran d\'accueil : l\'ordre choisi est enfin respecté pour toutes les rangées, Top 10 compris (il restait toujours en haut).',
+    'Trakt est retiré de l\'appli.',
+  ]),
   ('Version 228', [
     'Réglages réorganisés en 7 rubriques : Profil et compte (synchro, Trakt, connecter une télé, déconnexion), Lecture, Langues, Contenu, Personnaliser, Aide et dépannage, À propos.',
     'Le pays des droits TV est avec le sport ; le cache et « Refaire la configuration » sont dans Aide et dépannage ; Nouveautés est directement dans À propos.',

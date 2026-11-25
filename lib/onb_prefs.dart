@@ -52,7 +52,7 @@ class OnbPrefs {
         add(s);
       }
     }
-    for (final s in ['mylist', 'playlists', 'downloads', 'trakt']) {
+    for (final s in ['mylist', 'playlists', 'downloads']) {
       add(s);
     }
     final hidden = <String>{};

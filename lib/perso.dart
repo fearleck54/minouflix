@@ -187,7 +187,6 @@ class _HomeState extends State<HomeSettings> {
     'recoS': ('Séries pour vous', 'Séries proposées d\'après ta liste'),
     'recent': ('Derniers films ajoutés', 'Les nouveautés du catalogue'),
     'recentS': ('Séries mises à jour', 'Les séries avec de nouveaux épisodes'),
-    'trakt': ('Ma liste Trakt', 'Tes titres à voir sur Trakt, présents dans ton catalogue'),
   };
 
   final _nodes = <String, FocusNode>{};

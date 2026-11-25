@@ -42,11 +42,9 @@ import 'voice.dart';
 import 'sources.dart';
 import 'pin_guard.dart';
 import 'osk.dart';
-import 'trakt.dart';
 import 'onb_prefs.dart';
 import 'choice.dart';
 import 'onboarding.dart';
-import 'trakt_ui.dart';
 import 'person.dart';
 import 'ui.dart';
 import 'xtream.dart';
@@ -1637,20 +1635,13 @@ class HomeTab extends StatelessWidget {
       'recoS': recoS.isNotEmpty ? rail('Séries pour vous', recoS) : const SizedBox.shrink(),
       'recent': rail('Derniers films ajoutés', rv, tab: 2),
       'recentS': rail('Séries mises à jour', rs, tab: 3),
-      'trakt': !Trakt.linked
-          ? const SizedBox.shrink()
-          : CachedFuture<List<Item>>(
-              memKey: 'trakt',
-              future: Trakt.inCatalog([...uniqueTitles(vl?.rows ?? []), ...uniqueTitles(sl?.rows ?? [])]),
-              builder: (_, s) => rail('Ma liste Trakt', s.data ?? const []),
-            ),
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
     return ListView(cacheExtent: Device.tv ? 1100 : 2600, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [      // téléphone : les rangées voisines restent construites (pas de saut de page en remontant)
-      // plus de grande affiche nulle part (télé, Android, iPhone) : le Top 10 passe tout en haut
+      // plus de grande affiche nulle part ; l'ordre est celui choisi dans Réglages › Personnaliser › Écran d'accueil (Top 10 en tête par défaut)
       if (Device.tv || wide) const SizedBox(height: 8) else SizedBox(height: pad.top + 70),
-      for (final id in ['top10', ...Store.homeOrder().where((x) => x != 'top10')])
+      for (final id in Store.homeOrder())
         if (id != 'hero' && !hid.contains(id)) secs[id] ?? const SizedBox.shrink(),
     ]);
   }
@@ -2615,13 +2606,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ('Profil et compte', '', CupertinoIcons.person_crop_circle, [
         if (Device.tv) _row(CupertinoIcons.person_crop_circle_fill, const Color(0xFFAF52DE), 'Profil et compte', value: profName, chevron: true, onTap: () => Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
         _row(CupertinoIcons.smiley_fill, const Color(0xFF30D158), 'Mode enfant', on: kidMode, onTap: _kid),
-        _row(CupertinoIcons.arrow_2_circlepath, const Color(0xFF30D158), 'Synchronisation', value: Account.signedIn ? (Account.expired ? 'Expirée' : 'Activée') : 'Compte requis', chevron: true, onTap: () => Account.signedIn ? _account() : Navigator.push(context, softRoute((_) => ProfilsScreen(onSwitch: widget.onSwitch ?? () {})))),
-        _row(CupertinoIcons.film_fill, const Color(0xFFED1C24), 'Trakt', value: Trakt.linked ? 'Lié' : 'Non lié', chevron: true, onTap: () async {
-          await traktSheet(context, () {});
-          if (mounted) setState(() {});
-        }),
         if (!Connect.tvNow) _row(CupertinoIcons.tv_fill, const Color(0xFFAF52DE), 'Connecter une télé', value: Account.signedIn ? '' : 'Compte requis', chevron: true, onTap: _pairTv),
-        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF453A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
       ('Langues', 'Langues', CupertinoIcons.globe, [
         _row(CupertinoIcons.globe, const Color(0xFF0A84FF), 'Langue de l\'appli', value: L.names[L.lang] ?? 'English', chevron: true, onTap: () => _pickPage('Langue de l\'appli', [for (final c in L.supported) (c, L.names[c]!)], () => L.lang, (v) async {
@@ -2630,6 +2615,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }, flags: true, foot: 'Change la langue de l\'appli, des fiches et du clavier de la télé.')),
         _row(CupertinoIcons.speaker_2_fill, const Color(0xFFFF9F0A), 'Langue audio', value: q('pref_aud', aOpts), chevron: true, onTap: () => _pickPage('Langue audio', aOpts, () => Store.str('pref_aud'), (v) => Store.setStr('pref_aud', v), flags: true, foot: 'Choisie automatiquement quand le film la propose.')),
         _row(CupertinoIcons.captions_bubble_fill, const Color(0xFF5E5CE6), 'Sous-titres', value: q('pref_sub', sOpts), chevron: true, onTap: () => _pickPage('Sous-titres', sOpts, () => Store.str('pref_sub'), (v) => Store.setStr('pref_sub', v), flags: true, foot: 'Appliqués au lancement de la lecture.')),
+        _row(CupertinoIcons.flag_fill, const Color(0xFF30D158), 'Pays des droits TV', value: Rights.countries.firstWhere((c) => c.$1 == Rights.country, orElse: () => ('', '—')).$2, chevron: true, onTap: () => _pickPage('Pays', [for (final c in Rights.countries) (c.$1, c.$2)], () => Rights.country, (v) => Store.setStr('country', v), foot: 'Sert à trouver la chaîne qui diffuse un match, selon les droits TV de ton pays.')),
       ]),
       ('Lecture', 'Lecture', CupertinoIcons.play_circle, [
         _row(CupertinoIcons.slider_horizontal_3, const Color(0xFF0A84FF), 'Qualité', value: q('pref_q', qOpts).replaceAll(' si possible', '').replaceAll(' · moins de données', ''), chevron: true, onTap: () => _pickPage('Qualité', qOpts, () => Store.quality, (v) => Store.setStr('pref_q', v), foot: 'Films et chaînes proposés en plusieurs qualités.')),
@@ -2651,7 +2637,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await Store.saveSportKeys(k);
               Store.persoTick.value++;
             })))),
-        if (!kid) _row(CupertinoIcons.flag_fill, const Color(0xFF30D158), 'Pays des droits TV', value: Rights.countries.firstWhere((c) => c.$1 == Rights.country, orElse: () => ('', '—')).$2, chevron: true, onTap: () => _pickPage('Pays', [for (final c in Rights.countries) (c.$1, c.$2)], () => Rights.country, (v) => Store.setStr('country', v), foot: 'Sert à trouver la chaîne qui diffuse un match, selon les droits TV de ton pays.')),
         _row(CupertinoIcons.square_grid_2x2_fill, const Color(0xFF30B0C7), 'Écran d\'accueil', value: '${Store.homeIds.length - Store.homeHidden().length} sections', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const HomeSettings()))),
       ]),
       ('Contenu', 'Contenu', CupertinoIcons.square_stack, [
@@ -2692,6 +2677,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _row(CupertinoIcons.info_circle_fill, const Color(0xFF8E8E93), 'Nouveautés', value: 'Version $kBuild', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => TextPage(title: 'Nouveautés', sections: [for (final n in kNews) (n.$1, [for (final l in n.$2) '• $l'].join('\n'))])))),
         if (!kStore && !kIsWeb && Platform.isAndroid) _row(CupertinoIcons.arrow_down_circle_fill, const Color(0xFF30D158), 'Rechercher une mise à jour', chevron: true, onTap: _update),
         _row(CupertinoIcons.lock_shield_fill, const Color(0xFF32ADE6), 'Confidentialité', chevron: true, onTap: () => Navigator.push(context, softRoute((_) => const TextPage(title: 'Confidentialité', sections: kPrivacy)))),
+      ]),
+      ('Déconnexion', '', CupertinoIcons.person_crop_circle_badge_xmark, [
+        _row(CupertinoIcons.person_crop_circle_badge_xmark, const Color(0xFFFF453A), 'Déconnexion et suppression', chevron: true, onTap: _disconnectPage),
       ]),
     ];
     _groups = groups;
@@ -4664,7 +4652,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       p.t = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       p.hidden = false;
       Store.saveProg(p);
-      Trakt.watched(p);
     }
   }
 
