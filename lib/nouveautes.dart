@@ -1,6 +1,11 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 218', [
+    'Lecteur iPhone / iPad : mêmes commandes que sur la télé (toucher l\'écran pour les afficher, barre de progression tactile).',
+    'Boutons « Sur la télé » retirés.',
+    'Si ta source n\'autorise qu\'un écran, un message propose de remplacer l\'autre appareil en lecture.',
+  ]),
   ('Version 217', [
     'Réglages › Contenu : « Actualisation automatique » (12 h, 1 jour, 3 jours, 1 semaine, ou à la main). Le catalogue en cache s\'affiche tout de suite, la mise à jour n\'a lieu que passé ce délai.',
     'Appareils à peu de mémoire : l\'appli adapte seule son niveau (léger, très léger) et réduit ses caches.',
