@@ -1,9 +1,12 @@
 import 'dart:async';
-import 'package:cast/cast.dart';
+import 'package:bonsoir/bonsoir.dart';
+import 'package:cast/device.dart';
+import 'package:cast/session.dart';
+import 'package:cast/session_manager.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'journal.dart';
 
-export 'package:cast/cast.dart' show CastDevice;
+export 'package:cast/device.dart' show CastDevice;
 
 /// état de la diffusion en cours
 class CastInfo {
@@ -22,7 +25,28 @@ class CastCtl {
   static int _req = 0, _mediaId = 0;
   static String _name = '';
 
-  static Future<List<CastDevice>> search() => CastDiscoveryService().search(timeout: const Duration(seconds: 4));
+  /// recherche des Chromecast du réseau local (service « _googlecast._tcp ») pendant quelques secondes
+  static Future<List<CastDevice>> search() async {
+    final found = <String, CastDevice>{};
+    final discovery = BonsoirDiscovery(type: '_googlecast._tcp');
+    await discovery.initialize();
+    final sub = discovery.eventStream!.listen((e) {
+      if (e is BonsoirDiscoveryServiceFoundEvent) {
+        e.service.resolve(discovery.serviceResolver);
+      } else if (e is BonsoirDiscoveryServiceResolvedEvent) {
+        final s = e.service;
+        final ip = s.hostAddresses.firstWhere((a) => !a.contains(':'), orElse: () => s.hostname ?? '');
+        if (ip.isEmpty || s.port == 0) return;
+        final fn = s.attributes['fn'];
+        found[s.name] = CastDevice(serviceName: s.name, name: (fn == null || fn.isEmpty) ? s.name : fn, host: ip, port: s.port, extras: Map<String, String>.from(s.attributes));
+      }
+    });
+    await discovery.start();
+    await Future<void>.delayed(const Duration(seconds: 4));
+    await discovery.stop();
+    await sub.cancel();
+    return found.values.toList();
+  }
 
   static String _type(String url) {
     final u = url.toLowerCase().split('?').first;
