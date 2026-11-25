@@ -61,10 +61,10 @@ class Connect {
   }
 
   /// nom de la boîte aux lettres : 8 caractères dérivés (à sens unique) de la clé du compte
-  static Future<String?> _room() async {
+  static Future<String?> _room([String salt = 'minouflix-connect']) async {
     final k = Account.key;
     if (k == null) return null;
-    final h = await Sha256().hash([...k, ...utf8.encode('minouflix-connect')]);
+    final h = await Sha256().hash([...k, ...utf8.encode(salt)]);
     return String.fromCharCodes([for (var i = 0; i < 8; i++) _alpha.codeUnitAt(h.bytes[i] % _alpha.length)]);
   }
 
@@ -86,6 +86,55 @@ class Connect {
   }
 
   static int _lastT = 0;
+
+  /// « un seul écran » : l'appareil qui veut lire demande aux autres appareils du compte d'arrêter leur lecture
+  static Future<bool> kick() async {
+    try {
+      final room = await _room('minouflix-kick');
+      if (room == null) return false;
+      final sealed = await Account.seal(jsonEncode({'f': await _id(), 't': DateTime.now().millisecondsSinceEpoch}));
+      if (sealed == null) return false;
+      await http.delete(Uri.parse('$kSbUrl/rest/v1/pairing?code=eq.$room'), headers: _h(room)).timeout(const Duration(seconds: 8));
+      final r = await http.post(Uri.parse('$kSbUrl/rest/v1/pairing'), headers: _h(room), body: jsonEncode({'code': room, 'payload': sealed})).timeout(const Duration(seconds: 8));
+      return r.statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Timer? _kt;
+
+  /// pendant qu'un lecteur est ouvert : si un autre appareil réclame la source après `since`, `onKick` est appelé
+  static void watchKick(DateTime since, void Function() onKick) {
+    unwatchKick();
+    if (!canSend) return;
+    var busy = false;
+    _kt = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (busy) return;
+      busy = true;
+      try {
+        final room = await _room('minouflix-kick');
+        if (room == null) return;
+        final r = await http.get(Uri.parse('$kSbUrl/rest/v1/pairing?select=payload&code=eq.$room'), headers: _h(room)).timeout(const Duration(seconds: 6));
+        if (r.statusCode != 200) return;
+        final rows = jsonDecode(r.body) as List;
+        if (rows.isEmpty) return;
+        final m = jsonDecode(await Account.open('${rows.first['payload']}') ?? '{}') as Map<String, dynamic>;
+        final t = (m['t'] as num?)?.toInt() ?? 0;
+        if (m['f'] == null || m['f'] == await _id() || t <= since.millisecondsSinceEpoch || (DateTime.now().millisecondsSinceEpoch - t).abs() > 90000) return;
+        unwatchKick();
+        onKick();
+      } catch (_) {
+      } finally {
+        busy = false;
+      }
+    });
+  }
+
+  static void unwatchKick() {
+    _kt?.cancel();
+    _kt = null;
+  }
 
   static Future<void> _tick() async {
     if (_busy) return;

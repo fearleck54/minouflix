@@ -3909,9 +3909,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     Journal.add('Lecture impossible : $why');
     setState(() => _fail = why);
+    if (_oneScreen && !_kicked && Connect.canSend) unawaited(_takeOver());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _fail != null) _retryNode.requestFocus();
     });
+  }
+
+  bool _kicked = false;
+
+  /// source à un seul écran : on demande à l'autre appareil de lâcher la source, puis on relance
+  Future<void> _takeOver() async {
+    _kicked = true;
+    if (Connect.canSend) await Connect.kick();
+    Journal.add('Source à un écran : demande d\'arrêt envoyée aux autres appareils');
+    await Future<void>.delayed(const Duration(seconds: 4));
+    if (mounted) _retryNow();
   }
 
   void _retryNow() {
@@ -4382,6 +4394,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _posSub = player.stream.position.distinct((a, b) => a.inSeconds == b.inSeconds).listen(_onPos);
     Connect.inPlayer = true;
     Connect.player.addListener(_remoteCtl);
+    Connect.watchKick(DateTime.now(), () {
+      if (!mounted) return;
+      Journal.add('Lecture arrêtée : un autre appareil a repris la source');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lecture reprise sur un autre appareil.')));
+      Navigator.maybePop(context);
+    });
     unawaited(_loadSegs());
     _vp = player.stream.videoParams.listen((_) => _matchFps());
     _aDelay = double.tryParse(Store.str('adelay')) ?? 0;
@@ -4575,6 +4593,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _posSub?.cancel();
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
+    Connect.unwatchKick();
     _nextT?.cancel();
     _backT?.cancel();
     _stableT?.cancel();
@@ -5018,11 +5037,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const SizedBox(height: 6),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 460),
-                    child: Text(_oneScreen ? 'Attention : un autre appareil est peut-être en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Veux-tu le remplacer et lire ici ? Si ça ne marche pas, ferme MinouFlix sur l\'autre appareil.' : '${_fail!} Vérifie ta connexion ; le serveur peut aussi être saturé.', textAlign: TextAlign.center, style: T(15, color: kMut, h: 1.4)),
+                    child: Text(_oneScreen ? 'Attention : un autre appareil est peut-être en cours de lecture (ta source n\'autorise qu\'un écran à la fois). Je lui demande de s\'arrêter, puis je relance (quelques secondes). Si ça ne marche pas, ferme MinouFlix sur l\'autre appareil.' : '${_fail!} Vérifie ta connexion ; le serveur peut aussi être saturé.', textAlign: TextAlign.center, style: T(15, color: kMut, h: 1.4)),
                   ),
                   const SizedBox(height: 20),
                   Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                    _OvBtn(node: _retryNode, label: _oneScreen ? 'Remplacer et lire ici' : 'Réessayer', primary: true, onTap: _retryNow),
+                    _OvBtn(node: _retryNode, label: _oneScreen ? 'Remplacer et lire ici' : 'Réessayer', primary: true, onTap: _oneScreen && Connect.canSend ? _takeOver : _retryNow),
                     if (_alts.length > 1) _OvBtn(node: _failNodes[0], label: 'Autre qualité', onTap: _otherQuality),
                     _OvBtn(node: _failNodes[1], label: 'Retour', onTap: () => Navigator.pop(context)),
                   ]),
