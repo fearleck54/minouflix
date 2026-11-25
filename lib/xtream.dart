@@ -21,7 +21,7 @@ String get kIptvUa {
   return kIptvUas[_uaIdx];
 }
 
-void _uaNext() {
+void uaNext() {
   kIptvUa;
   _uaIdx = (_uaIdx + 1) % kIptvUas.length;
   Journal.add('Fournisseur : connexion coupée, nouvelle tentative en tant que « ${kIptvUas[_uaIdx]} »');
@@ -176,7 +176,7 @@ class Xtream {
       } catch (e) {
         last = e;
         if (e is http.ClientException) {
-          _uaNext();
+          uaNext();
           await Future<void>.delayed(const Duration(seconds: 1));
         } else {
           await Future<void>.delayed(Duration(seconds: 2 * (attempt + 1)));

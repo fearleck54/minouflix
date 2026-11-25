@@ -1,6 +1,11 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 222', [
+    'Lecteur iPhone : les boutons de l\'écran d\'erreur et du lecteur répondent de nouveau (le toucher de l\'écran ne les recouvre plus).',
+    'Plus de faux message « Son relancé » quand le serveur n\'envoie rien.',
+    'Si le serveur refuse l\'ouverture d\'un flux, l\'appli réessaie aussitôt avec une autre identité de lecteur IPTV.',
+  ]),
   ('Version 221', [
     'Réglages › Refaire la configuration : une flèche de retour permet de quitter sans rien changer.',
     'Fournisseur : si le serveur coupe la connexion, l\'appli réessaie seule avec une autre identité de lecteur IPTV et retient celle qui marche.',

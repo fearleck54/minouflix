@@ -3793,6 +3793,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _soundT?.cancel();
     _soundT = Timer(const Duration(seconds: 6), () async {
       if (!mounted || _fail != null || !player.state.playing || player.state.position == Duration.zero) return;
+      if (player.state.buffer <= player.state.position || player.state.duration == Duration.zero) return;      // rien ne arrive du serveur : ce n'est pas un problème de son
       try {
         final dynamic n = player.platform;
         final aid = '${await n.getProperty('aid')}';
@@ -3917,6 +3918,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   bool _kicked = false;
+  int _uaTries = 0;
 
   /// source à un seul écran déjà utilisée : on demande avant de lire, puis l'autre appareil est arrêté (true = on lit)
   Future<bool> _askTakeOver() async {
@@ -3957,6 +3959,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _retryNow() {
+    _uaTries = 0;
     _altTried = 0;
     _silent = 0;
     _open(_cur);
@@ -4401,6 +4404,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     _errSub = player.stream.error.listen((e) {
       Journal.add('Lecteur', e);
+      if (e.contains('Failed to open') && _uaTries < kIptvUas.length - 1 && widget.audioUrl == null && !widget.debug) {
+        // le serveur coupe la connexion : on réessaie aussitôt avec une autre identité de lecteur IPTV
+        _uaTries++;
+        uaNext();
+        Future<void>.delayed(const Duration(seconds: 1), () async {
+          if (!mounted || _fail != null) return;
+          try {
+            await (player.platform as dynamic).setProperty('user-agent', kIptvUa);
+          } catch (_) {}
+          if (mounted) _open(_cur);
+        });
+        return;
+      }
       if (e.contains('Audio filter') && _lastAf != null && _lastAf!.isNotEmpty) {
         // chaîne audio refusée par le lecteur : sans ce retrait, plus aucun son
         _lastAf = '';
@@ -5029,6 +5045,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         backgroundColor: Colors.black,
         body: Stack(children: [
           Video(controller: controller, controls: _syncMode || Device.tv || _touch ? NoVideoControls : AdaptiveVideoControls),
+          if (_touch) Positioned.fill(child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => _tvUi ? _tvHide() : _tvShow())),
           if ((Device.tv || _touch) && _tvUi) Positioned(left: 0, right: 0, bottom: 0, height: 34, child: _bufBar()),      // jamais par-dessus le film : seulement avec la barre de commandes
           if (_statsOn) _statsPanel(),
           // double tape à gauche / à droite : -10 s / +10 s (films et épisodes)
@@ -5147,7 +5164,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
               ),
             ),
           ),
-          if (_touch) Positioned.fill(child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: () => _tvUi ? _tvHide() : _tvShow())),
           if ((Device.tv || _touch) && _tvUi && !_syncMode) _tvOverlay(),
           if (!Device.tv && !_touch && !_syncMode) Positioned(
             top: MediaQuery.paddingOf(context).top + 8,
