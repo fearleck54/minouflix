@@ -1031,7 +1031,7 @@ class AuroraState extends State<Aurora> with SingleTickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final still = widget.still || Perf.lite || MediaQuery.of(context).disableAnimations;
+    final still = widget.still || Perf.lite || MediaQuery.of(context).disableAnimations || isPc;      // PC : fond fixe, la fenêtre est grande et le fond animé coûte cher
     if (still) {
       _c.stop();
     } else if (!_c.isAnimating) {

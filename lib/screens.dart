@@ -1479,7 +1479,7 @@ class HomeTab extends StatelessWidget {
     Widget rail(String t, List<Item> l, {int? tab}) => Rail(title: t, height: ph, count: l.length.clamp(0, 24), onMore: tab == null ? null : () => onTab(tab), builder: (_, i) => Poster(item: l[i], width: pw, onTap: () => onOpen(l[i])));
     final favCh = Store.favs;
     final mine = [for (final c in chans) if (c.v.any((v) => favCh.contains('live:${v.item.id}'))) c];     // seulement les chaînes marquées d'une étoile
-    final sw = Device.tv ? 390.0 : (wide ? 270.0 : 256.0);
+    final sw = Device.tv ? 390.0 : (wide ? 330.0 : 256.0);
     final kid = Store.kid;
     final cont = kid ? <Prog>[] : Store.progress();     // mode enfant : pas de reprise ni de téléchargements des adultes
     final favs = Store.favs;
@@ -1618,12 +1618,12 @@ class HomeTab extends StatelessWidget {
         memKey: 'sport',
         future: sport,
         builder: (_, s) {
-          if (!s.hasData && s.connectionState != ConnectionState.done) return HomeSkel(w: sw, h: Device.tv ? 104 : 78, n: 3);
+          if (!s.hasData && s.connectionState != ConnectionState.done) return HomeSkel(w: sw, h: Device.tv ? 104 : (wide ? 92 : 78), n: 3);
           final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
           var evs = (s.data ?? []).where((e) => e.live || (e.ts > now - 7200 && e.ts < now + 3 * 86400 && !e.post));
           if (Store.str('home_sport') == 'mine') evs = evs.where(followed);      // Réglages › Sport : seulement mes équipes
           evs = evs.take(int.tryParse(Store.str('home_sport_n')) ?? 10).toList();
-          return Rail(title: 'Sport', height: Device.tv ? 104 : 78, count: evs.length, onMore: Device.tv ? null : () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
+          return Rail(title: 'Sport', height: Device.tv ? 104 : (wide ? 92 : 78), count: evs.length, onMore: Device.tv ? null : () => onTab(4), moreLabel: 'Calendrier', builder: (_, i) => SportCard(e: evs.toList()[i], width: sw, onTap: () => onEv(evs.toList()[i])));
         },
       ),
       'chains': Rail(title: 'Mes chaînes', height: 138, count: mine.length, onMore: () => onTab(1), builder: (_, i) => ChannelTile(item: mine[i], onTap: () => onChan(mine[i]))),
@@ -1634,7 +1634,7 @@ class HomeTab extends StatelessWidget {
     };
     // sections choisies dans Réglages › Écran d'accueil (ordre et affichage) ; la grande affiche reste en tête
     final hid = Store.homeHidden();
-    return ListView(cacheExtent: Device.tv ? 1100 : 2600, padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [      // téléphone : les rangées voisines restent construites (pas de saut de page en remontant)
+    return ListView(cacheExtent: Device.tv ? 1100 : (isPc ? 1400 : 2600), padding: EdgeInsets.only(bottom: wide ? 40 : 110), children: [      // téléphone : les rangées voisines restent construites (pas de saut de page en remontant)
       // plus de grande affiche nulle part ; l'ordre est celui choisi dans Réglages › Personnaliser › Écran d'accueil (Top 10 en tête par défaut)
       if (Device.tv || wide) const SizedBox(height: 8) else SizedBox(height: pad.top + 70),
       for (final id in Store.homeOrder())

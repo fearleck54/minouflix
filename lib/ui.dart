@@ -35,6 +35,9 @@ const kEdge = Color(0x1FFFFFFF);
 
 bool isWide(BuildContext c) => MediaQuery.sizeOf(c).width >= 700;
 
+/// ordinateur (souris et clavier) : Windows, macOS, Linux
+bool get isPc => !kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.linux);
+
 /// style de texte Inter (police variable : graisse exacte)
 /// police : celle du système sur iPhone (SF Pro), Inter ailleurs
 final String? kFont = (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ? null : 'Inter';
@@ -736,13 +739,9 @@ class Rail extends StatelessWidget {
           SectionTitle(title, onMore: Device.tv ? null : onMore, moreLabel: moreLabel),
           SizedBox(
             height: height,
-            child: ListView.separated(
+            child: HRail(
               cacheExtent: Device.tv ? 700 : null,
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: count + (Device.tv && onMore != null ? 1 : 0),
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (c, i) => i < count
                   ? builder(c, i)
                   : Padding(
@@ -2034,4 +2033,94 @@ class HomeSkel extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+/// rangée horizontale qui défile ; sur PC : flèches gauche / droite et glisser à la souris (sans cela, la dernière carte reste coupée et rien n'indique qu'il y a une suite)
+class HRail extends StatefulWidget {
+  final int itemCount;
+  final Widget Function(BuildContext, int) itemBuilder;
+  final double? cacheExtent;
+  final double gap;
+  const HRail({super.key, required this.itemCount, required this.itemBuilder, this.cacheExtent, this.gap = 12});
+  @override
+  State<HRail> createState() => _HRailState();
+}
+
+class _HRailState extends State<HRail> {
+  final _c = ScrollController();
+  bool _l = false, _r = false;
+
+  void _upd() {
+    if (!mounted || !_c.hasClients || !_c.position.hasContentDimensions) return;
+    final l = _c.position.pixels > 8, r = _c.position.pixels < _c.position.maxScrollExtent - 8;
+    if (l != _l || r != _r) setState(() {
+      _l = l;
+      _r = r;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (isPc) {
+      _c.addListener(_upd);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _upd());
+    }
+  }
+
+  @override
+  void didUpdateWidget(HRail old) {
+    super.didUpdateWidget(old);
+    if (isPc) WidgetsBinding.instance.addPostFrameCallback((_) => _upd());
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _go(int dir) {
+    final p = _c.position;
+    _c.animateTo((p.pixels + dir * p.viewportDimension * 0.85).clamp(0.0, p.maxScrollExtent), duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+  }
+
+  Widget _arrow(bool left) => Positioned(
+        left: left ? 6 : null,
+        right: left ? null : 6,
+        top: 0,
+        bottom: 0,
+        child: Center(
+          child: GestureDetector(
+            onTap: () => _go(left ? -1 : 1),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: const Color(0xCC000000), shape: BoxShape.circle, border: Border.all(color: const Color(0x33FFFFFF), width: 0.8)),
+              child: Icon(left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded, color: Colors.white, size: 28),
+            ),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final list = ListView.separated(
+      controller: isPc ? _c : null,
+      cacheExtent: widget.cacheExtent,
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: widget.itemCount,
+      separatorBuilder: (_, __) => SizedBox(width: widget.gap),
+      itemBuilder: widget.itemBuilder,
+    );
+    if (!isPc) return list;
+    return Stack(fit: StackFit.expand, children: [
+      ScrollConfiguration(behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {ui.PointerDeviceKind.touch, ui.PointerDeviceKind.mouse, ui.PointerDeviceKind.trackpad, ui.PointerDeviceKind.stylus}), child: list),
+      if (_l) _arrow(true),
+      if (_r) _arrow(false),
+    ]);
+  }
 }

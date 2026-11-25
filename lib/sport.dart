@@ -487,7 +487,7 @@ class SportCard extends StatelessWidget {
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
         valueListenable: tick,
         builder: (_, __, ___) {
-          final z = Device.tv ? 1.3 : 1.0;      // télé : textes plus grands (lisibles à 3 m)
+          final z = Device.tv ? 1.3 : (isWide(context) ? 1.15 : 1.0);      // télé : textes plus grands (lisibles à 3 m)
           final l = lgOf(e.lg);
           final hide = spoilHide(e);
           final mine = followed(e);
@@ -1021,7 +1021,7 @@ class _SportTabState extends State<SportTab> {
         for (final g in groups.values) {
           g.sort((a, b) => (followed(a) == followed(b)) ? a.ts.compareTo(b.ts) : (followed(a) ? -1 : 1));
         }
-        final cw = wide ? 270.0 : 256.0;
+        final cw = wide ? 330.0 : 256.0;
         // 1re ligne : Tout · Mes équipes · sports · +
         final r1 = ['Tout', if (hasTeams) '★ Mes équipes', ...sports, '+'];
         int sel1() {
@@ -1141,14 +1141,14 @@ class _SportTabState extends State<SportTab> {
           if (hero != null) SportHero(e: hero, onTap: () => widget.onOpen(hero)),
           if (live.length > 1) ...[
             const SectionTitle('🔴 En direct'),
-            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: live.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: live[i], width: cw, onLong: () => _follow(live[i]), onTap: () => widget.onOpen(live[i])))),
+            SizedBox(height: wide ? 92 : 78, child: HRail(itemCount: live.length, itemBuilder: (_, i) => SportCard(e: live[i], width: cw, onLong: () => _follow(live[i]), onTap: () => widget.onOpen(live[i])))),
           ],
           for (final g in groups.entries) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
               child: Row(children: [Expanded(child: Text(g.key, style: T(19, w: 700, ls: -0.02))), Text('${g.value.length} match${g.value.length > 1 ? 's' : ''}', style: T(14, w: 500, color: kMut))]),
             ),
-            SizedBox(height: 78, child: ListView.separated(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 20), itemCount: g.value.length, separatorBuilder: (_, __) => const SizedBox(width: 12), itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onLong: () => _follow(g.value[i]), onTap: () => widget.onOpen(g.value[i])))),
+            SizedBox(height: wide ? 92 : 78, child: HRail(itemCount: g.value.length, itemBuilder: (_, i) => SportCard(e: g.value[i], width: cw, noDay: true, onLong: () => _follow(g.value[i]), onTap: () => widget.onOpen(g.value[i])))),
           ],
         ]);
       },

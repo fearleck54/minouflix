@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 241', [
+    'PC : tuiles Sport plus grandes, flèches gauche / droite sur chaque rangée (et glisser à la souris) pour ne plus voir la dernière carte coupée, fond fixe et rangées moins nombreuses en mémoire pour une application plus fluide.',
+  ]),
   ('Version 240', [
     'Synchro : les échecs ne sont plus silencieux (journal), et la liste des sources se met à jour d\'elle-même quand une source est retirée depuis un autre appareil.',
   ]),
