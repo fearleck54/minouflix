@@ -10,6 +10,7 @@ import 'xtream.dart';
 /// synchronisation avec le compte : Ma liste, reprise, prénom/sports et (chiffrés) identifiants IPTV ; chaque catégorie au choix
 class Sync {
   static bool _busy = false;
+  static DateTime _lastFail = DateTime(2000);
   /// vrai quand le serveur a répondu au moins une fois : « compte neuf » n'est décidé que dans ce cas (réseau lent ≠ compte vide)
   static bool pulled = false;
   static bool get on => Account.signedIn;
@@ -238,7 +239,10 @@ class Sync {
       if (r.statusCode < 300 && fb.isNotEmpty) await Store.markFeedbackSent([for (final e in fb) e['id']]);
       return changed;
     } catch (e) {
-      Journal.add('Synchro : échec', e);
+      if (DateTime.now().difference(_lastFail) > const Duration(minutes: 10)) {      // hors ligne : pas une ligne toutes les 45 s
+        _lastFail = DateTime.now();
+        Journal.add('Synchro : échec', e);
+      }
       return false;
     } finally {
       _busy = false;
