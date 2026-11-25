@@ -21,7 +21,6 @@ import 'tmdb.dart';
 import 'sport.dart';
 import 'rights.dart';
 import 'sport_detail.dart';
-import 'cast.dart';
 import 'trailer.dart';
 import 'watchnext.dart';
 import 'nouveautes.dart';
@@ -3765,7 +3764,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }),
       (CupertinoIcons.cloud_download, '${L.tr('Tampon de lecture')} : $bufSecs s', _bufMenu),
       (CupertinoIcons.chart_bar_alt_fill, _statsOn ? 'Masquer les statistiques' : 'Statistiques de lecture (réseau, tampon)', _statsToggle),
-      if (!Device.tv && !kIsWeb && widget.url.startsWith('http') && widget.audioUrl == null) (CupertinoIcons.tv, 'Caster sur une Chromecast', _castMenu),
       if (!kIsWeb && Platform.isAndroid && Device.touch) (CupertinoIcons.rectangle_on_rectangle, 'Mini-fenêtre', () => _pip.invokeMethod('enter').catchError((_) {})),
     ];
     final i = await appSheet<int>(
@@ -4016,45 +4014,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Journal.add('Source à un écran : demande d\'arrêt envoyée aux autres appareils');
     await Future<void>.delayed(const Duration(seconds: 4));
     if (mounted) _retryNow();
-  }
-
-  /// diffusion vers une Chromecast : on cherche les appareils du réseau, on libère notre connexion au fournisseur (un seul écran à la fois), puis la Chromecast lit le flux
-  Future<void> _castMenu() async {
-    final url = _cur;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(duration: Duration(seconds: 5), content: Text('Recherche des Chromecast…')));
-    List<CastDevice> found = const [];
-    try {
-      found = await CastCtl.search();
-    } catch (e) {
-      Journal.add('Chromecast : recherche', e);
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    if (found.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucune Chromecast trouvée sur ce réseau.')));
-      return;
-    }
-    final d = await showDialog<CastDevice>(
-      context: context,
-      builder: (c) => AppDialog(
-        backgroundColor: kBg2,
-        title: Text('Caster sur…', style: T(18, w: 700)),
-        content: SizedBox(width: 320, child: Column(mainAxisSize: MainAxisSize.min, children: [for (final x in found) ListTile(autofocus: x == found.first, leading: const Icon(CupertinoIcons.tv), title: Text(x.name), onTap: () => Navigator.pop(c, x))])),
-        actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler'))],
-      ),
-    );
-    if (d == null || !mounted) return;
-    final pos = player.state.position.inMilliseconds;
-    await player.stop();
-    final ok = await CastCtl.start(d, url: url, title: _title, poster: widget.prog?.icon ?? '', posMs: _live ? 0 : pos, live: _live);
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La Chromecast n\'a pas pu lire ce flux (format non pris en charge ?).')));
-      try {
-        if (!_live) await (player.platform as dynamic).setProperty('start', '${pos / 1000}');
-      } catch (_) {}
-      _open(_cur);
-    }
   }
 
   void _retryNow() {
@@ -4761,7 +4720,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     Connect.inPlayer = false;
     Connect.player.removeListener(_remoteCtl);
     Connect.unwatchKick();
-    unawaited(CastCtl.stop());      // on quitte le lecteur : la diffusion s'arrête aussi
     _nextT?.cancel();
     _backT?.cancel();
     _stableT?.cancel();
@@ -5249,39 +5207,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ]),
                 ),
               ),
-            ),
-          if (!Device.tv)
-            ValueListenableBuilder<CastInfo?>(
-              valueListenable: CastCtl.state,
-              builder: (ctx, c, _) => c == null
-                  ? const SizedBox.shrink()
-                  : Positioned.fill(
-                      child: Container(
-                        color: const Color(0xF2000000),
-                        alignment: Alignment.center,
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(CupertinoIcons.tv, size: 46, color: Colors.white),
-                          const SizedBox(height: 12),
-                          Text('Diffusé sur ${c.name}', style: T(20, w: 750)),
-                          const SizedBox(height: 4),
-                          Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis, style: T(14, color: kMut)),
-                          const SizedBox(height: 18),
-                          Row(mainAxisSize: MainAxisSize.min, children: [
-                            if (!_live) IconButton(iconSize: 34, icon: const Icon(CupertinoIcons.gobackward_10), onPressed: () => CastCtl.seekBy(-10)),
-                            IconButton(iconSize: 52, icon: Icon(c.playing ? CupertinoIcons.pause_circle_fill : CupertinoIcons.play_circle_fill), onPressed: c.playing ? CastCtl.pause : CastCtl.play),
-                            if (!_live) IconButton(iconSize: 34, icon: const Icon(CupertinoIcons.goforward_10), onPressed: () => CastCtl.seekBy(10)),
-                          ]),
-                          const SizedBox(height: 14),
-                          TextButton(
-                            onPressed: () async {
-                              await CastCtl.stop();
-                              if (mounted) Navigator.maybePop(context);
-                            },
-                            child: Text('Arrêter la diffusion', style: T(15, w: 700, color: kAccent)),
-                          ),
-                        ]),
-                      ),
-                    ),
             ),
           if (_nextIn > 0)
             Positioned(

@@ -196,9 +196,6 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string minouflix" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSBonjourServices array" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSBonjourServices:0 string _googlecast._tcp" ios/Runner/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string MinouFlix utilise le reseau local pour trouver votre Chromecast et lui envoyer la lecture." ios/Runner/Info.plist
           sed -i '' "s/^# platform :ios.*/platform :ios, '13.0'/" ios/Podfile
       - run: flutter pub get
       - name: Icône (logo MinouFlix) et nom

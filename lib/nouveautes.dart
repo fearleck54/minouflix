@@ -1,9 +1,6 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
-  ('Version 244', [
-    'Chromecast : depuis le lecteur (menu ⋯, « Caster sur une Chromecast »), la lecture part sur ta Chromecast ; l\'appli devient la télécommande (pause, ±10 s, arrêt). Ton abonnement à un seul écran est libéré avant l\'envoi. Certains formats (MKV, MPEG-TS) peuvent ne pas être lus par la Chromecast.',
-  ]),
   ('Version 243', [
     'Android TV / Google TV : « Continuer à regarder » de MinouFlix apparaît dans la rangée de l\'accueil de la télé ; un clic rouvre le film ou l\'épisode à sa position.',
   ]),

@@ -1,7 +1,7 @@
 name: minouflix
 description: MinouFlix - lecteur IPTV autonome (sans serveur), iOS et Android TV.
 publish_to: "none"
-version: 1.0.244+244
+version: 1.0.245+245
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -29,8 +29,6 @@ dependencies:
   media_kit_video: ^1.2.4
   media_kit_libs_video: ^1.0.4
   youtube_explode_dart: ^3.1.0
-  cast: ^2.1.0
-  bonsoir: ^7.1.0      # recherche des Chromecast sur le réseau (le module `cast` embarque une recherche trop ancienne : on n'utilise que sa partie connexion)
 
 dev_dependencies:
   flutter_test:
