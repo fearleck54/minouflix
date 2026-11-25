@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 221', [
+    'Réglages › Refaire la configuration : une flèche de retour permet de quitter sans rien changer.',
+  ]),
   ('Version 220', [
     'Connexion au fournisseur : l\'appli se présente comme un lecteur IPTV courant (certains serveurs refusent les clients inconnus).',
   ]),

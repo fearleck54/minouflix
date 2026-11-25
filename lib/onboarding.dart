@@ -258,7 +258,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     Widget? extra,
   }) {
     final pos = _seq.indexOf(step);
-    final head = _OnbHead(step: pos, total: _steps, onBack: step > _first ? () => go(_prev(step)) : null, onSkip: skip ? () => step != _seq.last ? go(_next(step)) : widget.sportOnly ? widget.onDone() : _finish() : null);
+    final head = _OnbHead(step: pos, total: _steps, onBack: step > _first ? () => go(_prev(step)) : (_editing ? () => Navigator.maybePop(context) : null), onSkip: skip ? () => step != _seq.last ? go(_next(step)) : widget.sportOnly ? widget.onDone() : _finish() : null);
     final titleW = [
       _In(i: 0, child: mat(_t('ÉTAPE ${pos + 1} SUR $_steps', 'STEP ${pos + 1} OF $_steps'), T(12, w: 700, color: kAccent, ls: 0.12))),
       const SizedBox(height: 10),
