@@ -129,7 +129,8 @@ class _BrandIntroState extends State<BrandIntro> with SingleTickerProviderStateM
 /// clignement des yeux, oreille qui frétille, queue qui balaie. Quelques ovales seulement : léger même avec 1 Go de mémoire.
 class _CatPainter extends CustomPainter {
   final double t;      // 0 → 1, boucle de 3,2 s
-  _CatPainter(this.t);
+  final double wink;   // 0 → 1 → 0 : clin d'œil (œil droit seulement)
+  _CatPainter(this.t, [this.wink = 0]);
 
   static const _dark = Color(0xFF6B0000), _red = Color(0xFFFF2D45), _ink = Color(0xFF060610);
 
@@ -187,8 +188,9 @@ class _CatPainter extends CustomPainter {
     final blink = 1 - 0.92 * math.max(_bump(0.30, 0.025), _bump(0.80, 0.025));
     final look = 1.6 * math.sin(a);
     for (final x in const [42.0, 58.0]) {
-      c.drawOval(Rect.fromCenter(center: Offset(x, 36), width: 10, height: 12 * blink), Paint()..color = _ink);
-      if (blink > 0.5) c.drawOval(Rect.fromCenter(center: Offset(x + 1.5 + look * 0.5, 34), width: 3, height: 4 * blink), Paint()..color = const Color(0x99FFFFFF));
+      final b = blink * (x > 50 ? 1 - 0.95 * wink : 1.0);
+      c.drawOval(Rect.fromCenter(center: Offset(x, 36), width: 10, height: 12 * b), Paint()..color = _ink);
+      if (b > 0.5) c.drawOval(Rect.fromCenter(center: Offset(x + 1.5 + look * 0.5, 34), width: 3, height: 4 * b), Paint()..color = const Color(0x99FFFFFF));
     }
     c.drawOval(Rect.fromCenter(center: const Offset(50, 43), width: 6, height: 4), Paint()..color = _ink);
     // moustaches : frémissent
@@ -206,7 +208,7 @@ class _CatPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CatPainter o) => o.t != t;
+  bool shouldRepaint(_CatPainter o) => o.t != t || o.wink != wink;
 }
 
 
@@ -253,6 +255,7 @@ class _LaunchIntroState extends State<LaunchIntro> with SingleTickerProviderStat
         final word = _seg(v, 0.26, 0.58);
         final sweep = _seg(v, 0.58, 0.84, Curves.easeInOut);
         final out = 1 - _seg(v, 0.88, 1.0, Curves.easeIn);
+        final wink = _seg(v, 0.62, 0.68, Curves.easeOut) * (1 - _seg(v, 0.74, 0.80, Curves.easeIn));      // clin d'œil une fois le nom révélé
         Widget title = Text('MinouFlix', style: T(Device.tv ? 52 : 40, w: 850, ls: 0.01 + 0.18 * (1 - word)));
         if (!lite && sweep > 0 && sweep < 1) {
           title = ShaderMask(
@@ -279,7 +282,7 @@ class _LaunchIntroState extends State<LaunchIntro> with SingleTickerProviderStat
                       opacity: catOp,
                       child: Transform.translate(
                         offset: Offset(0, -70 * (1 - _seg(v, 0.0, 0.40, Curves.bounceOut))),      // le chat tombe et rebondit
-                        child: Transform.scale(scale: 0.72 + 0.28 * cat, child: CustomPaint(size: Size(h, h), painter: _CatPainter((v * 2.6) % 1.0))),
+                        child: Transform.scale(scale: 0.72 + 0.28 * cat, child: CustomPaint(size: Size(h, h), painter: _CatPainter((v * 2.6) % 1.0, wink))),
                       ),
                     ),
                     const SizedBox(height: 18),

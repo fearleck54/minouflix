@@ -3,7 +3,7 @@
 const kNews = <(String, List<String>)>[
   ('Version 237', [
     'Sport : les matchs terminés n\'affichent plus « Terminé » ni la coche, le score suffit et les noms ont plus de place.',
-    'Animation d\'ouverture : plus de soulignement jaune sous MinouFlix, et le chat est plus vivant (il tombe et rebondit, queue, yeux et oreille plus rapides).',
+    'Animation d\'ouverture : plus de soulignement jaune sous MinouFlix, et le chat est plus vivant (il tombe et rebondit, queue, yeux et oreille plus rapides) et fait un clin d\'œil.',
   ]),
   ('Version 236', [
     'Démarrage : animation d\'ouverture de 2,8 secondes (le chat apparaît, MinouFlix se révèle, un reflet passe) pendant que l\'accueil se prépare derrière ; il apparaît ensuite d\'un coup.',
