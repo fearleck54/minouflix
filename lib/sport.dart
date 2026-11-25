@@ -1004,6 +1004,10 @@ class _SportTabState extends State<SportTab> {
         if (day.isNotEmpty && !days.contains(day)) day = '';
         final l = all.where((e) => (sp.isEmpty || sportName(lgOf(e.lg)) == sp) && (lg.isEmpty || e.lg == lg) && (!mine || followed(e)) && (!onlyLive || e.live) && (day.isEmpty || e.live || dayTitle(e) == day)).toList();
         final live = l.where((e) => e.live).toList();
+        final nm = all.where((e) => !e.live && !e.post && followed(e)).toList();
+        final emptyMsg = mine
+            ? (nm.isNotEmpty ? 'Prochain match de tes équipes : ${nm.first.h.short} – ${nm.first.a.short} · ${whenLabel(nm.first).toLowerCase()}' : 'Aucun match prévu pour tes équipes dans les 8 prochains jours.')
+            : (onlyLive ? 'Aucun match en direct.' : 'Aucun match prévu ces prochains jours.');
         final next = l.where((e) => !e.live && !e.post).toList();
         // grande fiche : d'abord le match en cours de mes équipes, puis le leur qui commence dans moins de 2 h, sinon l'ordre habituel
         final nowS = DateTime.now().millisecondsSinceEpoch ~/ 1000;
@@ -1065,7 +1069,7 @@ class _SportTabState extends State<SportTab> {
           ]);
           Widget grid(List<Ev> evs) => Wrap(spacing: 14, runSpacing: 14, children: [for (final e in evs) SportCard(e: e, width: 390, onLong: () => _follow(e), onTap: () => widget.onOpen(e))]);
           final main = ListView(padding: const EdgeInsets.fromLTRB(0, 8, 0, 60), children: [
-            if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(20, color: kMut)))),
+            if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(emptyMsg, style: T(20, color: kMut)))),
             if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),
             if (hero != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: SportHero(e: hero, onTap: () => widget.onOpen(hero))),
             if (live.length > 1) ...[
@@ -1132,7 +1136,7 @@ class _SportTabState extends State<SportTab> {
               selected: lg.isEmpty ? 0 : inSport.indexWhere((k) => k.k == lg) + 1,
               onSelect: (v) => setState(() => lg = v == 0 ? '' : inSport[v - 1].k),
             ),
-          if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(mine ? 'Aucun match prévu pour tes équipes.' : 'Aucun match prévu ces prochains jours.', style: T(15, color: kMut)))),
+          if (l.isEmpty) Padding(padding: const EdgeInsets.all(40), child: Center(child: Text(emptyMsg, style: T(15, color: kMut)))),
           if (lg.isNotEmpty) LeagueBanner(l: lgOf(lg), matches: next.length),
           if (hero != null) SportHero(e: hero, onTap: () => widget.onOpen(hero)),
           if (live.length > 1) ...[

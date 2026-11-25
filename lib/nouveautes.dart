@@ -4,6 +4,7 @@ const kNews = <(String, List<String>)>[
   ('Version 239', [
     'Sport : toucher un match ouvre toujours la liste des chaînes possibles (la meilleure en premier, avec l\'heure du programme) au lieu de lancer une chaîne d\'office.',
     'Sport : la puce « En direct » n\'affiche plus le nombre de matchs.',
+    'Sport : quand il n\'y a rien à afficher pour tes équipes, l\'écran donne la date de leur prochain match.',
   ]),
   ('Version 238', [
     'Sport : ruban de jours pour sauter à une date (téléphone), puce « En direct » (barre latérale sur la télé), scores en direct mis à jour chaque minute, appui long sur un match pour suivre une équipe.',
