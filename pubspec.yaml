@@ -1,7 +1,7 @@
 name: minouflix
 description: MinouFlix - lecteur IPTV autonome (sans serveur), iOS et Android TV.
 publish_to: "none"
-version: 1.0.243+243
+version: 1.0.244+244
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -29,6 +29,7 @@ dependencies:
   media_kit_video: ^1.2.4
   media_kit_libs_video: ^1.0.4
   youtube_explode_dart: ^3.1.0
+  cast: ^2.1.0
 
 dev_dependencies:
   flutter_test:
