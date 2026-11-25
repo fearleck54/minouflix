@@ -22,6 +22,7 @@ import 'sport.dart';
 import 'rights.dart';
 import 'sport_detail.dart';
 import 'trailer.dart';
+import 'watchnext.dart';
 import 'nouveautes.dart';
 import 'version.dart';
 import 'keys.dart' show kTmdbKey;
@@ -709,6 +710,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     sportFresh.addListener(_onSportFresh);
+    Store.resumeTick.addListener(_checkResume);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkResume());
     Epg.src = x;
     unawaited(Connect.isTv().then((_) => Connect.start(_onRemote)));
     _loadAll();
@@ -781,6 +784,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  /// « Continuer à regarder » lancé depuis l'accueil Google TV : on rouvre le titre à sa position
+  void _checkResume() {
+    final k = Store.pendingResume;
+    if (k == null || !mounted) return;
+    Store.pendingResume = null;
+    for (final p in Store.allProg()) {
+      if (p.key == k) {
+        unawaited(resume(p));
+        return;
+      }
+    }
+  }
+
   void _onSportFresh() {
     final v = sportFresh.value;
     if (v != null && mounted) setState(() => sport = Future.value(v));
@@ -789,6 +805,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     sportFresh.removeListener(_onSportFresh);
+    Store.resumeTick.removeListener(_checkResume);
     WidgetsBinding.instance.removeObserver(this);
     Store.persoTick.removeListener(_persoChanged);
     Connect.stop();
@@ -1501,6 +1518,7 @@ class HomeTab extends StatelessWidget {
             );
             if (ok != true) return;
             await Store.hideProg(cont[i].key);
+            unawaited(WatchNext.remove(cont[i].key));
             unawaited(Sync.run());      // le retrait part tout de suite vers les autres appareils
             onTab(0);
             if (Device.tv && cont.length > 1) {      // la sélection va sur la carte d'après (la précédente si c'était la dernière), pas sur l'accueil
@@ -4682,6 +4700,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       p.t = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       p.hidden = false;
       Store.saveProg(p);
+      if (dur > 0 && pos >= dur * 0.9) {
+        unawaited(WatchNext.remove(p.key));      // terminé : il quitte la rangée « Continuer » de la télé
+      } else {
+        unawaited(WatchNext.set(p));
+      }
       // film terminé, ou dernier épisode d'une série terminé : « Déjà vu »
       if (dur > 0 && pos >= dur * 0.9) {
         final k = p.kind == 'vod' ? 'vod:${p.id}' : (p.kind == 'ep' && widget.next.isEmpty && p.sid > 0 ? 'series:${p.sid}' : '');

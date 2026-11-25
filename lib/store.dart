@@ -607,6 +607,8 @@ class Store {
   // ---- ma liste (favoris) : clés « vod:123 », « series:45 », « live:678 »
   /// change à chaque ajout / retrait de favori (les étoiles se redessinent toutes seules)
   static final favTick = ValueNotifier<int>(0);
+  static String? pendingResume;      // clé d'un titre à reprendre, demandée par la rangée « Continuer » de l'accueil Google TV
+  static final resumeTick = ValueNotifier<int>(0);
 
   // ---- déjà vu : titres terminés (90 % ou plus) ou marqués à la main. Clé « vod:ID » ou « series:ID » ; valeur = date en secondes, positive = vu, négative = retiré
   static Map<String, int> get seenMap {

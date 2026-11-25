@@ -101,6 +101,11 @@ class MinouFlix extends StatelessWidget {
 
   static Future<void> _onLink(Uri u, [int tries = 0]) async {
     if (u.scheme == 'minouflix' && u.host == 'reset') return _onReset(u);
+    if (u.scheme == 'minouflix' && u.host == 'resume') {
+      Store.pendingResume = u.queryParameters['k'];
+      Store.resumeTick.value++;
+      return;
+    }
     if (u.scheme != 'minouflix' || u.host != 'pair') return;
     final code = Pairing.norm(u.queryParameters['c'] ?? '');
     if (code.length != 8) return;
