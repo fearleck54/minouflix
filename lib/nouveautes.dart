@@ -4,6 +4,7 @@ const kNews = <(String, List<String>)>[
   ('Version 223', [
     'Source à un seul écran : le message « un autre appareil est en cours de lecture » s\'affiche aussi pour les films et séries (il manquait).',
     'Quand une lecture échoue, le journal garde le détail donné par le lecteur.',
+    'Si le serveur refuse l\'ouverture d\'un flux, l\'appli réessaie seule plusieurs fois (autres identités, puis pauses) avant d\'afficher une erreur.',
   ]),
   ('Version 222', [
     'Lecteur iPhone : les boutons de l\'écran d\'erreur et du lecteur répondent de nouveau (le toucher de l\'écran ne les recouvre plus).',

@@ -3922,7 +3922,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   bool _kicked = false;
-  int _uaTries = 0;
+  int _uaTries = 0, _openFails = 0;
 
   /// source à un seul écran déjà utilisée : on demande avant de lire, puis l'autre appareil est arrêté (true = on lit)
   Future<bool> _askTakeOver() async {
@@ -3964,6 +3964,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _retryNow() {
     _uaTries = 0;
+    _openFails = 0;
     _altTried = 0;
     _silent = 0;
     _open(_cur);
@@ -4412,11 +4413,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     _errSub = player.stream.error.listen((e) {
       Journal.add('Lecteur', e);
-      if (e.contains('Failed to open') && _uaTries < kIptvUas.length - 1 && widget.audioUrl == null && !widget.debug) {
-        // le serveur coupe la connexion : on réessaie aussitôt avec une autre identité de lecteur IPTV
-        _uaTries++;
-        uaNext();
-        Future<void>.delayed(const Duration(seconds: 1), () async {
+      if (e.contains('Failed to open') && _openFails < 6 && widget.audioUrl == null && !widget.debug) {
+        // le serveur refuse ou coupe : on réessaie seul (autre identité de lecteur IPTV, puis pauses plus longues pour laisser le serveur libérer l'ancienne connexion)
+        _openFails++;
+        if (_uaTries < kIptvUas.length - 1) {
+          _uaTries++;
+          uaNext();
+        }
+        Future<void>.delayed(Duration(seconds: _openFails <= 3 ? 1 : 5), () async {
           if (!mounted || _fail != null) return;
           try {
             await (player.platform as dynamic).setProperty('user-agent', kIptvUa);
