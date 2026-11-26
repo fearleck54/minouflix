@@ -1,6 +1,9 @@
 /// nouveautés affichées dans Réglages › Aide › À propos › Version (la plus récente d'abord) : une entrée par groupe de versions,
 /// à compléter à chaque publication
 const kNews = <(String, List<String>)>[
+  ('Version 246', [
+    'Android TV : la bannière de l\'accueil montre le chat seul sur le fond dégradé, sans le carré visible autour.',
+  ]),
   ('Version 243', [
     'Android TV / Google TV : « Continuer à regarder » de MinouFlix apparaît dans la rangée de l\'accueil de la télé ; un clic rouvre le film ou l\'épisode à sa position.',
   ]),
